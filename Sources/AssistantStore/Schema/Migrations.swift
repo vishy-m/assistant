@@ -11,5 +11,6 @@ public enum Migrations {
         Migration003Task.register(&migrator)
         Migration004GCal.register(&migrator)
         Migration005Conversation.register(&migrator)
+        Migration006Briefing.register(&migrator)
     }
 }
