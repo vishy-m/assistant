@@ -19,6 +19,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Show today",
                                 action: #selector(showToday(_:)),
                                 keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Submit prompt…",
+                                action: #selector(submitPromptDev(_:)),
+                                keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Assistant",
                                 action: #selector(NSApplication.terminate(_:)),
@@ -62,6 +65,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             alert.addButton(withTitle: "OK")
             alert.runModal()
+        }
+    }
+
+    @objc private func submitPromptDev(_ sender: Any?) {
+        let alert = NSAlert()
+        alert.messageText = "Submit prompt (dev)"
+        alert.informativeText = "Type a natural-language prompt. The daemon will run it through the LLM chain."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 400, height: 24))
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Send")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn,
+              !field.stringValue.isEmpty else { return }
+
+        let text = field.stringValue
+        XPCClient.shared.submitPrompt(text: text) { result in
+            let resultAlert = NSAlert()
+            switch result {
+            case .success(let resp) where resp.errorMessage == nil:
+                resultAlert.messageText = "Reply via \(resp.modelUsed)"
+                resultAlert.informativeText = resp.text.isEmpty ? "(no text content — likely tool calls only)" : resp.text
+            case .success(let resp):
+                resultAlert.alertStyle = .warning
+                resultAlert.messageText = "Chain error"
+                resultAlert.informativeText = resp.errorMessage ?? "unknown"
+            case .failure(let err):
+                resultAlert.alertStyle = .warning
+                resultAlert.messageText = "XPC failed"
+                resultAlert.informativeText = "\(err)"
+            }
+            resultAlert.addButton(withTitle: "OK")
+            resultAlert.runModal()
         }
     }
 }
