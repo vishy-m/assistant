@@ -25,7 +25,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func pingDaemon(_ sender: Any?) {
-        // Wired up in Task 10.
-        NSLog("Ping requested (XPC client not wired yet)")
+        XPCClient.shared.ping { result in
+            let alert = NSAlert()
+            switch result {
+            case .success(let response):
+                alert.messageText = "Daemon replied"
+                alert.informativeText = response
+            case .failure(let error):
+                alert.alertStyle = .warning
+                alert.messageText = "Daemon unreachable"
+                alert.informativeText = "\(error)"
+            }
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
     }
 }
