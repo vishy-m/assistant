@@ -7,5 +7,6 @@ public enum Migrations {
 
     public static func register(_ migrator: inout DatabaseMigrator) {
         Migration001Setting.register(&migrator)
+        Migration002Course.register(&migrator)
     }
 }
