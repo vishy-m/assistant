@@ -16,6 +16,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Ping daemon",
                                 action: #selector(pingDaemon(_:)),
                                 keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Show today",
+                                action: #selector(showToday(_:)),
+                                keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Assistant",
                                 action: #selector(NSApplication.terminate(_:)),
@@ -34,6 +37,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .failure(let error):
                 alert.alertStyle = .warning
                 alert.messageText = "Daemon unreachable"
+                alert.informativeText = "\(error)"
+            }
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+
+    @objc private func showToday(_ sender: Any?) {
+        XPCClient.shared.getTodayPlan { result in
+            let alert = NSAlert()
+            switch result {
+            case .success(let plan):
+                alert.messageText = "Today (\(plan.items.count) items)"
+                if plan.items.isEmpty {
+                    alert.informativeText = "Nothing scheduled. (Empty DB — expected for sub-plan #2.)"
+                } else {
+                    alert.informativeText = plan.items.map { "• \($0.title)" }.joined(separator: "\n")
+                }
+            case .failure(let error):
+                alert.alertStyle = .warning
+                alert.messageText = "Failed"
                 alert.informativeText = "\(error)"
             }
             alert.addButton(withTitle: "OK")

@@ -35,6 +35,8 @@ targets:
     dependencies:
       - package: AssistantShared
         product: AssistantShared
+      - package: AssistantShared
+        product: AssistantStore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.vishruth.assistant.core

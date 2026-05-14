@@ -26,6 +26,29 @@ final class XPCClient {
         }
     }
 
+    /// Calls `getTodayPlan` and decodes the JSON response. Reply on main queue.
+    func getTodayPlan(reply: @escaping (Result<TodayPlan, Error>) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.getTodayPlan { data in
+                DispatchQueue.main.async {
+                    guard !data.isEmpty else {
+                        reply(.failure(XPCClientError.emptyResponse))
+                        return
+                    }
+                    do {
+                        let plan = try JSONDecoder().decode(TodayPlan.self, from: data)
+                        reply(.success(plan))
+                    } catch {
+                        reply(.failure(error))
+                    }
+                }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(.failure(error)) }
+        }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {
@@ -70,4 +93,5 @@ final class XPCClient {
 
 enum XPCClientError: Error {
     case proxyCastFailed
+    case emptyResponse
 }
