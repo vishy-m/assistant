@@ -1,0 +1,46 @@
+name: Assistant
+options:
+  bundleIdPrefix: com.vishruth
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+
+packages:
+  AssistantShared:
+    path: "."
+
+targets:
+  AssistantUI:
+    type: application
+    platform: macOS
+    sources:
+      - path: App/AssistantUI
+    dependencies:
+      - package: AssistantShared
+        product: AssistantShared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vishruth.assistant
+        INFOPLIST_FILE: App/AssistantUI/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/AssistantUI/AssistantUI.entitlements
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+
+  AssistantCoreHelper:
+    type: tool
+    platform: macOS
+    sources:
+      - path: App/AssistantCoreHelper
+    dependencies:
+      - package: AssistantShared
+        product: AssistantShared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vishruth.assistant.core
+        INFOPLIST_FILE: App/AssistantCoreHelper/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/AssistantCoreHelper/AssistantCoreHelper.entitlements
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        SKIP_INSTALL: NO
