@@ -20,6 +20,6 @@ let package = Package(
                 dependencies: ["AssistantShared", "AssistantStore"]),
         .testTarget(name: "AssistantSharedTests", dependencies: ["AssistantShared"]),
         .testTarget(name: "AssistantStoreTests", dependencies: ["AssistantStore", "AssistantShared"]),
-        .testTarget(name: "AssistantLLMTests", dependencies: ["AssistantLLM"])
+        .testTarget(name: "AssistantLLMTests", dependencies: ["AssistantLLM", "AssistantStore"])
     ]
 )
