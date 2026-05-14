@@ -9,5 +9,6 @@ public enum Migrations {
         Migration001Setting.register(&migrator)
         Migration002Course.register(&migrator)
         Migration003Task.register(&migrator)
+        Migration004GCal.register(&migrator)
     }
 }
