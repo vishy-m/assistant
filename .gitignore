@@ -1,0 +1,16 @@
+# Xcode / build
+.build/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+
+# SPM
+.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# Generated launchd plists in user's home (just in case)
+*.plist.local
