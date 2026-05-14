@@ -6,7 +6,6 @@ import GRDB
 public enum Migrations {
 
     public static func register(_ migrator: inout DatabaseMigrator) {
-        // Migrations registered in order; each task in this plan adds one.
-        // (Tasks 3–8 populate this list.)
+        Migration001Setting.register(&migrator)
     }
 }
