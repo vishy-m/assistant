@@ -31,20 +31,24 @@ public enum GradeCalculator {
 
         for cat in input.categories {
             let catItems = input.items.filter { $0.categoryId == cat.id && !$0.isExtraCredit }
-            // CURRENT — only graded
+
+            // CURRENT
             let gradedCurrent = catItems.filter { $0.earnedPoints != nil }
-            let currentPct = average(items: gradedCurrent, projection: [:])
+            let droppedCurrent = dropExtremes(gradedCurrent,
+                                              lowestN: cat.dropLowestN, highestN: cat.dropHighestN)
+            let currentPct = average(items: droppedCurrent.kept, projection: [:])
+
             // PROJECTED
-            let projected = projectedItems(catItems, projection: input.projection)
-            let projectedPct = average(items: projected.items, projection: [:])
+            let projectedResolved = projectedItems(catItems, projection: input.projection).items
+            let droppedProjected = dropExtremes(projectedResolved,
+                                                lowestN: cat.dropLowestN, highestN: cat.dropHighestN)
+            let projectedPct = average(items: droppedProjected.kept, projection: [:])
 
             categoryRows.append(.init(
-                categoryId: cat.id,
-                categoryName: cat.name,
+                categoryId: cat.id, categoryName: cat.name,
                 weightPct: cat.weightPct,
-                currentPct: currentPct,
-                projectedPct: projectedPct,
-                droppedItemIds: []))
+                currentPct: currentPct, projectedPct: projectedPct,
+                droppedItemIds: droppedCurrent.dropped))
 
             if !gradedCurrent.isEmpty {
                 weightedCurrent += currentPct * cat.weightPct
@@ -65,6 +69,24 @@ public enum GradeCalculator {
             perCategory: categoryRows,
             currentLetter: gradingScale.letter(for: currentPct),
             projectedLetter: gradingScale.letter(for: projectedPct))
+    }
+
+    private static func dropExtremes(_ items: [GradeCalculatorInput.ItemIn],
+                                     lowestN: Int, highestN: Int) -> (kept: [GradeCalculatorInput.ItemIn], dropped: [String]) {
+        guard items.count > 1 else { return (items, []) }
+        let sorted = items.sorted { ratio($0) < ratio($1) }
+        let dropLow = max(0, min(lowestN, sorted.count - 1))
+        let remainingAfterLow = Array(sorted.dropFirst(dropLow))
+        let dropHigh = max(0, min(highestN, remainingAfterLow.count - 1))
+        let kept = Array(remainingAfterLow.dropLast(dropHigh))
+        let dropped = items.filter { item in !kept.contains(where: { $0.id == item.id }) }
+                          .map(\.id)
+        return (kept, dropped)
+    }
+
+    private static func ratio(_ item: GradeCalculatorInput.ItemIn) -> Double {
+        guard let earned = item.earnedPoints else { return 0 }
+        return earned / item.maxPoints
     }
 
     private static func average(items: [GradeCalculatorInput.ItemIn],
