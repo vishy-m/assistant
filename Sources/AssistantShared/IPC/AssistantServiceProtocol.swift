@@ -8,4 +8,5 @@ public protocol AssistantServiceProtocol {
     func setGoogleRefreshToken(_ token: String, reply: @escaping (Bool) -> Void)
     func getMostRecentSessionId(reply: @escaping (String?) -> Void)
     func getMessages(sessionId: String, reply: @escaping (Data) -> Void)
+    func registerEventClient(_ endpoint: NSXPCListenerEndpoint, reply: @escaping (Bool) -> Void)
 }
