@@ -15,6 +15,10 @@ final class OverlayState: ObservableObject {
     @Published var attachedImage: AttachedImage? = nil
     @Published var isSubmitting: Bool = false
 
+    /// Bumped on every summon so the view can re-focus the text field
+    /// (`.onAppear` fires only once per view lifecycle, and the panel is reused).
+    @Published var focusToken: UUID = UUID()
+
     /// Conversation thread when in chat mode.
     @Published var messages: [OverlayMessage] = []
 

@@ -47,6 +47,8 @@ final class OverlayController {
         panel.anchorToBottom()
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        // Re-focus the text field on every summon (not just first lifecycle).
+        state.focusToken = UUID()
     }
 
     func dismiss() {

@@ -62,6 +62,7 @@ struct OverlayRootView: View {
                 .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
         )
         .onAppear { inputFocused = true }
+        .onChange(of: state.focusToken) { _ in inputFocused = true }
         .onExitCommand { onDismiss() }   // SwiftUI's Esc handler
     }
 
