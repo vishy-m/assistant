@@ -53,6 +53,8 @@ targets:
         product: AssistantLLM
       - package: AssistantShared
         product: AssistantGCal
+      - package: AssistantShared
+        product: AssistantBriefings
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.vishruth.assistant.core

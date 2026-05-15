@@ -3,6 +3,7 @@ import AssistantShared
 import AssistantStore
 import AssistantLLM
 import AssistantGCal
+import AssistantBriefings
 
 NSLog("[AssistantCoreHelper] starting")
 
@@ -62,6 +63,39 @@ gcalTimer.setEventHandler {
 }
 gcalTimer.resume()
 NSLog("[AssistantCoreHelper] GCal sync timer started")
+
+// MARK: - Briefing scheduler
+
+let dispatcher = BriefingDispatcher(
+    db: db,
+    isFocused: { FocusModeMonitor().isFocused },
+    pushToUI: { payload in service.pushBriefing(payload) })
+
+let composer = BriefingComposer(chain: chain)
+let rules = BriefingRules(db: db)
+let scheduler = BriefingScheduler(db: db, dispatcher: dispatcher,
+                                  composer: composer, rules: rules)
+
+_Concurrency.Task.detached {
+    await scheduler.start()
+    NSLog("[BriefingScheduler] started")
+}
+
+// On Focus mode end, drain queue. Poll every 60s.
+let focusPollTimer = DispatchSource.makeTimerSource(queue: .global(qos: .background))
+focusPollTimer.schedule(deadline: .now() + 60, repeating: .seconds(60))
+nonisolated(unsafe) var lastFocused = FocusModeMonitor().isFocused
+focusPollTimer.setEventHandler {
+    let nowFocused = FocusModeMonitor().isFocused
+    if lastFocused == true && nowFocused == false {
+        _Concurrency.Task.detached {
+            try? await dispatcher.drainQueue(since: Date().addingTimeInterval(-86_400))
+        }
+    }
+    lastFocused = nowFocused
+}
+focusPollTimer.resume()
+NSLog("[BriefingScheduler] focus poll timer started")
 
 final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
     let service: AssistantService
