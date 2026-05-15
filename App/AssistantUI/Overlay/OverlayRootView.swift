@@ -73,7 +73,7 @@ struct OverlayRootView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 56, alignment: .trailing)
             VStack(alignment: .leading, spacing: 4) {
-                Text(msg.text).textSelection(.enabled)
+                Text(renderMarkdown(msg.text)).textSelection(.enabled)
                 if let model = msg.modelUsed {
                     Text(model).font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(.tertiary)
@@ -84,6 +84,13 @@ struct OverlayRootView: View {
 
     private func roleLabel(_ r: OverlayState.OverlayMessage.Role) -> String {
         switch r { case .user: "you"; case .assistant: "assistant"; case .system: "system" }
+    }
+
+    private func renderMarkdown(_ s: String) -> AttributedString {
+        var options = AttributedString.MarkdownParsingOptions()
+        options.interpretedSyntax = .inlineOnlyPreservingWhitespace
+        return (try? AttributedString(markdown: s, options: options))
+            ?? AttributedString(s)
     }
 
     @ViewBuilder
