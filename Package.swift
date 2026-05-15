@@ -9,7 +9,8 @@ let package = Package(
         .library(name: "AssistantStore", targets: ["AssistantStore"]),
         .library(name: "AssistantLLM", targets: ["AssistantLLM"]),
         .library(name: "AssistantGCal", targets: ["AssistantGCal"]),
-        .library(name: "AssistantBriefings", targets: ["AssistantBriefings"])
+        .library(name: "AssistantBriefings", targets: ["AssistantBriefings"]),
+        .library(name: "AssistantGrades", targets: ["AssistantGrades"])
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.29.0"),
@@ -28,11 +29,15 @@ let package = Package(
                 ]),
         .target(name: "AssistantBriefings",
                 dependencies: ["AssistantShared", "AssistantStore", "AssistantLLM", "AssistantGCal"]),
+        .target(name: "AssistantGrades",
+                dependencies: ["AssistantShared", "AssistantStore", "AssistantLLM"]),
         .testTarget(name: "AssistantSharedTests", dependencies: ["AssistantShared"]),
         .testTarget(name: "AssistantStoreTests", dependencies: ["AssistantStore", "AssistantShared"]),
         .testTarget(name: "AssistantLLMTests", dependencies: ["AssistantLLM", "AssistantStore"]),
         .testTarget(name: "AssistantGCalTests", dependencies: ["AssistantGCal", "AssistantStore"]),
         .testTarget(name: "AssistantBriefingsTests",
-                    dependencies: ["AssistantBriefings", "AssistantStore"])
+                    dependencies: ["AssistantBriefings", "AssistantStore"]),
+        .testTarget(name: "AssistantGradesTests",
+                    dependencies: ["AssistantGrades", "AssistantStore"])
     ]
 )
