@@ -63,12 +63,26 @@ public enum GradeCalculator {
         let currentPct = weightSumUsedCurrent > 0 ? weightedCurrent / weightSumUsedCurrent : 0
         let projectedPct = weightSumUsedProjected > 0 ? weightedProjected / weightSumUsedProjected : 0
 
+        // Extra credit additions (graded EC items)
+        let extraCreditEarned = input.items
+            .filter { $0.isExtraCredit && $0.earnedPoints != nil }
+            .reduce(0.0) { $0 + ($1.earnedPoints ?? 0) }
+        let extraCreditProjected = input.items
+            .filter { $0.isExtraCredit }
+            .reduce(0.0) { acc, item in
+                acc + (item.earnedPoints ?? input.projection[item.id] ?? 0)
+            }
+
+        let safetyCap = 20.0
+        let finalCurrent = min(currentPct + min(extraCreditEarned, safetyCap), 110.0)
+        let finalProjected = min(projectedPct + min(extraCreditProjected, safetyCap), 110.0)
+
         return GradeBreakdown(
-            currentPct: currentPct,
-            projectedPct: projectedPct,
+            currentPct: finalCurrent,
+            projectedPct: finalProjected,
             perCategory: categoryRows,
-            currentLetter: gradingScale.letter(for: currentPct),
-            projectedLetter: gradingScale.letter(for: projectedPct))
+            currentLetter: gradingScale.letter(for: finalCurrent),
+            projectedLetter: gradingScale.letter(for: finalProjected))
     }
 
     private static func dropExtremes(_ items: [GradeCalculatorInput.ItemIn],
