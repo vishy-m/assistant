@@ -13,6 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Open overlay",
+                                action: #selector(openOverlay(_:)), keyEquivalent: ""))
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Ping daemon",
                                 action: #selector(pingDaemon(_:)),
                                 keyEquivalent: ""))
@@ -31,6 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                 keyEquivalent: "q"))
         item.menu = menu
         self.statusItem = item
+
+        OverlayController.shared.install()
     }
 
     @objc private func pingDaemon(_ sender: Any?) {
@@ -101,6 +106,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             resultAlert.addButton(withTitle: "OK")
             resultAlert.runModal()
         }
+    }
+
+    @objc private func openOverlay(_ sender: Any?) {
+        Task { @MainActor in OverlayController.shared.summon() }
     }
 
     @objc private func connectGoogle(_ sender: Any?) {
