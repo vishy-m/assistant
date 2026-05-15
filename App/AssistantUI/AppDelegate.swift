@@ -22,6 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Submit prompt…",
                                 action: #selector(submitPromptDev(_:)),
                                 keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Connect Google Calendar…",
+                                action: #selector(connectGoogle(_:)),
+                                keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Assistant",
                                 action: #selector(NSApplication.terminate(_:)),
@@ -97,6 +100,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             resultAlert.addButton(withTitle: "OK")
             resultAlert.runModal()
+        }
+    }
+
+    @objc private func connectGoogle(_ sender: Any?) {
+        let win = NSApp.keyWindow ?? NSWindow()
+        Task { @MainActor in
+            await GoogleAuthFlow.shared.connect(presentingWindow: win)
         }
     }
 }

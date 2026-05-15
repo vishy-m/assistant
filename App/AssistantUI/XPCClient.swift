@@ -73,6 +73,17 @@ final class XPCClient {
         }
     }
 
+    func setGoogleRefreshToken(_ token: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.setGoogleRefreshToken(token) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
+        }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {

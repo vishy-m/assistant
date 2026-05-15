@@ -2,6 +2,7 @@ import Foundation
 import AssistantShared
 import AssistantStore
 import AssistantLLM
+import AssistantGCal
 
 final class AssistantService: NSObject, AssistantServiceProtocol {
 
@@ -70,6 +71,16 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             }
             let data = (try? JSONEncoder().encode(response)) ?? Data()
             reply(data)
+        }
+    }
+
+    func setGoogleRefreshToken(_ token: String, reply: @escaping (Bool) -> Void) {
+        do {
+            try GCalAuthStore().setRefreshToken(token)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] setGoogleRefreshToken error: \(error)")
+            reply(false)
         }
     }
 }
