@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import KeyboardShortcuts
+import AssistantShared
 
 @MainActor
 final class OverlayController {
@@ -49,6 +50,16 @@ final class OverlayController {
         NSApp.activate(ignoringOtherApps: true)
         // Re-focus the text field on every summon (not just first lifecycle).
         state.focusToken = UUID()
+    }
+
+    func summonWithBriefing(_ payload: BriefingPayload) {
+        let panel = ensurePanel()
+        panel.anchorToBottom()
+        state.briefingPayload = payload
+        state.mode = .briefing
+        panel.updateHeight(220, animated: false)
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func dismiss() {

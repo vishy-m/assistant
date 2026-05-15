@@ -8,6 +8,7 @@ final class OverlayState: ObservableObject {
     enum Mode {
         case singleShot
         case chat
+        case briefing
     }
 
     @Published var mode: Mode = .singleShot
@@ -21,6 +22,8 @@ final class OverlayState: ObservableObject {
 
     /// Conversation thread when in chat mode.
     @Published var messages: [OverlayMessage] = []
+
+    @Published var briefingPayload: BriefingPayload? = nil
 
     /// Server-allocated conversation ID once chat starts.
     var sessionId: String? = nil
@@ -49,5 +52,6 @@ final class OverlayState: ObservableObject {
         isSubmitting = false
         messages = []
         sessionId = nil
+        briefingPayload = nil
     }
 }

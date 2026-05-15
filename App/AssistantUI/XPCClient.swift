@@ -108,6 +108,15 @@ final class XPCClient {
         }
     }
 
+    func registerEventClient(_ endpoint: NSXPCListenerEndpoint) {
+        do {
+            let proxy = try makeProxy()
+            proxy.registerEventClient(endpoint) { _ in }
+        } catch {
+            NSLog("[XPCClient] register event client failed: \(error)")
+        }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {

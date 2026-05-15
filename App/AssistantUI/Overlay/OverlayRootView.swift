@@ -12,6 +12,12 @@ struct OverlayRootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if state.mode == .briefing, let payload = state.briefingPayload {
+                BriefingCardView(payload: payload,
+                                 onActionable: { _ in /* wired in Task 10 */ },
+                                 onDismiss: onDismiss)
+                Divider().background(Color.white.opacity(0.1))
+            }
             if state.mode == .chat {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {

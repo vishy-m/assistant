@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.statusItem = item
 
         OverlayController.shared.install()
+        XPCClient.shared.registerEventClient(BriefingClient.shared.endpoint)
     }
 
     @objc private func pingDaemon(_ sender: Any?) {

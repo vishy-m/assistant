@@ -142,4 +142,34 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             reply(false)
         }
     }
+
+    private var eventClientConnection: NSXPCConnection?
+
+    func registerEventClient(_ endpoint: NSXPCListenerEndpoint, reply: @escaping (Bool) -> Void) {
+        let conn = NSXPCConnection(listenerEndpoint: endpoint)
+        conn.remoteObjectInterface = NSXPCInterface(with: AssistantEventsProtocol.self)
+        conn.invalidationHandler = { [weak self] in
+            NSLog("[AssistantService] event client invalidated")
+            self?.eventClientConnection = nil
+        }
+        conn.resume()
+        self.eventClientConnection = conn
+        reply(true)
+    }
+
+    func pushBriefing(_ payload: BriefingPayload) -> Bool {
+        guard let conn = eventClientConnection else { return false }
+        guard let proxy = conn.remoteObjectProxyWithErrorHandler({ err in
+            NSLog("[AssistantService] briefing push error: \(err)")
+        }) as? AssistantEventsProtocol else {
+            return false
+        }
+        do {
+            let data = try JSONEncoder().encode(payload)
+            proxy.briefingReady(data) { _ in }
+            return true
+        } catch {
+            return false
+        }
+    }
 }
