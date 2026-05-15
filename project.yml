@@ -11,6 +11,9 @@ packages:
   AppAuth:
     url: https://github.com/openid/AppAuth-iOS
     from: 1.7.5
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: 2.0.0
 
 targets:
   AssistantUI:
@@ -25,6 +28,8 @@ targets:
         product: AssistantGCal
       - package: AppAuth
         product: AppAuth
+      - package: KeyboardShortcuts
+        product: KeyboardShortcuts
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.vishruth.assistant
