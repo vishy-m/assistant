@@ -9,4 +9,6 @@ public protocol AssistantServiceProtocol {
     func getMostRecentSessionId(reply: @escaping (String?) -> Void)
     func getMessages(sessionId: String, reply: @escaping (Data) -> Void)
     func registerEventClient(_ endpoint: NSXPCListenerEndpoint, reply: @escaping (Bool) -> Void)
+    func computeGrade(courseId: String, projectionJSON: Data?, reply: @escaping (Data) -> Void)
+    func enterGrade(itemId: String, earnedPoints: Double, reply: @escaping (Bool) -> Void)
 }

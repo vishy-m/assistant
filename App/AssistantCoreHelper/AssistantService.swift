@@ -3,6 +3,7 @@ import AssistantShared
 import AssistantStore
 import AssistantLLM
 import AssistantGCal
+import AssistantGrades
 
 final class AssistantService: NSObject, AssistantServiceProtocol {
 
@@ -155,6 +156,53 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         conn.resume()
         self.eventClientConnection = conn
         reply(true)
+    }
+
+    func computeGrade(courseId: String, projectionJSON: Data?, reply: @escaping (Data) -> Void) {
+        do {
+            let projection: [String: Double]
+            if let pjData = projectionJSON,
+               let decoded = try? JSONDecoder().decode([String: Double].self, from: pjData) {
+                projection = decoded
+            } else {
+                projection = [:]
+            }
+            let input = try buildCalculatorInput(courseId: courseId, projection: projection)
+            let breakdown = GradeCalculator.compute(input: input)
+            let data = try JSONEncoder().encode(breakdown)
+            reply(data)
+        } catch {
+            NSLog("[AssistantService] computeGrade error: \(error)")
+            reply(Data())
+        }
+    }
+
+    func enterGrade(itemId: String, earnedPoints: Double, reply: @escaping (Bool) -> Void) {
+        do {
+            try GradeRepository(db: db).setEarnedPoints(itemId: itemId, earned: earnedPoints)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] enterGrade error: \(error)")
+            reply(false)
+        }
+    }
+
+    private func buildCalculatorInput(courseId: String,
+                                       projection: [String: Double]) throws -> GradeCalculatorInput {
+        let gradeRepo = GradeRepository(db: db)
+        let cats = try gradeRepo.categories(forCourse: courseId).map {
+            GradeCalculatorInput.CategoryIn(
+                id: $0.id, name: $0.name, weightPct: $0.weightPct,
+                dropLowestN: $0.dropLowestN, dropHighestN: $0.dropHighestN)
+        }
+        let items = try gradeRepo.items(forCourse: courseId).map {
+            GradeCalculatorInput.ItemIn(
+                id: $0.id, categoryId: $0.categoryId,
+                maxPoints: $0.maxPoints, earnedPoints: $0.earnedPoints,
+                isExtraCredit: $0.isExtraCredit,
+                weightOverridePct: $0.weightOverridePct)
+        }
+        return GradeCalculatorInput(categories: cats, items: items, projection: projection)
     }
 
     func pushBriefing(_ payload: BriefingPayload) -> Bool {

@@ -55,6 +55,8 @@ targets:
         product: AssistantGCal
       - package: AssistantShared
         product: AssistantBriefings
+      - package: AssistantShared
+        product: AssistantGrades
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.vishruth.assistant.core
