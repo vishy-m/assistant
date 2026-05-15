@@ -81,7 +81,8 @@ final class OverlayController {
         XPCClient.shared.submitPrompt(
             text: text,
             imageData: img?.jpegData,
-            imageMediaType: img?.mediaType
+            imageMediaType: img?.mediaType,
+            sessionId: state.sessionId
         ) { [weak self] result in
             guard let self else { return }
             self.state.isSubmitting = false
@@ -94,6 +95,7 @@ final class OverlayController {
                                                      timestamp: Date()))
                     return
                 }
+                self.state.sessionId = resp.sessionId
                 self.state.messages.append(.init(role: .assistant,
                                                  text: resp.text.isEmpty ? "(no text — tool actions completed)" : resp.text,
                                                  modelUsed: resp.modelUsed,

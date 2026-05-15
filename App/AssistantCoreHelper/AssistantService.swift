@@ -54,23 +54,57 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             let response: PromptResponse
             do {
                 let req = try JSONDecoder().decode(PromptRequest.self, from: requestData)
+                let convoRepo = ConversationRepository(db: db)
 
-                var content: [LLMContentBlock] = []
-                if let img = req.imageData, let mediaType = req.imageMediaType {
-                    content.append(.image(LLMImage(mediaType: mediaType, data: img)))
+                // Resolve or create the conversation
+                let sessionId: String
+                var historyMessages: [LLMMessage] = []
+                if let existing = req.sessionId, (try convoRepo.find(id: existing)) != nil {
+                    sessionId = existing
+                    let priorMsgs = try convoRepo.messages(in: existing)
+                    historyMessages = priorMsgs.map { m in
+                        let role: LLMRole = (m.role == "assistant") ? .assistant : .user
+                        return LLMMessage(role: role, content: [.text(m.content)])
+                    }
+                } else {
+                    let newConvo = try convoRepo.start(id: UUID().uuidString)
+                    sessionId = newConvo.id
                 }
-                content.append(.text(req.text))
 
-                let initialMessages = [LLMMessage(role: .user, content: content)]
-                let result = try await loop.run(initialMessages: initialMessages)
-                response = PromptResponse(text: result.text,
-                                          modelUsed: result.modelUsed,
-                                          needsFollowup: false,
-                                          errorMessage: nil)
+                // Build new user message
+                var newUserContent: [LLMContentBlock] = []
+                if let img = req.imageData, let mediaType = req.imageMediaType {
+                    newUserContent.append(.image(LLMImage(mediaType: mediaType, data: img)))
+                }
+                newUserContent.append(.text(req.text))
+                let newUserMessage = LLMMessage(role: .user, content: newUserContent)
+
+                // Persist user message immediately (so it's recorded even if LLM fails)
+                let userMsgId = UUID().uuidString
+                try convoRepo.appendMessage(Message(
+                    id: userMsgId, conversationId: sessionId,
+                    role: "user", content: req.text,
+                    attachedImagePath: nil,
+                    toolCallsJson: nil, modelUsed: nil, createdAt: Date()))
+
+                let allMessages = historyMessages + [newUserMessage]
+                let result = try await loop.run(initialMessages: allMessages)
+
+                // Persist assistant reply
+                let asstMsgId = UUID().uuidString
+                try convoRepo.appendMessage(Message(
+                    id: asstMsgId, conversationId: sessionId,
+                    role: "assistant", content: result.text,
+                    attachedImagePath: nil,
+                    toolCallsJson: nil, modelUsed: result.modelUsed, createdAt: Date()))
+
+                response = PromptResponse(
+                    text: result.text, modelUsed: result.modelUsed,
+                    needsFollowup: false, sessionId: sessionId, errorMessage: nil)
             } catch {
                 NSLog("[AssistantService] submitPrompt error: \(error)")
                 response = PromptResponse(text: "", modelUsed: "",
-                                          needsFollowup: false,
+                                          needsFollowup: false, sessionId: nil,
                                           errorMessage: "\(error)")
             }
             let data = (try? JSONEncoder().encode(response)) ?? Data()

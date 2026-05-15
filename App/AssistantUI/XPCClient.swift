@@ -52,10 +52,11 @@ final class XPCClient {
     func submitPrompt(text: String,
                       imageData: Data? = nil,
                       imageMediaType: String? = nil,
+                      sessionId: String? = nil,
                       reply: @escaping (Result<PromptResponse, Error>) -> Void) {
         do {
             let req = PromptRequest(text: text, imageData: imageData,
-                                    imageMediaType: imageMediaType)
+                                    imageMediaType: imageMediaType, sessionId: sessionId)
             let body = try JSONEncoder().encode(req)
             let proxy = try makeProxy()
             proxy.submitPrompt(body) { data in
