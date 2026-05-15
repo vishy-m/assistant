@@ -17,6 +17,11 @@ final class OverlayController {
         KeyboardShortcuts.onKeyUp(for: .summon) { [weak self] in
             self?.toggle()
         }
+        KeyboardShortcuts.onKeyUp(for: .crop) { [weak self] in
+            guard let self else { return }
+            guard let p = self.panel, p.isVisible, p.isKeyWindow else { return }
+            self.startCrop()
+        }
     }
 
     func toggle() {
@@ -103,6 +108,36 @@ final class OverlayController {
 
         // Clear attachment after submit (single-shot semantics).
         state.attachedImage = nil
+    }
+
+    private func startCrop() {
+        guard ScreenCapturePermissions.isGranted else {
+            // First-time: request, then show inline prompt regardless of return value
+            ScreenCapturePermissions.request()
+            let alert = NSAlert()
+            alert.messageText = "Screen Recording permission needed"
+            alert.informativeText = "Assistant needs Screen Recording permission to capture from your screen. Open System Settings → Privacy & Security → Screen Recording, enable Assistant, then quit and reopen the app."
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Cancel")
+            if alert.runModal() == .alertFirstButtonReturn {
+                ScreenCapturePermissions.openSystemSettings()
+            }
+            return
+        }
+
+        // Hide the overlay during selection so it doesn't appear in the screenshot
+        panel?.orderOut(nil)
+        Task { @MainActor in
+            let rect = await CropSelectionController.shared.selectRegion()
+            panel?.orderFront(nil)
+            panel?.makeKey()
+            guard let rect = rect,
+                  let (img, jpeg) = ScreenshotCapturer.capture(rect: rect) else {
+                return
+            }
+            state.attachedImage = OverlayState.AttachedImage(
+                nsImage: img, jpegData: jpeg, mediaType: "image/jpeg")
+        }
     }
 
     private func promoteToChatMode() {
