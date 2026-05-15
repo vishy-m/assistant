@@ -9,13 +9,17 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     private let db: AssistantDB
     private let taskRepo: TaskRepository
     private let gcalRepo: GCalRepository
-    private let loop: ToolLoop
+    private var loop: ToolLoop
 
     init(db: AssistantDB, loop: ToolLoop) {
         self.db = db
         self.taskRepo = TaskRepository(db: db)
         self.gcalRepo = GCalRepository(db: db)
         self.loop = loop
+    }
+
+    func replaceLoop(_ newLoop: ToolLoop) {
+        self.loop = newLoop
     }
 
     func ping(reply: @escaping (String) -> Void) { reply("pong") }

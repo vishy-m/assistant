@@ -2,6 +2,7 @@ import Foundation
 import AssistantShared
 import AssistantStore
 import AssistantLLM
+import AssistantGCal
 
 NSLog("[AssistantCoreHelper] starting")
 
@@ -36,6 +37,31 @@ BuiltinTools.registerTaskTools(into: &registry,
 
 let loop = ToolLoop(chain: chain, registry: registry)
 let service = AssistantService(db: db, loop: loop)
+
+// MARK: - Google Calendar integration
+
+let gcalClient = GCalClient(http: http,
+                            accessTokenProvider: { GCalAccessTokenCache.shared.current() })
+let quota = QuotaGuard(db: db)
+let syncWorker = GCalSyncWorker(client: gcalClient, db: db, quota: quota)
+let outbox = OutboxProcessor(client: gcalClient, db: db, quota: quota)
+
+// Register GCal tools into the existing registry, then rebuild + install the loop.
+GCalTools.register(into: &registry, client: gcalClient, db: db)
+let loopWithGCal = ToolLoop(chain: chain, registry: registry)
+service.replaceLoop(loopWithGCal)
+
+// Every 5 minutes: sync events + drain outbox.
+let gcalTimer = DispatchSource.makeTimerSource(queue: .global(qos: .background))
+gcalTimer.schedule(deadline: .now() + 10, repeating: .seconds(300))
+gcalTimer.setEventHandler {
+    _Concurrency.Task.detached {
+        do { try await syncWorker.runOnce() } catch { NSLog("[Sync] error: \(error)") }
+        do { try await outbox.drainOnce() } catch { NSLog("[Outbox] error: \(error)") }
+    }
+}
+gcalTimer.resume()
+NSLog("[AssistantCoreHelper] GCal sync timer started")
 
 final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
     let service: AssistantService

@@ -8,6 +8,9 @@ options:
 packages:
   AssistantShared:
     path: "."
+  AppAuth:
+    url: https://github.com/openid/AppAuth-iOS
+    from: 1.7.5
 
 targets:
   AssistantUI:
@@ -18,6 +21,10 @@ targets:
     dependencies:
       - package: AssistantShared
         product: AssistantShared
+      - package: AssistantShared
+        product: AssistantGCal
+      - package: AppAuth
+        product: AppAuth
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.vishruth.assistant
@@ -39,6 +46,8 @@ targets:
         product: AssistantStore
       - package: AssistantShared
         product: AssistantLLM
+      - package: AssistantShared
+        product: AssistantGCal
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.vishruth.assistant.core
