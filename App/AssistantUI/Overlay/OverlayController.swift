@@ -25,6 +25,13 @@ final class OverlayController {
         KeyboardShortcuts.onKeyUp(for: .summonResume) { [weak self] in
             self?.summonAndResume()
         }
+        NotificationCenter.default.addObserver(forName: .overlayPanelDidResignKey,
+                                               object: nil, queue: .main) { [weak self] _ in
+            // Small delay so the click that caused deactivation finishes first
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                Task { @MainActor in self?.dismiss() }
+            }
+        }
     }
 
     func toggle() {

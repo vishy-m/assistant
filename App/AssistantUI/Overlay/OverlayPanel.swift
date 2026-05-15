@@ -31,6 +31,12 @@ final class OverlayPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
+    override func resignKey() {
+        super.resignKey()
+        // OverlayController observes this via notification.
+        NotificationCenter.default.post(name: .overlayPanelDidResignKey, object: self)
+    }
+
     /// Position the panel centered horizontally, 24pt above the dock-aware visibleFrame bottom.
     func anchorToBottom(of screen: NSScreen? = nil) {
         let scr = screen ?? NSScreen.main ?? NSScreen.screens.first
@@ -59,4 +65,8 @@ final class OverlayPanel: NSPanel {
             setFrame(newRect, display: true)
         }
     }
+}
+
+extension Notification.Name {
+    static let overlayPanelDidResignKey = Notification.Name("OverlayPanelDidResignKey")
 }
