@@ -6,4 +6,7 @@ extension KeyboardShortcuts.Name {
 
     /// Local hotkey (active only while overlay is key window) that enters crop mode.
     static let crop = Self("crop", default: .init(.c, modifiers: [.shift, .option]))
+
+    /// Global hotkey that resumes the most recent conversation.
+    static let summonResume = Self("summonResume", default: .init(.space, modifiers: [.control, .option]))
 }

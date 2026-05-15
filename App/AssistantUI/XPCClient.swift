@@ -85,6 +85,29 @@ final class XPCClient {
         }
     }
 
+    func getMostRecentSessionId(reply: @escaping (String?) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.getMostRecentSessionId { id in
+                DispatchQueue.main.async { reply(id) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(nil) }
+        }
+    }
+
+    func getMessages(sessionId: String, reply: @escaping ([MessageDTO]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.getMessages(sessionId: sessionId) { data in
+                let dtos = (try? JSONDecoder().decode([MessageDTO].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(dtos) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply([]) }
+        }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {

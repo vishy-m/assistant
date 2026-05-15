@@ -22,6 +22,9 @@ final class OverlayController {
             guard let p = self.panel, p.isVisible, p.isKeyWindow else { return }
             self.startCrop()
         }
+        KeyboardShortcuts.onKeyUp(for: .summonResume) { [weak self] in
+            self?.summonAndResume()
+        }
     }
 
     func toggle() {
@@ -43,6 +46,30 @@ final class OverlayController {
         panel?.orderOut(nil)
         state.reset()
         // Crop hotkey is registered locally — KeyboardShortcuts handles scoping via isEnabled.
+    }
+
+    private func summonAndResume() {
+        XPCClient.shared.getMostRecentSessionId { [weak self] sid in
+            guard let self else { return }
+            if let sid = sid {
+                self.state.sessionId = sid
+                // Load message history into state.messages
+                XPCClient.shared.getMessages(sessionId: sid) { msgs in
+                    self.state.messages = msgs.map { m in
+                        OverlayState.OverlayMessage(
+                            role: m.role == "assistant" ? .assistant : .user,
+                            text: m.content,
+                            modelUsed: m.modelUsed,
+                            timestamp: m.createdAt)
+                    }
+                    self.state.mode = .chat
+                    self.summon()
+                    self.panel?.updateHeight(420, animated: false)
+                }
+            } else {
+                self.summon()
+            }
+        }
     }
 
     private func ensurePanel() -> OverlayPanel {

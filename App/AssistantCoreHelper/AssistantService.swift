@@ -112,6 +112,27 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func getMostRecentSessionId(reply: @escaping (String?) -> Void) {
+        do {
+            let convo = try ConversationRepository(db: db).mostRecent(limit: 1).first
+            reply(convo?.id)
+        } catch {
+            reply(nil)
+        }
+    }
+
+    func getMessages(sessionId: String, reply: @escaping (Data) -> Void) {
+        do {
+            let msgs = try ConversationRepository(db: db).messages(in: sessionId)
+            let dtos = msgs.map { MessageDTO(id: $0.id, role: $0.role, content: $0.content,
+                                              modelUsed: $0.modelUsed, createdAt: $0.createdAt) }
+            let data = try JSONEncoder().encode(dtos)
+            reply(data)
+        } catch {
+            reply(Data())
+        }
+    }
+
     func setGoogleRefreshToken(_ token: String, reply: @escaping (Bool) -> Void) {
         do {
             try GCalAuthStore().setRefreshToken(token)
