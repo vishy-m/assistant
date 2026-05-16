@@ -7,10 +7,15 @@ import AssistantGrades
 
 final class AssistantService: NSObject, AssistantServiceProtocol {
 
+    // Defense-in-depth bounds on submitPrompt, independent of XPC peer auth.
+    private static let maxPromptTextBytes = 100_000        // 100 KB of prompt text
+    private static let maxPromptImageBytes = 10 * 1024 * 1024  // 10 MB image payload
+
     private let db: AssistantDB
     private let taskRepo: TaskRepository
     private let gcalRepo: GCalRepository
     private var loop: ToolLoop
+    private let promptRateLimiter = RateLimiter(limit: 30, window: 60)
 
     init(db: AssistantDB, loop: ToolLoop) {
         self.db = db
@@ -55,6 +60,23 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             let response: PromptResponse
             do {
                 let req = try JSONDecoder().decode(PromptRequest.self, from: requestData)
+
+                // Bound payload size and request rate.
+                if req.text.utf8.count > Self.maxPromptTextBytes
+                    || (req.imageData?.count ?? 0) > Self.maxPromptImageBytes {
+                    reply((try? JSONEncoder().encode(PromptResponse(
+                        text: "", modelUsed: "", needsFollowup: false,
+                        sessionId: nil, errorMessage: "Request too large."))) ?? Data())
+                    return
+                }
+                if !promptRateLimiter.allow() {
+                    reply((try? JSONEncoder().encode(PromptResponse(
+                        text: "", modelUsed: "", needsFollowup: false,
+                        sessionId: nil,
+                        errorMessage: "Rate limit exceeded — try again in a moment."))) ?? Data())
+                    return
+                }
+
                 let convoRepo = ConversationRepository(db: db)
 
                 // Resolve or create the conversation

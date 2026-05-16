@@ -107,6 +107,12 @@ final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
     init(service: AssistantService) { self.service = service }
     func listener(_ listener: NSXPCListener,
                   shouldAcceptNewConnection conn: NSXPCConnection) -> Bool {
+        // Authenticate the peer: only the Assistant UI app may drive the
+        // daemon's RPCs. Without this any same-user process could connect to
+        // the Mach service and overwrite keys, spend LLM credits, or read the
+        // conversation history.
+        conn.setCodeSigningRequirement(
+            XPCPeerRequirement.string(forIdentifier: "com.vishruth.assistant"))
         conn.exportedInterface = NSXPCInterface(with: AssistantServiceProtocol.self)
         conn.exportedObject = service
         conn.resume()
