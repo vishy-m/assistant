@@ -94,12 +94,20 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
                     sessionId = newConvo.id
                 }
 
-                // Build new user message
+                // Build new user message. Prepend the current date/time so the
+                // model can resolve relative phrases ("today", "tomorrow 5pm")
+                // into the ISO-8601 timestamps the task/calendar tools need.
                 var newUserContent: [LLMContentBlock] = []
                 if let img = req.imageData, let mediaType = req.imageMediaType {
                     newUserContent.append(.image(LLMImage(mediaType: mediaType, data: img)))
                 }
-                newUserContent.append(.text(req.text))
+                let isoNow = ISO8601DateFormatter()
+                isoNow.timeZone = .current
+                let dateContext = "[Current date and time: \(isoNow.string(from: Date())) "
+                    + "(\(TimeZone.current.identifier)). Resolve relative dates and times "
+                    + "against this, and pass ISO-8601 timestamps with a timezone offset to "
+                    + "any tool that accepts a date. Set a due date whenever the user implies one.]"
+                newUserContent.append(.text(dateContext + "\n\n" + req.text))
                 let newUserMessage = LLMMessage(role: .user, content: newUserContent)
 
                 // Persist user message immediately (so it's recorded even if LLM fails)

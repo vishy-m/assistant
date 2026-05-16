@@ -37,8 +37,8 @@ public enum GCalTools {
                 }
                 let args = try JSONDecoder().decode(Args.self,
                                                     from: argsJSON.data(using: .utf8) ?? Data())
-                let iso = ISO8601DateFormatter()
-                guard let s = iso.date(from: args.start), let e = iso.date(from: args.end) else {
+                guard let s = FlexibleDate.parse(args.start),
+                      let e = FlexibleDate.parse(args.end) else {
                     return #"{"error":"bad ISO date"}"#
                 }
                 guard let calID = try setting.get(AssistantCalendarBootstrap.settingKey) else {
@@ -62,10 +62,11 @@ public enum GCalTools {
                     }
                 }
                 // Offline or write failed → enqueue
+                let isoOut = ISO8601DateFormatter()
                 let payload = OutboxPayload.insertEvent(InsertEventPayload(
                     summary: args.summary,
-                    startISO: iso.string(from: s),
-                    endISO: iso.string(from: e),
+                    startISO: isoOut.string(from: s),
+                    endISO: isoOut.string(from: e),
                     location: args.location,
                     description: args.description))
                 let payloadJSON = String(

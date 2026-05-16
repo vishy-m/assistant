@@ -49,7 +49,12 @@ public final class GCalClient: Sendable {
         switch resp.statusCode {
         case 200..<300: return resp.data
         case 401: throw GCalError.unauthorized
-        case 403: throw GCalError.forbidden
+        case 403:
+            // Surface the real reason — almost always "Calendar API not
+            // enabled in the project" or an insufficient-scope grant.
+            let reason = String(data: resp.data, encoding: .utf8) ?? ""
+            NSLog("[GCalClient] 403 forbidden: \(reason)")
+            throw GCalError.forbidden
         case 404: throw GCalError.notFound
         case 410:
             if let body = String(data: resp.data, encoding: .utf8),

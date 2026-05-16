@@ -35,7 +35,7 @@ public enum BuiltinTools {
                     let category: String?
                 }
                 let args = try JSONDecoder().decode(Args.self, from: argsJSON.data(using: .utf8) ?? Data())
-                let dueAt = args.due_at.flatMap { ISO8601DateFormatter().date(from: $0) }
+                let dueAt = FlexibleDate.parse(args.due_at)
                 let id = UUID().uuidString
                 let t = AssistantStore.Task(
                     id: id, title: args.title, notes: args.notes,
