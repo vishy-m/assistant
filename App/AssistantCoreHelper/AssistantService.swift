@@ -291,6 +291,63 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func setProviderAPIKey(provider: String, key: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let account: KeychainAccount
+            switch provider {
+            case "claude": account = .claudeAPIKey
+            case "openai": account = .openaiAPIKey
+            case "gemma_hosted": account = .gemmaHostedAPIKey
+            default: reply(false); return
+            }
+            if key.isEmpty {
+                try KeychainStore().delete(account: account.rawValue)
+            } else {
+                try KeychainStore().set(account, value: key)
+            }
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] setProviderAPIKey error: \(error)")
+            reply(false)
+        }
+    }
+
+    func getProviderConfigured(provider: String, reply: @escaping (Bool) -> Void) {
+        let account: KeychainAccount
+        switch provider {
+        case "claude": account = .claudeAPIKey
+        case "openai": account = .openaiAPIKey
+        case "gemma_hosted": account = .gemmaHostedAPIKey
+        default: reply(false); return
+        }
+        let configured = ((try? KeychainStore().get(account)) ?? nil) != nil
+        reply(configured)
+    }
+
+    func getSettings(reply: @escaping (Data) -> Void) {
+        let repo = SettingRepository(db: db)
+        let s: AppSettings = (try? repo.getCodable("app_settings")) ?? .default
+        let data = (try? JSONEncoder().encode(s)) ?? Data()
+        reply(data)
+    }
+
+    func setSettings(_ data: Data, reply: @escaping (Bool) -> Void) {
+        do {
+            let s = try JSONDecoder().decode(AppSettings.self, from: data)
+            try SettingRepository(db: db).setCodable("app_settings", value: s)
+            // Mirror the per-key settings the scheduler reads
+            struct HM: Codable { let hour: Int; let minute: Int }
+            try SettingRepository(db: db).setCodable("morning_briefing_time",
+                value: HM(hour: s.morningBriefingHour, minute: s.morningBriefingMinute))
+            try SettingRepository(db: db).setCodable("evening_briefing_time",
+                value: HM(hour: s.eveningBriefingHour, minute: s.eveningBriefingMinute))
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] setSettings error: \(error)")
+            reply(false)
+        }
+    }
+
     private func buildCalculatorInput(courseId: String,
                                        projection: [String: Double]) throws -> GradeCalculatorInput {
         let gradeRepo = GradeRepository(db: db)

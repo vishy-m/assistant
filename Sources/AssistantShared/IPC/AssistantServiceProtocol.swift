@@ -19,4 +19,8 @@ public protocol AssistantServiceProtocol {
     func deleteCategory(id: String, reply: @escaping (Bool) -> Void)
     func deleteItem(id: String, reply: @escaping (Bool) -> Void)
     func deleteCourse(id: String, reply: @escaping (Bool) -> Void)
+    func setProviderAPIKey(provider: String, key: String, reply: @escaping (Bool) -> Void)
+    func getProviderConfigured(provider: String, reply: @escaping (Bool) -> Void)
+    func getSettings(reply: @escaping (Data) -> Void)
+    func setSettings(_ data: Data, reply: @escaping (Bool) -> Void)
 }
