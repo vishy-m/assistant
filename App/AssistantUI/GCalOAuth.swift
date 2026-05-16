@@ -31,29 +31,44 @@ public final class GCalOAuth {
 
     public static let shared = GCalOAuth()
 
-    private var currentSession: OIDExternalUserAgentSession?
+    /// Held for the lifetime of the flow: the loopback handler owns the local
+    /// HTTP listener that catches Google's redirect.
+    private var redirectHandler: OIDRedirectHTTPHandler?
 
     public func authorize(presentingWindow: NSWindow) async throws -> String {
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<String, Error>) in
-            let config = OIDServiceConfiguration(
-                authorizationEndpoint: GCalOAuthConfig.authorizationEndpoint,
-                tokenEndpoint: GCalOAuthConfig.tokenEndpoint)
-            guard !GCalOAuthConfig.clientID.isEmpty else {
-                cont.resume(throwing: GCalOAuthError.clientIDNotConfigured)
-                return
-            }
-            let redirectURL = URL(string: "\(GCalOAuthConfig.redirectBaseURL.absoluteString):0/oauth/callback")!
+        guard !GCalOAuthConfig.clientID.isEmpty else {
+            throw GCalOAuthError.clientIDNotConfigured
+        }
 
-            let request = OIDAuthorizationRequest(
-                configuration: config,
-                clientId: GCalOAuthConfig.clientID,
-                clientSecret: nil,
-                scopes: GCalOAuthConfig.scopes,
-                redirectURL: redirectURL,
-                responseType: OIDResponseTypeCode,
-                additionalParameters: ["access_type": "offline", "prompt": "consent"])
+        let config = OIDServiceConfiguration(
+            authorizationEndpoint: GCalOAuthConfig.authorizationEndpoint,
+            tokenEndpoint: GCalOAuthConfig.tokenEndpoint)
 
-            self.currentSession = OIDAuthState.authState(byPresenting: request, presenting: presentingWindow) { authState, error in
+        // Desktop loopback flow: a tiny local HTTP server on an ephemeral port
+        // catches the `http://127.0.0.1:<port>/` redirect Google sends back.
+        // ASWebAuthenticationSession cannot catch an http loopback redirect —
+        // that is why the older `byPresenting:presenting:` path stalled.
+        let handler = OIDRedirectHTTPHandler(successURL: nil)
+        self.redirectHandler = handler
+        let redirectURI = handler.startHTTPListener(nil)
+
+        let request = OIDAuthorizationRequest(
+            configuration: config,
+            clientId: GCalOAuthConfig.clientID,
+            clientSecret: nil,
+            scopes: GCalOAuthConfig.scopes,
+            redirectURL: redirectURI,
+            responseType: OIDResponseTypeCode,
+            additionalParameters: ["access_type": "offline", "prompt": "consent"])
+
+        let agent = OIDExternalUserAgentMac(presenting: presentingWindow)
+
+        return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<String, Error>) in
+            handler.currentAuthorizationFlow = OIDAuthState.authState(
+                byPresenting: request,
+                externalUserAgent: agent
+            ) { authState, error in
+                handler.cancelHTTPListener()
                 if let err = error {
                     cont.resume(throwing: GCalOAuthError.underlying(err))
                     return
