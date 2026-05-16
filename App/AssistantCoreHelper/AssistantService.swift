@@ -261,6 +261,26 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func deleteCategory(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            try GradeRepository(db: db).deleteCategory(id: id)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] deleteCategory error: \(error)")
+            reply(false)
+        }
+    }
+
+    func deleteItem(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            try GradeRepository(db: db).deleteItem(id: id)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] deleteItem error: \(error)")
+            reply(false)
+        }
+    }
+
     private func buildCalculatorInput(courseId: String,
                                        projection: [String: Double]) throws -> GradeCalculatorInput {
         let gradeRepo = GradeRepository(db: db)

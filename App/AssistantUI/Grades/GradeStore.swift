@@ -44,4 +44,18 @@ final class GradeStore: ObservableObject {
             }
         }
     }
+
+    func deleteCategory(_ id: String) async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            XPCClient.shared.deleteCategory(id: id) { _ in cont.resume() }
+        }
+        if let courseId = selectedCourseId { await selectCourse(courseId) }
+    }
+
+    func deleteItem(_ id: String) async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            XPCClient.shared.deleteItem(id: id) { _ in cont.resume() }
+        }
+        if let courseId = selectedCourseId { await selectCourse(courseId) }
+    }
 }

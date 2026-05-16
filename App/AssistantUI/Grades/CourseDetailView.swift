@@ -151,7 +151,10 @@ struct CourseDetailView: View {
         let catBreakdown = store.breakdown?.perCategory.first { $0.categoryId == cat.id }
         let items = store.items.filter { $0.categoryId == cat.id }
         return VStack(spacing: 0) {
-            // Category header
+            // Category header — swipe left to delete the whole category
+            SwipeToDelete(onDelete: {
+                _Concurrency.Task { await store.deleteCategory(cat.id) }
+            }) {
             HStack(spacing: 8) {
                 Text(cat.name)
                     .font(.system(size: 13, weight: .semibold))
@@ -176,6 +179,7 @@ struct CourseDetailView: View {
             .padding(.horizontal, 22)
             .padding(.top, 14)
             .padding(.bottom, 7)
+            }
 
             if items.isEmpty {
                 HStack {
@@ -188,7 +192,11 @@ struct CourseDetailView: View {
                 .padding(.bottom, 10)
             } else {
                 ForEach(items, id: \.id) { item in
-                    itemRow(item, dropped: catBreakdown?.droppedItemIds.contains(item.id) ?? false)
+                    SwipeToDelete(onDelete: {
+                        _Concurrency.Task { await store.deleteItem(item.id) }
+                    }) {
+                        itemRow(item, dropped: catBreakdown?.droppedItemIds.contains(item.id) ?? false)
+                    }
                 }
             }
             Divider().padding(.leading, 22)

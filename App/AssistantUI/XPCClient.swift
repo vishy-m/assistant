@@ -210,6 +210,28 @@ final class XPCClient {
         }
     }
 
+    func deleteCategory(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.deleteCategory(id: id) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
+        }
+    }
+
+    func deleteItem(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.deleteItem(id: id) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
+        }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {
