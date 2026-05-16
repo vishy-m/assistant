@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Grades",
                                 action: #selector(openGrades(_:)),
                                 keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Settings…",
+                                action: #selector(openSettings(_:)), keyEquivalent: ","))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Assistant",
                                 action: #selector(NSApplication.terminate(_:)),
@@ -40,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         OverlayController.shared.install()
         XPCClient.shared.registerEventClient(BriefingClient.shared.endpoint)
+        OnboardingWindow.shared.showIfFirstLaunch()
     }
 
     @objc private func pingDaemon(_ sender: Any?) {
@@ -118,6 +121,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openGrades(_ sender: Any?) {
         Task { @MainActor in GradeDashboardWindow.shared.show() }
+    }
+
+    @objc private func openSettings(_ sender: Any?) {
+        NSApp.activate(ignoringOtherApps: true)
+        if #available(macOS 14, *) {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        } else {
+            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        }
     }
 
     @objc private func connectGoogle(_ sender: Any?) {
