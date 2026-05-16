@@ -243,6 +243,52 @@ final class XPCClient {
         }
     }
 
+    func setProviderAPIKey(provider: String, key: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.setProviderAPIKey(provider: provider, key: key) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
+        }
+    }
+
+    func getProviderConfigured(provider: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.getProviderConfigured(provider: provider) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
+        }
+    }
+
+    func getSettings(reply: @escaping (AppSettings) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.getSettings { data in
+                let s = (try? JSONDecoder().decode(AppSettings.self, from: data)) ?? .default
+                DispatchQueue.main.async { reply(s) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(.default) }
+        }
+    }
+
+    func setSettings(_ settings: AppSettings, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(settings)
+            let proxy = try makeProxy()
+            proxy.setSettings(data) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
+        }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {
