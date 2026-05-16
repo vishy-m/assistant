@@ -31,7 +31,15 @@ struct GradeDashboardView: View {
         )) {
             Section {
                 ForEach(store.courses, id: \.id) { course in
-                    courseRow(course).tag(course.id)
+                    courseRow(course)
+                        .tag(course.id)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                _Concurrency.Task { await store.deleteCourse(course.id) }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                 }
             } header: {
                 EyebrowLabel("Courses").padding(.bottom, 2)

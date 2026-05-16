@@ -281,6 +281,16 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func deleteCourse(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            try CourseRepository(db: db).delete(id: id)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] deleteCourse error: \(error)")
+            reply(false)
+        }
+    }
+
     private func buildCalculatorInput(courseId: String,
                                        projection: [String: Double]) throws -> GradeCalculatorInput {
         let gradeRepo = GradeRepository(db: db)

@@ -58,4 +58,17 @@ final class GradeStore: ObservableObject {
         }
         if let courseId = selectedCourseId { await selectCourse(courseId) }
     }
+
+    func deleteCourse(_ id: String) async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            XPCClient.shared.deleteCourse(id: id) { _ in cont.resume() }
+        }
+        if selectedCourseId == id {
+            selectedCourseId = nil
+            categories = []
+            items = []
+            breakdown = nil
+        }
+        await refreshCourses()
+    }
 }

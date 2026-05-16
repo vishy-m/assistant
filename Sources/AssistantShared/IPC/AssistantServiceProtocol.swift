@@ -18,4 +18,5 @@ public protocol AssistantServiceProtocol {
     func upsertItem(_ data: Data, reply: @escaping (Bool) -> Void)
     func deleteCategory(id: String, reply: @escaping (Bool) -> Void)
     func deleteItem(id: String, reply: @escaping (Bool) -> Void)
+    func deleteCourse(id: String, reply: @escaping (Bool) -> Void)
 }
