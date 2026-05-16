@@ -298,6 +298,28 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
+    func setGoogleClientSecret(_ secret: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.setGoogleClientSecret(secret) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
+        }
+    }
+
+    func getGoogleClientSecret(reply: @escaping (String?) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.getGoogleClientSecret { secret in
+                DispatchQueue.main.async { reply(secret) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(nil) }
+        }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {

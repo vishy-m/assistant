@@ -1,6 +1,7 @@
 import Foundation
 import AssistantShared
 import AssistantStore
+import AssistantLLM
 
 /// Caches a Google access token and refreshes it from the stored refresh token.
 /// The OAuth client ID + secret are read from the persisted `app_settings`, so
@@ -39,14 +40,15 @@ public final class GCalAccessTokenCache: @unchecked Sendable {
         return cachedToken
     }
 
-    /// Reads `(clientID, clientSecret)` from the persisted app settings.
+    /// Reads the OAuth client ID from settings and the client secret from Keychain.
     private func clientCredentials() -> (id: String, secret: String)? {
         guard let db else { return nil }
         guard let settings: AppSettings = try? SettingRepository(db: db).getCodable("app_settings"),
               let id = settings.gcalOAuthClientID, !id.isEmpty else {
             return nil
         }
-        return (id, settings.gcalOAuthClientSecret ?? "")
+        let secret = ((try? KeychainStore().get(.googleOAuthClientSecret)) ?? nil) ?? ""
+        return (id, secret)
     }
 
     private func refreshSynchronously() throws -> String? {

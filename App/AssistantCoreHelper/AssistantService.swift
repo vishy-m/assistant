@@ -357,6 +357,24 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func setGoogleClientSecret(_ secret: String, reply: @escaping (Bool) -> Void) {
+        do {
+            if secret.isEmpty {
+                try KeychainStore().delete(account: KeychainAccount.googleOAuthClientSecret.rawValue)
+            } else {
+                try KeychainStore().set(.googleOAuthClientSecret, value: secret)
+            }
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] setGoogleClientSecret error: \(error)")
+            reply(false)
+        }
+    }
+
+    func getGoogleClientSecret(reply: @escaping (String?) -> Void) {
+        reply((try? KeychainStore().get(.googleOAuthClientSecret)) ?? nil)
+    }
+
     private func buildCalculatorInput(courseId: String,
                                        projection: [String: Double]) throws -> GradeCalculatorInput {
         let gradeRepo = GradeRepository(db: db)

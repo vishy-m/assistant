@@ -6,6 +6,7 @@ public enum KeychainAccount: String {
     case openaiAPIKey = "openai_api_key"
     case gemmaHostedAPIKey = "gemma_hosted_api_key"
     case googleOAuthRefreshToken = "google_oauth_refresh_token"
+    case googleOAuthClientSecret = "google_oauth_client_secret"
 }
 
 public struct KeychainStore {

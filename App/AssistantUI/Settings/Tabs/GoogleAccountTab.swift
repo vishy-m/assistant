@@ -10,7 +10,7 @@ struct GoogleAccountTab: View {
     var body: some View {
         Form {
             Section("OAuth credentials") {
-                Text("Create a Desktop App OAuth client at Google Cloud Console → APIs & Services → Credentials. Paste both the client ID and client secret — Google's desktop clients now issue a secret, and the token endpoint requires it.")
+                Text("Create a Desktop App OAuth client at Google Cloud Console → APIs & Services → Credentials. Paste both the client ID and client secret — Google's desktop clients now issue a secret, and the token endpoint requires it. The secret is stored in your macOS Keychain.")
                     .font(.caption).foregroundStyle(.secondary)
                 TextField("Client ID", text: $clientID,
                           prompt: Text("123-abc.apps.googleusercontent.com"))
@@ -19,9 +19,14 @@ struct GoogleAccountTab: View {
                 Button("Save") {
                     var s = store.settings
                     s.gcalOAuthClientID = clientID
-                    s.gcalOAuthClientSecret = clientSecret
                     store.settings = s
-                    _Concurrency.Task { _ = await store.save() }
+                    let secret = clientSecret
+                    _Concurrency.Task {
+                        _ = await store.save()
+                        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                            XPCClient.shared.setGoogleClientSecret(secret) { _ in cont.resume() }
+                        }
+                    }
                 }
                 .disabled(clientID.isEmpty)
                 Link("Open Google Cloud Console →",
@@ -41,7 +46,7 @@ struct GoogleAccountTab: View {
                     Button("Connect Google Calendar") {
                         guard let cid = store.settings.gcalOAuthClientID, !cid.isEmpty else { return }
                         GCalOAuthConfig.clientID = cid
-                        GCalOAuthConfig.clientSecret = store.settings.gcalOAuthClientSecret ?? ""
+                        GCalOAuthConfig.clientSecret = clientSecret
                         isConnecting = true
                         _Concurrency.Task { @MainActor in
                             let win = NSApp.keyWindow ?? NSWindow()
@@ -58,7 +63,9 @@ struct GoogleAccountTab: View {
         .padding(20)
         .onAppear {
             clientID = store.settings.gcalOAuthClientID ?? ""
-            clientSecret = store.settings.gcalOAuthClientSecret ?? ""
+            XPCClient.shared.getGoogleClientSecret { secret in
+                clientSecret = secret ?? ""
+            }
         }
     }
 }
