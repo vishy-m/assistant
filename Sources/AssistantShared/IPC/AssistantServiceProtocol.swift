@@ -23,4 +23,5 @@ public protocol AssistantServiceProtocol {
     func getProviderConfigured(provider: String, reply: @escaping (Bool) -> Void)
     func getSettings(reply: @escaping (Data) -> Void)
     func setSettings(_ data: Data, reply: @escaping (Bool) -> Void)
+    func clearGoogleRefreshToken(reply: @escaping (Bool) -> Void)
 }

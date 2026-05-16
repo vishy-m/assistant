@@ -348,6 +348,15 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func clearGoogleRefreshToken(reply: @escaping (Bool) -> Void) {
+        do {
+            try GCalAuthStore().clear()
+            reply(true)
+        } catch {
+            reply(false)
+        }
+    }
+
     private func buildCalculatorInput(courseId: String,
                                        projection: [String: Double]) throws -> GradeCalculatorInput {
         let gradeRepo = GradeRepository(db: db)
