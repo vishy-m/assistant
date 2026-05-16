@@ -40,9 +40,9 @@ struct GoogleAccountTab: View {
                         isConnecting = true
                         _Concurrency.Task { @MainActor in
                             let win = NSApp.keyWindow ?? NSWindow()
-                            await GoogleAuthFlow.shared.connect(presentingWindow: win)
+                            let ok = await GoogleAuthFlow.shared.connect(presentingWindow: win)
                             isConnecting = false
-                            store.gcalConnected = true
+                            store.gcalConnected = ok
                         }
                     }
                     .disabled((store.settings.gcalOAuthClientID?.isEmpty ?? true) || isConnecting)

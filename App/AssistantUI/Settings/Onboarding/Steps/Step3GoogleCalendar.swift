@@ -24,8 +24,7 @@ struct Step3GoogleCalendar: View {
                         _ = await store.save()
                         GCalOAuthConfig.clientID = clientID
                         let win = NSApp.keyWindow ?? NSWindow()
-                        await GoogleAuthFlow.shared.connect(presentingWindow: win)
-                        store.gcalConnected = true
+                        store.gcalConnected = await GoogleAuthFlow.shared.connect(presentingWindow: win)
                     }
                 }.disabled(clientID.isEmpty)
             }
