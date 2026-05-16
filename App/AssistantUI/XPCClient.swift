@@ -1,5 +1,7 @@
 import Foundation
 import AssistantShared
+import AssistantStore
+import AssistantGrades
 
 /// Wraps NSXPCConnection to the daemon. All future XPC calls go through here.
 ///
@@ -114,6 +116,97 @@ final class XPCClient {
             proxy.registerEventClient(endpoint) { _ in }
         } catch {
             NSLog("[XPCClient] register event client failed: \(error)")
+        }
+    }
+
+    func computeGrade(courseId: String, projection: [String: Double]?,
+                      reply: @escaping (GradeBreakdown?) -> Void) {
+        do {
+            let pjData = projection.flatMap { try? JSONEncoder().encode($0) }
+            let proxy = try makeProxy()
+            proxy.computeGrade(courseId: courseId, projectionJSON: pjData) { data in
+                let bd = try? JSONDecoder().decode(GradeBreakdown.self, from: data)
+                DispatchQueue.main.async { reply(bd) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(nil) }
+        }
+    }
+
+    func enterGrade(itemId: String, earnedPoints: Double, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.enterGrade(itemId: itemId, earnedPoints: earnedPoints) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
+        }
+    }
+
+    func listCourses(reply: @escaping ([Course]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listCourses { data in
+                let courses = (try? JSONDecoder().decode([Course].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(courses) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply([]) }
+        }
+    }
+
+    func upsertCourse(_ course: Course, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(course)
+            let proxy = try makeProxy()
+            proxy.upsertCourse(data) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
+        }
+    }
+
+    func listGradeData(courseId: String,
+                       reply: @escaping ([GradeCategory], [GradeItem]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listGradeData(courseId: courseId) { data in
+                var cats: [GradeCategory] = []
+                var items: [GradeItem] = []
+                if let dto = try? JSONDecoder().decode(GradeDataDTO.self, from: data) {
+                    cats = (try? JSONDecoder().decode([GradeCategory].self, from: dto.categoriesJSON)) ?? []
+                    items = (try? JSONDecoder().decode([GradeItem].self, from: dto.itemsJSON)) ?? []
+                }
+                DispatchQueue.main.async { reply(cats, items) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply([], []) }
+        }
+    }
+
+    func upsertCategory(_ category: GradeCategory, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(category)
+            let proxy = try makeProxy()
+            proxy.upsertCategory(data) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
+        }
+    }
+
+    func upsertItem(_ item: GradeItem, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(item)
+            let proxy = try makeProxy()
+            proxy.upsertItem(data) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(false) }
         }
     }
 

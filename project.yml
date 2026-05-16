@@ -26,6 +26,10 @@ targets:
         product: AssistantShared
       - package: AssistantShared
         product: AssistantGCal
+      - package: AssistantShared
+        product: AssistantStore
+      - package: AssistantShared
+        product: AssistantGrades
       - package: AppAuth
         product: AppAuth
       - package: KeyboardShortcuts

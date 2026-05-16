@@ -11,4 +11,9 @@ public protocol AssistantServiceProtocol {
     func registerEventClient(_ endpoint: NSXPCListenerEndpoint, reply: @escaping (Bool) -> Void)
     func computeGrade(courseId: String, projectionJSON: Data?, reply: @escaping (Data) -> Void)
     func enterGrade(itemId: String, earnedPoints: Double, reply: @escaping (Bool) -> Void)
+    func listCourses(reply: @escaping (Data) -> Void)
+    func upsertCourse(_ data: Data, reply: @escaping (Bool) -> Void)
+    func listGradeData(courseId: String, reply: @escaping (Data) -> Void)
+    func upsertCategory(_ data: Data, reply: @escaping (Bool) -> Void)
+    func upsertItem(_ data: Data, reply: @escaping (Bool) -> Void)
 }

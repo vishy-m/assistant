@@ -187,6 +187,80 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func listCourses(reply: @escaping (Data) -> Void) {
+        do {
+            let courses = try CourseRepository(db: db).all()
+            reply(try JSONEncoder().encode(courses))
+        } catch {
+            NSLog("[AssistantService] listCourses error: \(error)")
+            reply(Data())
+        }
+    }
+
+    func upsertCourse(_ data: Data, reply: @escaping (Bool) -> Void) {
+        do {
+            let course = try JSONDecoder().decode(Course.self, from: data)
+            let repo = CourseRepository(db: db)
+            if try repo.find(id: course.id) != nil {
+                try repo.update(course)
+            } else {
+                try repo.insert(course)
+            }
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] upsertCourse error: \(error)")
+            reply(false)
+        }
+    }
+
+    func listGradeData(courseId: String, reply: @escaping (Data) -> Void) {
+        do {
+            let repo = GradeRepository(db: db)
+            let cats = try repo.categories(forCourse: courseId)
+            let items = try repo.items(forCourse: courseId)
+            let dto = GradeDataDTO(
+                categoriesJSON: try JSONEncoder().encode(cats),
+                itemsJSON: try JSONEncoder().encode(items))
+            reply(try JSONEncoder().encode(dto))
+        } catch {
+            NSLog("[AssistantService] listGradeData error: \(error)")
+            reply(Data())
+        }
+    }
+
+    func upsertCategory(_ data: Data, reply: @escaping (Bool) -> Void) {
+        do {
+            let cat = try JSONDecoder().decode(GradeCategory.self, from: data)
+            let repo = GradeRepository(db: db)
+            let existing = try repo.categories(forCourse: cat.courseId)
+            if existing.contains(where: { $0.id == cat.id }) {
+                try repo.updateCategory(cat)
+            } else {
+                try repo.insertCategory(cat)
+            }
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] upsertCategory error: \(error)")
+            reply(false)
+        }
+    }
+
+    func upsertItem(_ data: Data, reply: @escaping (Bool) -> Void) {
+        do {
+            let item = try JSONDecoder().decode(GradeItem.self, from: data)
+            let repo = GradeRepository(db: db)
+            if try repo.findItem(id: item.id) != nil {
+                try repo.updateItem(item)
+            } else {
+                try repo.insertItem(item)
+            }
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] upsertItem error: \(error)")
+            reply(false)
+        }
+    }
+
     private func buildCalculatorInput(courseId: String,
                                        projection: [String: Double]) throws -> GradeCalculatorInput {
         let gradeRepo = GradeRepository(db: db)
