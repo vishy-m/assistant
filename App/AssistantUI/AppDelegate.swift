@@ -28,6 +28,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Connect Google Calendar…",
                                 action: #selector(connectGoogle(_:)),
                                 keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Grades",
+                                action: #selector(openGrades(_:)),
+                                keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Assistant",
                                 action: #selector(NSApplication.terminate(_:)),
@@ -111,6 +114,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openOverlay(_ sender: Any?) {
         Task { @MainActor in OverlayController.shared.summon() }
+    }
+
+    @objc private func openGrades(_ sender: Any?) {
+        Task { @MainActor in GradeDashboardWindow.shared.show() }
     }
 
     @objc private func connectGoogle(_ sender: Any?) {
