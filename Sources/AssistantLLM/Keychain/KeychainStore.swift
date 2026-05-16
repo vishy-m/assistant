@@ -29,7 +29,10 @@ public struct KeychainStore {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            // ThisDeviceOnly: never escrowed to iCloud Keychain or migrated in
+            // an encrypted backup. The headless daemon still gets access once
+            // the device has been unlocked since boot.
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         ]
         let status = SecItemAdd(attrs as CFDictionary, nil)
         guard status == errSecSuccess else {

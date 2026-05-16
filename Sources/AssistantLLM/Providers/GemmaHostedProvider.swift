@@ -20,12 +20,15 @@ public final class GemmaHostedProvider: LLMProvider {
 
     public func complete(messages: [LLMMessage], tools: [LLMTool]) async throws -> LLMResponse {
         guard let key = apiKeyProvider() else { throw ProviderError.notConfigured }
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(key)")!
+        // Key goes in a header, never the URL — a key in a query string leaks
+        // into logs, URLError descriptions, and proxy access logs.
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
 
         let body = try makeBody(messages: messages, tools: tools)
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(key, forHTTPHeaderField: "x-goog-api-key")
         req.httpBody = body
 
         let resp: HTTPResponse
