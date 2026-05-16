@@ -4,18 +4,22 @@ import AppKit
 struct GoogleAccountTab: View {
     @ObservedObject var store: SettingsStore
     @State private var clientID: String = ""
+    @State private var clientSecret: String = ""
     @State private var isConnecting = false
 
     var body: some View {
         Form {
-            Section("OAuth Client ID") {
-                Text("Create a Desktop App OAuth client at Google Cloud Console → APIs & Services → Credentials. Paste the client ID here. No client secret is required for desktop apps.")
+            Section("OAuth credentials") {
+                Text("Create a Desktop App OAuth client at Google Cloud Console → APIs & Services → Credentials. Paste both the client ID and client secret — Google's desktop clients now issue a secret, and the token endpoint requires it.")
                     .font(.caption).foregroundStyle(.secondary)
                 TextField("Client ID", text: $clientID,
                           prompt: Text("123-abc.apps.googleusercontent.com"))
+                SecureField("Client secret", text: $clientSecret,
+                            prompt: Text("GOCSPX-…"))
                 Button("Save") {
                     var s = store.settings
                     s.gcalOAuthClientID = clientID
+                    s.gcalOAuthClientSecret = clientSecret
                     store.settings = s
                     _Concurrency.Task { _ = await store.save() }
                 }
@@ -37,6 +41,7 @@ struct GoogleAccountTab: View {
                     Button("Connect Google Calendar") {
                         guard let cid = store.settings.gcalOAuthClientID, !cid.isEmpty else { return }
                         GCalOAuthConfig.clientID = cid
+                        GCalOAuthConfig.clientSecret = store.settings.gcalOAuthClientSecret ?? ""
                         isConnecting = true
                         _Concurrency.Task { @MainActor in
                             let win = NSApp.keyWindow ?? NSWindow()
@@ -51,6 +56,9 @@ struct GoogleAccountTab: View {
         }
         .formStyle(.grouped)
         .padding(20)
-        .onAppear { clientID = store.settings.gcalOAuthClientID ?? "" }
+        .onAppear {
+            clientID = store.settings.gcalOAuthClientID ?? ""
+            clientSecret = store.settings.gcalOAuthClientSecret ?? ""
+        }
     }
 }

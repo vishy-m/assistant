@@ -42,6 +42,9 @@ let service = AssistantService(db: db, loop: loop)
 
 // MARK: - Google Calendar integration
 
+// Let the token cache read OAuth client credentials from the settings table.
+GCalAccessTokenCache.shared.configure(db: db)
+
 let gcalClient = GCalClient(http: http,
                             accessTokenProvider: { GCalAccessTokenCache.shared.current() })
 let quota = QuotaGuard(db: db)

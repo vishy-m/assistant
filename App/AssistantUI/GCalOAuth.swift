@@ -11,9 +11,13 @@ public enum GCalOAuthConfig {
     /// Loopback redirect uses 127.0.0.1 with a dynamic port chosen by AppAuth.
     public static let redirectBaseURL = URL(string: "http://127.0.0.1")!
 
-    /// Replace with your client ID before first auth.
-    /// In production, prompt the user once and store in `setting`.
+    /// Set from settings before each auth. In production, prompt the user once
+    /// and store in `setting`.
     public static var clientID: String = ""
+
+    /// Google "Desktop app" OAuth clients now also issue a client secret, and
+    /// the token endpoint requires it. Set from settings alongside the ID.
+    public static var clientSecret: String = ""
 }
 
 #if canImport(AppAuth)
@@ -52,10 +56,11 @@ public final class GCalOAuth {
         self.redirectHandler = handler
         let redirectURI = handler.startHTTPListener(nil)
 
+        let secret = GCalOAuthConfig.clientSecret.isEmpty ? nil : GCalOAuthConfig.clientSecret
         let request = OIDAuthorizationRequest(
             configuration: config,
             clientId: GCalOAuthConfig.clientID,
-            clientSecret: nil,
+            clientSecret: secret,
             scopes: GCalOAuthConfig.scopes,
             redirectURL: redirectURI,
             responseType: OIDResponseTypeCode,

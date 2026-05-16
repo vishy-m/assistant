@@ -37,11 +37,13 @@ public struct AppSettings: Codable, Equatable {
     public var preferredClaudeModel: String       // "claude-sonnet-4-6" | "claude-opus-4-7"
     public var preferredOllamaModel: String       // "gemma4:e2b" | "gemma4:e4b"
     public var gcalOAuthClientID: String?
+    public var gcalOAuthClientSecret: String?
 
     public init(morningBriefingHour: Int, morningBriefingMinute: Int,
                 eveningBriefingHour: Int, eveningBriefingMinute: Int,
                 leadTimes: LeadTimes, preferredClaudeModel: String,
-                preferredOllamaModel: String, gcalOAuthClientID: String?) {
+                preferredOllamaModel: String, gcalOAuthClientID: String?,
+                gcalOAuthClientSecret: String? = nil) {
         self.morningBriefingHour = morningBriefingHour
         self.morningBriefingMinute = morningBriefingMinute
         self.eveningBriefingHour = eveningBriefingHour
@@ -50,6 +52,7 @@ public struct AppSettings: Codable, Equatable {
         self.preferredClaudeModel = preferredClaudeModel
         self.preferredOllamaModel = preferredOllamaModel
         self.gcalOAuthClientID = gcalOAuthClientID
+        self.gcalOAuthClientSecret = gcalOAuthClientSecret
     }
 
     public static let `default` = AppSettings(
