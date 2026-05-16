@@ -41,8 +41,20 @@ public enum GCalTools {
                       let e = FlexibleDate.parse(args.end) else {
                     return #"{"error":"bad ISO date"}"#
                 }
-                guard let calID = try setting.get(AssistantCalendarBootstrap.settingKey) else {
-                    return #"{"error":"Assistant calendar not initialized — connect Google Calendar first."}"#
+                // Resolve the dedicated "Assistant" calendar, creating it on
+                // first use. Cached afterward so this is a one-time online cost.
+                let calID: String
+                if let cached = try setting.get(AssistantCalendarBootstrap.settingKey) {
+                    calID = cached
+                } else if isOnline() {
+                    do {
+                        calID = try await AssistantCalendarBootstrap(client: client, db: db)
+                            .ensureAssistantCalendar()
+                    } catch {
+                        return #"{"error":"Could not initialize the Assistant calendar: \#(error)"}"#
+                    }
+                } else {
+                    return #"{"error":"Assistant calendar not set up yet, and you're offline."}"#
                 }
 
                 if isOnline() {
