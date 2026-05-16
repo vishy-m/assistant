@@ -4,6 +4,7 @@ import AssistantStore
 import AssistantLLM
 import AssistantGCal
 import AssistantBriefings
+import AssistantGrades
 
 NSLog("[AssistantCoreHelper] starting")
 
@@ -49,6 +50,7 @@ let outbox = OutboxProcessor(client: gcalClient, db: db, quota: quota)
 
 // Register GCal tools into the existing registry, then rebuild + install the loop.
 GCalTools.register(into: &registry, client: gcalClient, db: db)
+GradeTools.register(into: &registry, db: db)
 let loopWithGCal = ToolLoop(chain: chain, registry: registry)
 service.replaceLoop(loopWithGCal)
 
