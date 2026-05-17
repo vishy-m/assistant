@@ -125,6 +125,7 @@ struct NewCourseSheet: View {
     @State private var term = ""
     @State private var targetGrade = "A-"
     @State private var colorHex = GradeTheme.coursePalette[0]
+    @State private var creditHours: Double? = nil
 
     private let letters = ["A", "A-", "B+", "B", "B-", "C+", "C"]
 
@@ -139,6 +140,10 @@ struct NewCourseSheet: View {
             }
             field("Term") {
                 TextField("Fall 2026", text: $term)
+                    .textFieldStyle(.roundedBorder)
+            }
+            field("Credit hours") {
+                TextField("Credit hours", value: $creditHours, format: .number)
                     .textFieldStyle(.roundedBorder)
             }
             field("Target grade") {
@@ -169,7 +174,8 @@ struct NewCourseSheet: View {
                     let course = Course(
                         id: UUID().uuidString, name: name, term: term.isEmpty ? nil : term,
                         color: colorHex, targetGrade: targetGrade,
-                        gradingScaleJson: nil, syllabusSourcePath: nil)
+                        gradingScaleJson: nil, syllabusSourcePath: nil,
+                        creditHours: creditHours)
                     onSave(course)
                     dismiss()
                 }
