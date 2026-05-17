@@ -1,7 +1,7 @@
 import Foundation
 
 /// One payload backing the dashboard's left rail.
-public struct DashboardSummary: Codable {
+public struct DashboardSummary: Codable, Equatable {
     public let gpa: Double
     public let gpaCountedCourses: Int
     public let gpaTotalCourses: Int
@@ -21,12 +21,13 @@ public struct DashboardSummary: Codable {
     }
 }
 
-public struct ClassStanding: Codable, Identifiable {
+public struct ClassStanding: Codable, Identifiable, Equatable {
     public var id: String { courseId }
     public let courseId: String
     public let courseName: String
     public let currentPct: Double
     public let currentLetter: String
+
     public init(courseId: String, courseName: String,
                 currentPct: Double, currentLetter: String) {
         self.courseId = courseId
@@ -36,7 +37,7 @@ public struct ClassStanding: Codable, Identifiable {
     }
 }
 
-public struct RecentGrade: Codable, Identifiable {
+public struct RecentGrade: Codable, Identifiable, Equatable {
     public var id: String { itemId }
     public let itemId: String
     public let courseName: String
@@ -53,8 +54,8 @@ public struct RecentGrade: Codable, Identifiable {
     }
 }
 
-public struct DueSoonItem: Codable, Identifiable {
-    public enum Kind: String, Codable { case task, gradeItem }
+public struct DueSoonItem: Codable, Identifiable, Equatable {
+    public enum Kind: String, Codable, Equatable { case task, gradeItem }
     public let id: String
     public let kind: Kind
     public let title: String
@@ -72,7 +73,7 @@ public struct DueSoonItem: Codable, Identifiable {
     }
 }
 
-public struct WeekEvent: Codable, Identifiable {
+public struct WeekEvent: Codable, Identifiable, Equatable {
     public let id: String
     public let title: String
     public let startAt: Date
@@ -90,12 +91,12 @@ public struct WeekEvent: Codable, Identifiable {
     }
 }
 
-public struct WeekEventsResponse: Codable {
+public struct WeekEventsResponse: Codable, Equatable {
     public let events: [WeekEvent]
     public init(events: [WeekEvent]) { self.events = events }
 }
 
-public struct CreateEventRequest: Codable {
+public struct CreateEventRequest: Codable, Equatable {
     public let title: String
     public let startAt: Date
     public let endAt: Date
@@ -108,7 +109,7 @@ public struct CreateEventRequest: Codable {
     }
 }
 
-public struct UpdateEventRequest: Codable {
+public struct UpdateEventRequest: Codable, Equatable {
     public let eventId: String
     public let startAt: Date
     public let endAt: Date
@@ -120,7 +121,7 @@ public struct UpdateEventRequest: Codable {
 }
 
 /// Result of a calendar write: the stored event, or an error message.
-public struct CalendarWriteResult: Codable {
+public struct CalendarWriteResult: Codable, Equatable {
     public let event: WeekEvent?
     public let errorMessage: String?
     public init(event: WeekEvent?, errorMessage: String?) {
