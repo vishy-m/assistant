@@ -8,6 +8,9 @@ struct WeekCalendarView: View {
     private let visibleStartHour = 7
     private let cal = Calendar(identifier: .gregorian)
 
+    @State private var pendingCreateStart: Date?
+    @State private var showCreate = false
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -23,6 +26,11 @@ struct WeekCalendarView: View {
                     .id("grid")
                 }
                 .onAppear { proxy.scrollTo("hour-\(visibleStartHour)", anchor: .top) }
+                .popover(isPresented: $showCreate) {
+                    if let start = pendingCreateStart {
+                        CalendarEventPopover(mode: .create(start: start), store: store)
+                    }
+                }
             }
         }
     }
@@ -86,9 +94,19 @@ struct WeekCalendarView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 2)
             ZStack(alignment: .topLeading) {
+                // Hour lines + click-to-create slots
                 VStack(spacing: 0) {
-                    ForEach(0..<24, id: \.self) { _ in
-                        Divider().frame(height: layout.hourHeight, alignment: .top)
+                    ForEach(0..<24, id: \.self) { hour in
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(height: layout.hourHeight)
+                            .overlay(Divider(), alignment: .top)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                pendingCreateStart = cal.date(byAdding: .hour,
+                                                              value: hour, to: dayStart)!
+                                showCreate = true
+                            }
                     }
                 }
                 ForEach(dayEvents) { event in
