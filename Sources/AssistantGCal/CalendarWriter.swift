@@ -78,7 +78,12 @@ public final class CalendarWriter: Sendable {
     public func delete(eventId: String) async throws {
         let repo = GCalRepository(db: db)
         guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
-        try await client.deleteEvent(calendarId: cached.calendarId, eventId: eventId)
+        do {
+            try await client.deleteEvent(calendarId: cached.calendarId, eventId: eventId)
+        } catch GCalError.notFound {
+            // Already gone on Google (deleted elsewhere, or a stale cache row) —
+            // still purge it locally so it stops reappearing.
+        }
         try repo.deleteCached(id: eventId)
     }
 
