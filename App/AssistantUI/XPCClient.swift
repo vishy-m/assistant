@@ -333,6 +333,68 @@ final class XPCClient {
         }
     }
 
+    func getDashboardSummary(reply: @escaping (DashboardSummary?) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.getDashboardSummary { data in
+                let s = try? JSONDecoder().decode(DashboardSummary.self, from: data)
+                DispatchQueue.main.async { reply(s) }
+            }
+        } catch { DispatchQueue.main.async { reply(nil) } }
+    }
+
+    func getWeekEvents(start: Date, end: Date,
+                       reply: @escaping ([WeekEvent]) -> Void) {
+        let iso = ISO8601DateFormatter()
+        do {
+            let proxy = try makeProxy()
+            proxy.getWeekEvents(startISO: iso.string(from: start),
+                                endISO: iso.string(from: end)) { data in
+                let events = (try? JSONDecoder().decode(
+                    WeekEventsResponse.self, from: data))?.events ?? []
+                DispatchQueue.main.async { reply(events) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
+    func createCalendarEvent(_ request: CreateEventRequest,
+                             reply: @escaping (CalendarWriteResult) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(request)
+            let proxy = try makeProxy()
+            proxy.createCalendarEvent(data) { resultData in
+                let result = (try? JSONDecoder().decode(
+                    CalendarWriteResult.self, from: resultData))
+                    ?? CalendarWriteResult(event: nil, errorMessage: "no response")
+                DispatchQueue.main.async { reply(result) }
+            }
+        } catch {
+            DispatchQueue.main.async {
+                reply(CalendarWriteResult(event: nil, errorMessage: "\(error)"))
+            }
+        }
+    }
+
+    func updateCalendarEvent(_ request: UpdateEventRequest,
+                             reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(request)
+            let proxy = try makeProxy()
+            proxy.updateCalendarEvent(data) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func deleteCalendarEvent(eventId: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.deleteCalendarEvent(eventId: eventId) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {
