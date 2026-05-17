@@ -123,18 +123,3 @@ struct WeekCalendarView: View {
         .frame(height: CGFloat(24) * layout.hourHeight)
     }
 }
-
-private struct CalendarEventBlock: View {
-    let event: WeekEvent
-    let store: DashboardStore
-    let layout: WeekGridLayout
-    let dayStart: Date
-    var body: some View {
-        Text(event.title)
-            .font(.caption2).lineLimit(1)
-            .padding(2)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(GradeTheme.accent.opacity(0.25))
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-    }
-}
