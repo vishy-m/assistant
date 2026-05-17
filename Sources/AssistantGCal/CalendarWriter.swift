@@ -1,0 +1,99 @@
+import Foundation
+import AssistantStore
+import AssistantShared
+
+/// Single owner of calendar create/update/delete. Resolves the dedicated
+/// "Assistant" calendar, writes through GCalClient, mirrors the local cache,
+/// and enqueues to the outbox when offline or when an online write fails.
+public final class CalendarWriter: Sendable {
+
+    private let client: GCalClient
+    private let db: AssistantDB
+    private let isOnline: @Sendable () -> Bool
+
+    public init(client: GCalClient,
+                db: AssistantDB,
+                isOnline: @escaping @Sendable () -> Bool = { NetworkMonitor.shared.isOnline }) {
+        self.client = client
+        self.db = db
+        self.isOnline = isOnline
+    }
+
+    public enum WriteError: Error { case offlineNoCalendar, notFound }
+
+    @discardableResult
+    public func create(title: String, start: Date, end: Date,
+                       location: String?, description: String?) async throws -> WeekEvent {
+        let bootstrap = AssistantCalendarBootstrap(client: client, db: db)
+        let repo = GCalRepository(db: db)
+
+        let calID: String
+        if isOnline() {
+            calID = try await bootstrap.ensureAssistantCalendar()
+        } else if let cached = try bootstrap.cachedCalendarId() {
+            calID = cached
+        } else {
+            throw WriteError.offlineNoCalendar
+        }
+
+        if isOnline() {
+            do {
+                let ev = try await client.insertEvent(
+                    calendarId: calID, summary: title, start: start, end: end,
+                    location: location, description: description)
+                try repo.upsert(GCalEventCache(
+                    gcalEventId: ev.id, calendarId: calID,
+                    title: ev.summary ?? title, startAt: start, endAt: end,
+                    location: location, category: "generic",
+                    lastSyncedAt: Date(), rawJson: "{}"))
+                return WeekEvent(id: ev.id, title: ev.summary ?? title,
+                                 startAt: start, endAt: end,
+                                 category: "generic", location: location)
+            } catch {
+                try enqueueInsert(title: title, start: start, end: end,
+                                  location: location, description: description, repo: repo)
+                throw error
+            }
+        }
+        try enqueueInsert(title: title, start: start, end: end,
+                          location: location, description: description, repo: repo)
+        throw WriteError.offlineNoCalendar
+    }
+
+    public func update(eventId: String, start: Date, end: Date) async throws {
+        let repo = GCalRepository(db: db)
+        guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
+        let ev = try await client.updateEvent(
+            calendarId: cached.calendarId, eventId: eventId,
+            summary: nil, start: start, end: end, location: nil, description: nil)
+        var updated = cached
+        updated.startAt = start
+        updated.endAt = end
+        updated.title = ev.summary ?? cached.title
+        updated.lastSyncedAt = Date()
+        try repo.upsert(updated)
+    }
+
+    public func delete(eventId: String) async throws {
+        let repo = GCalRepository(db: db)
+        guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
+        try await client.deleteEvent(calendarId: cached.calendarId, eventId: eventId)
+        try repo.deleteCached(id: eventId)
+    }
+
+    private func enqueueInsert(title: String, start: Date, end: Date,
+                               location: String?, description: String?,
+                               repo: GCalRepository) throws {
+        let iso = ISO8601DateFormatter()
+        let payload = OutboxPayload.insertEvent(InsertEventPayload(
+            summary: title,
+            startISO: iso.string(from: start),
+            endISO: iso.string(from: end),
+            location: location,
+            description: description))
+        let json = String(data: try JSONEncoder().encode(payload), encoding: .utf8) ?? "{}"
+        try repo.enqueue(PendingGCalOp(
+            id: UUID().uuidString, opType: "insert_event",
+            payloadJson: json, attempts: 0, lastAttemptAt: nil, createdAt: Date()))
+    }
+}
