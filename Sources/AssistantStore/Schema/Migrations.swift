@@ -13,5 +13,6 @@ public enum Migrations {
         Migration005Conversation.register(&migrator)
         Migration006Briefing.register(&migrator)
         Migration007CourseCreditHours.register(&migrator)
+        Migration008Category.register(&migrator)
     }
 }
