@@ -9,4 +9,7 @@ extension KeyboardShortcuts.Name {
 
     /// Global hotkey that resumes the most recent conversation.
     static let summonResume = Self("summonResume", default: .init(.space, modifiers: [.control, .option]))
+
+    /// Global hotkey that opens the everything dashboard.
+    static let dashboard = Self("dashboard", default: .init(.d, modifiers: [.control, .shift]))
 }

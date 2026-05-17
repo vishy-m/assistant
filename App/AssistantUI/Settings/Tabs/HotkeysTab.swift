@@ -7,6 +7,7 @@ struct HotkeysTab: View {
             Section("Global") {
                 KeyboardShortcuts.Recorder("Summon overlay", name: .summon)
                 KeyboardShortcuts.Recorder("Resume last conversation", name: .summonResume)
+                KeyboardShortcuts.Recorder("Open dashboard", name: .dashboard)
             }
             Section("Inside overlay") {
                 KeyboardShortcuts.Recorder("Crop a screen region", name: .crop)
