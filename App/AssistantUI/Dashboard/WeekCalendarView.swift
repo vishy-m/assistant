@@ -9,6 +9,7 @@ struct WeekCalendarView: View {
     private let cal = Calendar(identifier: .gregorian)
 
     @State private var pendingCreateStart: Date?
+    @State private var pendingCreateEnd: Date?
     @State private var showCreate = false
 
     var body: some View {
@@ -27,8 +28,8 @@ struct WeekCalendarView: View {
                 }
                 .onAppear { proxy.scrollTo("hour-\(visibleStartHour)", anchor: .top) }
                 .popover(isPresented: $showCreate) {
-                    if let start = pendingCreateStart {
-                        CalendarEventPopover(mode: .create(start: start), store: store)
+                    if let start = pendingCreateStart, let end = pendingCreateEnd {
+                        CalendarEventPopover(mode: .create(start: start, end: end), store: store)
                     }
                 }
             }
@@ -94,21 +95,22 @@ struct WeekCalendarView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 2)
             ZStack(alignment: .topLeading) {
-                // Hour lines + click-to-create slots
+                // Hour grid lines
                 VStack(spacing: 0) {
-                    ForEach(0..<24, id: \.self) { hour in
+                    ForEach(0..<24, id: \.self) { _ in
                         Rectangle()
                             .fill(Color.clear)
                             .frame(height: layout.hourHeight)
                             .overlay(Divider(), alignment: .top)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                pendingCreateStart = cal.date(byAdding: .hour,
-                                                              value: hour, to: dayStart)!
-                                showCreate = true
-                            }
                     }
                 }
+                // Tap or drag an empty span to create an event.
+                DayCreateSurface(dayStart: dayStart, layout: layout) { start, end in
+                    pendingCreateStart = start
+                    pendingCreateEnd = end
+                    showCreate = true
+                }
+                .frame(height: CGFloat(24) * layout.hourHeight)
                 ForEach(dayEvents) { event in
                     eventBlock(event, dayStart: dayStart, dayEnd: dayEnd,
                                placement: placements[event.id])
@@ -139,5 +141,50 @@ struct WeekCalendarView: View {
                 .offset(x: colWidth * CGFloat(index), y: top)
         }
         .frame(height: CGFloat(24) * layout.hourHeight)
+    }
+}
+
+/// Transparent overlay over a day column. A tap creates a one-hour event at
+/// that time; dragging vertically creates an event spanning the dragged range.
+/// Both endpoints snap to 15 minutes via `WeekGridLayout`.
+private struct DayCreateSurface: View {
+    let dayStart: Date
+    let layout: WeekGridLayout
+    let onCreate: (Date, Date) -> Void
+
+    @State private var band: (lo: CGFloat, hi: CGFloat)?
+
+    var body: some View {
+        Rectangle()
+            .fill(Color.clear)
+            .contentShape(Rectangle())
+            .overlay(alignment: .top) { bandOverlay }
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        band = (min(value.startLocation.y, value.location.y),
+                                max(value.startLocation.y, value.location.y))
+                    }
+                    .onEnded { value in
+                        band = nil
+                        let lo = min(value.startLocation.y, value.location.y)
+                        let hi = max(value.startLocation.y, value.location.y)
+                        let start = layout.time(forYOffset: lo, dayStart: dayStart)
+                        var end = layout.time(forYOffset: hi, dayStart: dayStart)
+                        if end <= start { end = start.addingTimeInterval(3600) }
+                        onCreate(start, end)
+                    }
+            )
+    }
+
+    @ViewBuilder
+    private var bandOverlay: some View {
+        if let band {
+            Rectangle()
+                .fill(GradeTheme.accent.opacity(0.18))
+                .frame(height: max(band.hi - band.lo, 2))
+                .offset(y: band.lo)
+                .allowsHitTesting(false)
+        }
     }
 }
