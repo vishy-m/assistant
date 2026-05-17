@@ -41,10 +41,15 @@ struct WeekCalendarView: View {
         .padding(10)
     }
 
+    private static let monthDayFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "MMM d"; return f
+    }()
+    private static let dayHeaderFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "EEE d"; return f
+    }()
+
     private var weekTitle: String {
-        let f = DateFormatter()
-        f.dateFormat = "MMM d"
-        return "Week of \(f.string(from: store.weekStart))"
+        return "Week of \(Self.monthDayFormatter.string(from: store.weekStart))"
     }
 
     private var hourGutter: some View {
@@ -87,7 +92,7 @@ struct WeekCalendarView: View {
                     }
                 }
                 ForEach(dayEvents) { event in
-                    eventBlock(event, dayStart: dayStart,
+                    eventBlock(event, dayStart: dayStart, dayEnd: dayEnd,
                                placement: placements[event.id])
                 }
             }
@@ -97,16 +102,16 @@ struct WeekCalendarView: View {
     }
 
     private func dayHeader(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "EEE d"
-        return f.string(from: date)
+        return Self.dayHeaderFormatter.string(from: date)
     }
 
-    private func eventBlock(_ event: WeekEvent, dayStart: Date,
+    private func eventBlock(_ event: WeekEvent, dayStart: Date, dayEnd: Date,
                             placement: WeekGridLayout.Placement?) -> some View {
-        let top = layout.yOffset(for: max(event.startAt, dayStart), dayStart: dayStart)
+        let clampedStart = max(event.startAt, dayStart)
+        let clampedEnd = min(event.endAt, dayEnd)
+        let top = layout.yOffset(for: clampedStart, dayStart: dayStart)
         let height = layout.height(
-            forDurationSeconds: event.endAt.timeIntervalSince(event.startAt))
+            forDurationSeconds: clampedEnd.timeIntervalSince(clampedStart))
         let count = placement?.columnCount ?? 1
         let index = placement?.columnIndex ?? 0
         return GeometryReader { geo in
@@ -115,6 +120,7 @@ struct WeekCalendarView: View {
                 .frame(width: colWidth, height: max(height, 16))
                 .offset(x: colWidth * CGFloat(index), y: top)
         }
+        .frame(height: CGFloat(24) * layout.hourHeight)
     }
 }
 
