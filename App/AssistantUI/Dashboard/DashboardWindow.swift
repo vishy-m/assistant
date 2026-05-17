@@ -9,6 +9,7 @@ final class DashboardWindow {
     static let shared = DashboardWindow()
     private var window: NSWindow?
     private let store = DashboardStore()
+    private var keyObserver: NSObjectProtocol?
 
     private init() {}
 
@@ -29,6 +30,13 @@ final class DashboardWindow {
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window = w
+        keyObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification, object: w, queue: .main) { [store] _ in
+            _Concurrency.Task { @MainActor in
+                store.refreshSummary()
+                store.refreshEvents()
+            }
+        }
         store.refreshAll()
     }
 }

@@ -135,7 +135,7 @@ struct WeekCalendarView: View {
         return GeometryReader { geo in
             let colWidth = geo.size.width / CGFloat(count)
             CalendarEventBlock(event: event, store: store, layout: layout, dayStart: dayStart)
-                .frame(width: colWidth, height: max(height, 16))
+                .frame(width: colWidth, height: max(height, 28))
                 .offset(x: colWidth * CGFloat(index), y: top)
         }
         .frame(height: CGFloat(24) * layout.hourHeight)
