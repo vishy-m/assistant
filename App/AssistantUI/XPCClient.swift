@@ -320,6 +320,19 @@ final class XPCClient {
         }
     }
 
+    /// The Google account's display time zone (IANA name), or nil if it can't
+    /// be fetched (not connected / offline).
+    func googleAccountTimeZone(reply: @escaping (String?) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.googleAccountTimeZone { tz in
+                DispatchQueue.main.async { reply(tz) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(nil) }
+        }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {

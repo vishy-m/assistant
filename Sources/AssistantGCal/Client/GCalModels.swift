@@ -34,5 +34,9 @@ public struct GCalEventList: Codable, Equatable {
 
 public struct GCalCalendarCreateBody: Codable {
     public let summary: String
-    public init(summary: String) { self.summary = summary }
+    public let timeZone: String?
+    public init(summary: String, timeZone: String? = nil) {
+        self.summary = summary
+        self.timeZone = timeZone
+    }
 }

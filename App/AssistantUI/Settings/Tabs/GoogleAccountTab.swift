@@ -6,6 +6,7 @@ struct GoogleAccountTab: View {
     @State private var clientID: String = ""
     @State private var clientSecret: String = ""
     @State private var isConnecting = false
+    @State private var timezoneWarning: String?
 
     var body: some View {
         Form {
@@ -37,9 +38,15 @@ struct GoogleAccountTab: View {
                 if store.gcalConnected {
                     Label("Connected", systemImage: "checkmark.seal.fill")
                         .foregroundStyle(.green)
+                    if let warning = timezoneWarning {
+                        timezoneBanner(warning)
+                    }
                     Button("Disconnect", role: .destructive) {
                         XPCClient.shared.clearGoogleRefreshToken { _ in
-                            _Concurrency.Task { @MainActor in store.gcalConnected = false }
+                            _Concurrency.Task { @MainActor in
+                                store.gcalConnected = false
+                                timezoneWarning = nil
+                            }
                         }
                     }
                 } else {
@@ -53,6 +60,7 @@ struct GoogleAccountTab: View {
                             let ok = await GoogleAuthFlow.shared.connect(presentingWindow: win)
                             isConnecting = false
                             store.gcalConnected = ok
+                            if ok { refreshTimeZoneWarning() }
                         }
                     }
                     .disabled((store.settings.gcalOAuthClientID?.isEmpty ?? true) || isConnecting)
@@ -66,6 +74,44 @@ struct GoogleAccountTab: View {
             XPCClient.shared.getGoogleClientSecret { secret in
                 clientSecret = secret ?? ""
             }
+            refreshTimeZoneWarning()
+        }
+    }
+
+    private func timezoneBanner(_ warning: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Time zone mismatch")
+                    .font(.callout).fontWeight(.semibold)
+                Text(warning)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// Compares the Google account's display time zone with this Mac's. They
+    /// must agree, or events render at a shifted wall-clock time.
+    private func refreshTimeZoneWarning() {
+        guard store.gcalConnected else { timezoneWarning = nil; return }
+        XPCClient.shared.googleAccountTimeZone { accountTZ in
+            guard let accountTZ, !accountTZ.isEmpty,
+                  let remote = TimeZone(identifier: accountTZ) else {
+                timezoneWarning = nil
+                return
+            }
+            let local = TimeZone.current
+            let offsetDiff = remote.secondsFromGMT() - local.secondsFromGMT()
+            guard offsetDiff != 0 else { timezoneWarning = nil; return }
+            let hours = abs(offsetDiff) / 3600
+            let unit = hours == 1 ? "hour" : "hours"
+            timezoneWarning =
+                "Google Calendar shows events in \(accountTZ), but this Mac uses "
+                + "\(local.identifier). Events you create may appear shifted by about "
+                + "\(hours) \(unit). Fix it in Google Calendar → Settings → Time zone."
         }
     }
 }

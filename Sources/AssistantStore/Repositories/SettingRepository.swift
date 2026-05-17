@@ -32,6 +32,17 @@ public struct SettingRepository {
         }
     }
 
+    /// Read the raw stored JSON for a key, bypassing struct decoding.
+    /// Used by migrations that need fields no longer present in the model.
+    public func rawData(_ key: String) throws -> Data? {
+        try db.queue.read { db in
+            try Data.fetchOne(
+                db,
+                sql: "SELECT value_json FROM setting WHERE key = ?",
+                arguments: [key])
+        }
+    }
+
     /// Read any Codable value.
     public func getCodable<T: Decodable>(_ key: String) throws -> T? {
         try db.queue.read { db in

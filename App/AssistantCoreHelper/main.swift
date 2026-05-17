@@ -16,6 +16,9 @@ do {
     exit(1)
 }
 
+// Relocate any pre-Keychain Google OAuth client secret before anything reads it.
+OAuthSecretMigration.run(db: db)
+
 // HTTP + Keychain
 let http: HTTPClient = URLSessionHTTPClient()
 let keychain = KeychainStore()
@@ -47,6 +50,7 @@ GCalAccessTokenCache.shared.configure(db: db)
 
 let gcalClient = GCalClient(http: http,
                             accessTokenProvider: { GCalAccessTokenCache.shared.current() })
+service.attachGCalClient(gcalClient)
 let quota = QuotaGuard(db: db)
 let syncWorker = GCalSyncWorker(client: gcalClient, db: db, quota: quota)
 let outbox = OutboxProcessor(client: gcalClient, db: db, quota: quota)

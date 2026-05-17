@@ -57,6 +57,9 @@ public final class GCalAccessTokenCache: @unchecked Sendable {
 
         var req = URLRequest(url: tokenEndpoint)
         req.httpMethod = "POST"
+        // Bounded: this runs synchronously on a caller thread, so a network
+        // stall must not block it for the 60s URLRequest default.
+        req.timeoutInterval = 15
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         var fields = ["client_id": creds.id,
                       "refresh_token": rt,

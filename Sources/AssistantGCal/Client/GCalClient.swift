@@ -77,11 +77,33 @@ public final class GCalClient: Sendable {
         catch { throw GCalError.decoding("\(error)") }
     }
 
-    public func createCalendar(summary: String) async throws -> GCalCalendar {
-        let body = try JSONEncoder().encode(GCalCalendarCreateBody(summary: summary))
+    public func createCalendar(summary: String,
+                               timeZone: String? = nil) async throws -> GCalCalendar {
+        let body = try JSONEncoder().encode(
+            GCalCalendarCreateBody(summary: summary, timeZone: timeZone))
         let req = try makeRequest("POST", path: "/calendar/v3/calendars", body: body)
         let data = try await send(req)
         do { return try Self.decoder.decode(GCalCalendar.self, from: data) }
+        catch { throw GCalError.decoding("\(error)") }
+    }
+
+    /// Aligns an existing calendar's display time zone with the user's.
+    /// A calendar created without a `timeZone` defaults to UTC, which makes
+    /// every event on it render at the wrong wall-clock time.
+    public func updateCalendarTimeZone(id: String, timeZone: String) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["timeZone": timeZone])
+        let req = try makeRequest("PATCH", path: "/calendar/v3/calendars/\(id)", body: body)
+        _ = try await send(req)
+    }
+
+    /// The user's account-level display time zone (IANA name). Google Calendar
+    /// renders every event in this zone, so if it disagrees with the Mac's zone
+    /// the user sees events shifted.
+    public func accountTimeZone() async throws -> String {
+        let req = try makeRequest("GET", path: "/calendar/v3/users/me/settings/timezone")
+        let data = try await send(req)
+        struct Setting: Decodable { let value: String }
+        do { return try Self.decoder.decode(Setting.self, from: data).value }
         catch { throw GCalError.decoding("\(error)") }
     }
 
@@ -125,10 +147,12 @@ public final class GCalClient: Sendable {
                             location: String?,
                             description: String?) async throws -> GCalEvent {
         let iso = ISO8601DateFormatter()
+        iso.timeZone = TimeZone.current
+        let tz = TimeZone.current.identifier
         var body: [String: Any] = [
             "summary": summary,
-            "start": ["dateTime": iso.string(from: start)],
-            "end":   ["dateTime": iso.string(from: end)]
+            "start": ["dateTime": iso.string(from: start), "timeZone": tz],
+            "end":   ["dateTime": iso.string(from: end), "timeZone": tz]
         ]
         if let l = location { body["location"] = l }
         if let d = description { body["description"] = d }
@@ -147,12 +171,14 @@ public final class GCalClient: Sendable {
                             location: String?,
                             description: String?) async throws -> GCalEvent {
         let iso = ISO8601DateFormatter()
+        iso.timeZone = TimeZone.current
+        let tz = TimeZone.current.identifier
         var body: [String: Any] = [:]
         if let s = summary { body["summary"] = s }
         if let l = location { body["location"] = l }
         if let d = description { body["description"] = d }
-        if let st = start { body["start"] = ["dateTime": iso.string(from: st)] }
-        if let en = end { body["end"] = ["dateTime": iso.string(from: en)] }
+        if let st = start { body["start"] = ["dateTime": iso.string(from: st), "timeZone": tz] }
+        if let en = end { body["end"] = ["dateTime": iso.string(from: en), "timeZone": tz] }
         let data = try JSONSerialization.data(withJSONObject: body)
         let req = try makeRequest("PATCH",
                                   path: "/calendar/v3/calendars/\(calendarId)/events/\(eventId)",
