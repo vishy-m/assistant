@@ -44,7 +44,8 @@ public enum GCalTools {
                 do {
                     let ev = try await writer.create(
                         title: args.summary, start: s, end: e,
-                        location: args.location, description: args.description)
+                        location: args.location, description: args.description,
+                        category: args.category ?? "generic")
                     return #"{"id":"\#(ev.id)","status":"created"}"#
                 } catch {
                     return #"{"status":"not_confirmed","note":"The calendar write failed or you are offline (\#(error)). It was queued for retry and is NOT on the calendar yet — do not tell the user it was added."}"#

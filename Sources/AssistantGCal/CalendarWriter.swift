@@ -23,7 +23,8 @@ public final class CalendarWriter: Sendable {
 
     @discardableResult
     public func create(title: String, start: Date, end: Date,
-                       location: String?, description: String?) async throws -> WeekEvent {
+                       location: String?, description: String?,
+                       category: String = "generic") async throws -> WeekEvent {
         let bootstrap = AssistantCalendarBootstrap(client: client, db: db)
         let repo = GCalRepository(db: db)
 
@@ -44,11 +45,11 @@ public final class CalendarWriter: Sendable {
                 try repo.upsert(GCalEventCache(
                     gcalEventId: ev.id, calendarId: calID,
                     title: ev.summary ?? title, startAt: start, endAt: end,
-                    location: location, category: "generic",
+                    location: location, category: category,
                     lastSyncedAt: Date(), rawJson: "{}"))
                 return WeekEvent(id: ev.id, title: ev.summary ?? title,
                                  startAt: start, endAt: end,
-                                 category: "generic", location: location)
+                                 category: category, location: location)
             } catch {
                 try enqueueInsert(title: title, start: start, end: end,
                                   location: location, description: description, repo: repo)
