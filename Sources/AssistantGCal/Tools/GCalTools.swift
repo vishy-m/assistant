@@ -9,7 +9,6 @@ public enum GCalTools {
                                 db: AssistantDB,
                                 isOnline: @escaping @Sendable () -> Bool = { NetworkMonitor.shared.isOnline }) {
         let gcalRepo = GCalRepository(db: db)
-        let setting = SettingRepository(db: db)
 
         registry.register(
             tool: LLMTool(
@@ -41,53 +40,15 @@ public enum GCalTools {
                       let e = FlexibleDate.parse(args.end) else {
                     return #"{"error":"bad ISO date"}"#
                 }
-                // Resolve the dedicated "Assistant" calendar, creating it on
-                // first use. Cached afterward so this is a one-time online cost.
-                let calID: String
-                if let cached = try setting.get(AssistantCalendarBootstrap.settingKey) {
-                    calID = cached
-                } else if isOnline() {
-                    do {
-                        calID = try await AssistantCalendarBootstrap(client: client, db: db)
-                            .ensureAssistantCalendar()
-                    } catch {
-                        return #"{"error":"Could not initialize the Assistant calendar: \#(error)"}"#
-                    }
-                } else {
-                    return #"{"error":"Assistant calendar not set up yet, and you're offline."}"#
+                let writer = CalendarWriter(client: client, db: db, isOnline: isOnline)
+                do {
+                    let ev = try await writer.create(
+                        title: args.summary, start: s, end: e,
+                        location: args.location, description: args.description)
+                    return #"{"id":"\#(ev.id)","status":"created"}"#
+                } catch {
+                    return #"{"status":"not_confirmed","note":"The calendar write failed or you are offline (\#(error)). It was queued for retry and is NOT on the calendar yet — do not tell the user it was added."}"#
                 }
-
-                if isOnline() {
-                    do {
-                        let ev = try await client.insertEvent(
-                            calendarId: calID, summary: args.summary,
-                            start: s, end: e, location: args.location,
-                            description: args.description)
-                        try gcalRepo.upsert(GCalEventCache(
-                            gcalEventId: ev.id, calendarId: calID, title: ev.summary ?? args.summary,
-                            startAt: s, endAt: e, location: args.location,
-                            category: args.category ?? "generic",
-                            lastSyncedAt: Date(), rawJson: "{}"))
-                        return #"{"id":"\#(ev.id)","status":"created"}"#
-                    } catch {
-                        // Fall through to enqueue
-                    }
-                }
-                // Offline or write failed → enqueue
-                let isoOut = ISO8601DateFormatter()
-                let payload = OutboxPayload.insertEvent(InsertEventPayload(
-                    summary: args.summary,
-                    startISO: isoOut.string(from: s),
-                    endISO: isoOut.string(from: e),
-                    location: args.location,
-                    description: args.description))
-                let payloadJSON = String(
-                    data: try JSONEncoder().encode(payload), encoding: .utf8) ?? "{}"
-                try gcalRepo.enqueue(PendingGCalOp(
-                    id: UUID().uuidString, opType: "insert_event",
-                    payloadJson: payloadJSON, attempts: 0,
-                    lastAttemptAt: nil, createdAt: Date()))
-                return #"{"status":"queued","note":"offline — will sync"}"#
             })
 
         registry.register(
