@@ -11,11 +11,13 @@ public struct Course: Codable, Equatable, FetchableRecord, PersistableRecord {
     public var targetGrade: String?
     public var gradingScaleJson: String?
     public var syllabusSourcePath: String?
+    public var creditHours: Double?
     public var createdAt: Date = Date()
     public var updatedAt: Date = Date()
 
     public init(id: String, name: String, term: String?, color: String?,
                 targetGrade: String?, gradingScaleJson: String?, syllabusSourcePath: String?,
+                creditHours: Double? = nil,
                 createdAt: Date = Date(), updatedAt: Date = Date()) {
         self.id = id
         self.name = name
@@ -24,6 +26,7 @@ public struct Course: Codable, Equatable, FetchableRecord, PersistableRecord {
         self.targetGrade = targetGrade
         self.gradingScaleJson = gradingScaleJson
         self.syllabusSourcePath = syllabusSourcePath
+        self.creditHours = creditHours
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -33,6 +36,7 @@ public struct Course: Codable, Equatable, FetchableRecord, PersistableRecord {
         case targetGrade = "target_grade"
         case gradingScaleJson = "grading_scale_json"
         case syllabusSourcePath = "syllabus_source_path"
+        case creditHours = "credit_hours"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
