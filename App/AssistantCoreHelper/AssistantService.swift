@@ -15,6 +15,8 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     private let taskRepo: TaskRepository
     private let gcalRepo: GCalRepository
     private var loop: ToolLoop
+    private var gcalClient: GCalClient?
+    private var calendarWriter: CalendarWriter?
     private let promptRateLimiter = RateLimiter(limit: 30, window: 60)
 
     init(db: AssistantDB, loop: ToolLoop) {
@@ -26,6 +28,11 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
 
     func replaceLoop(_ newLoop: ToolLoop) {
         self.loop = newLoop
+    }
+
+    func attachGCalClient(_ client: GCalClient) {
+        self.gcalClient = client
+        self.calendarWriter = CalendarWriter(client: client, db: db)
     }
 
     func ping(reply: @escaping (String) -> Void) { reply("pong") }
@@ -403,6 +410,161 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
 
     func getGoogleClientSecret(reply: @escaping (String?) -> Void) {
         reply((try? KeychainStore().get(.googleOAuthClientSecret)) ?? nil)
+    }
+
+    func googleAccountTimeZone(reply: @escaping (String?) -> Void) {
+        guard let gcalClient else { reply(nil); return }
+        _Concurrency.Task {
+            reply(try? await gcalClient.accountTimeZone())
+        }
+    }
+
+    func getDashboardSummary(reply: @escaping (Data) -> Void) {
+        do {
+            let courses = try CourseRepository(db: db).all()
+            let gradeRepo = GradeRepository(db: db)
+            let taskRepo = TaskRepository(db: db)
+
+            var standings: [ClassStanding] = []
+            var gpaInputs: [GPACalculator.CourseGrade] = []
+            var allItems: [GradeItem] = []
+
+            for course in courses {
+                let cats = try gradeRepo.categories(forCourse: course.id)
+                let items = try gradeRepo.items(forCourse: course.id)
+                allItems.append(contentsOf: items)
+                let input = try buildCalculatorInput(courseId: course.id, projection: [:])
+                let breakdown = GradeCalculator.compute(input: input)
+                let hasGradedWork = items.contains { $0.earnedPoints != nil }
+                if !cats.isEmpty {
+                    standings.append(ClassStanding(
+                        courseId: course.id, courseName: course.name,
+                        currentPct: breakdown.currentPct,
+                        currentLetter: breakdown.currentLetter))
+                }
+                gpaInputs.append(GPACalculator.CourseGrade(
+                    letter: breakdown.currentLetter,
+                    creditHours: course.creditHours,
+                    hasGradedWork: hasGradedWork))
+            }
+
+            let gpa = GPACalculator.compute(gpaInputs)
+            let courseName: [String: String] = Dictionary(
+                uniqueKeysWithValues: courses.map { ($0.id, $0.name) })
+
+            let recent = allItems
+                .filter { $0.earnedPoints != nil }
+                .sorted { $0.updatedAt > $1.updatedAt }
+                .prefix(5)
+                .map { item in
+                    RecentGrade(
+                        itemId: item.id,
+                        courseName: courseName[item.courseId] ?? "—",
+                        itemName: item.name,
+                        earnedPct: item.maxPoints > 0
+                            ? ((item.earnedPoints ?? 0) / item.maxPoints) * 100 : 0,
+                        enteredAt: item.updatedAt)
+                }
+
+            let tasks = try taskRepo.all()
+            let entries = DueSoonAggregator.aggregate(
+                tasks: tasks, gradeItems: allItems, now: Date())
+            let dueSoon = entries.map { e in
+                DueSoonItem(id: e.id,
+                            kind: e.kind == .task ? .task : .gradeItem,
+                            title: e.title,
+                            courseName: e.courseId.flatMap { courseName[$0] },
+                            dueAt: e.dueAt, isOverdue: e.isOverdue)
+            }
+
+            let summary = DashboardSummary(
+                gpa: gpa.gpa, gpaCountedCourses: gpa.countedCourses,
+                gpaTotalCourses: gpa.totalCourses,
+                classes: standings, recentGrades: Array(recent), dueSoon: dueSoon)
+            reply(try JSONEncoder().encode(summary))
+        } catch {
+            NSLog("[AssistantService] getDashboardSummary error: \(error)")
+            reply(Data())
+        }
+    }
+
+    func getWeekEvents(startISO: String, endISO: String, reply: @escaping (Data) -> Void) {
+        let iso = ISO8601DateFormatter()
+        guard let start = iso.date(from: startISO), let end = iso.date(from: endISO) else {
+            reply(Data()); return
+        }
+        do {
+            let cal = Calendar(identifier: .gregorian)
+            var events: [WeekEvent] = []
+            var seen = Set<String>()
+            var day = cal.startOfDay(for: start)
+            let repo = GCalRepository(db: db)
+            while day < end {
+                for e in try repo.eventsOn(date: day) where !seen.contains(e.gcalEventId) {
+                    seen.insert(e.gcalEventId)
+                    events.append(WeekEvent(
+                        id: e.gcalEventId, title: e.title,
+                        startAt: e.startAt, endAt: e.endAt,
+                        category: e.category, location: e.location))
+                }
+                day = cal.date(byAdding: .day, value: 1, to: day) ?? end
+            }
+            reply(try JSONEncoder().encode(WeekEventsResponse(events: events)))
+        } catch {
+            NSLog("[AssistantService] getWeekEvents error: \(error)")
+            reply(Data())
+        }
+    }
+
+    func createCalendarEvent(_ data: Data, reply: @escaping (Data) -> Void) {
+        guard let writer = calendarWriter,
+              let req = try? JSONDecoder().decode(CreateEventRequest.self, from: data) else {
+            reply((try? JSONEncoder().encode(CalendarWriteResult(
+                event: nil, errorMessage: "bad request"))) ?? Data())
+            return
+        }
+        _Concurrency.Task {
+            do {
+                let ev = try await writer.create(
+                    title: req.title, start: req.startAt, end: req.endAt,
+                    location: req.location, description: nil)
+                reply((try? JSONEncoder().encode(CalendarWriteResult(
+                    event: ev, errorMessage: nil))) ?? Data())
+            } catch {
+                reply((try? JSONEncoder().encode(CalendarWriteResult(
+                    event: nil, errorMessage: "\(error)"))) ?? Data())
+            }
+        }
+    }
+
+    func updateCalendarEvent(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard let writer = calendarWriter,
+              let req = try? JSONDecoder().decode(UpdateEventRequest.self, from: data) else {
+            reply(false); return
+        }
+        _Concurrency.Task {
+            do {
+                try await writer.update(eventId: req.eventId,
+                                        start: req.startAt, end: req.endAt)
+                reply(true)
+            } catch {
+                NSLog("[AssistantService] updateCalendarEvent error: \(error)")
+                reply(false)
+            }
+        }
+    }
+
+    func deleteCalendarEvent(eventId: String, reply: @escaping (Bool) -> Void) {
+        guard let writer = calendarWriter else { reply(false); return }
+        _Concurrency.Task {
+            do {
+                try await writer.delete(eventId: eventId)
+                reply(true)
+            } catch {
+                NSLog("[AssistantService] deleteCalendarEvent error: \(error)")
+                reply(false)
+            }
+        }
     }
 
     private func buildCalculatorInput(courseId: String,

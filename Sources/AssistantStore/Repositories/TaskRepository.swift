@@ -19,6 +19,12 @@ public struct TaskRepository {
         try db.queue.read { db in try AssistantStore.Task.fetchOne(db, key: id) }
     }
 
+    public func all() throws -> [AssistantStore.Task] {
+        try db.queue.read { db in
+            try AssistantStore.Task.order(Column("due_at")).fetchAll(db)
+        }
+    }
+
     public func dueOn(date: Date) throws -> [AssistantStore.Task] {
         let cal = Calendar(identifier: .gregorian)
         let start = cal.startOfDay(for: date)

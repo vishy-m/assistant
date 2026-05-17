@@ -26,4 +26,10 @@ public protocol AssistantServiceProtocol {
     func clearGoogleRefreshToken(reply: @escaping (Bool) -> Void)
     func setGoogleClientSecret(_ secret: String, reply: @escaping (Bool) -> Void)
     func getGoogleClientSecret(reply: @escaping (String?) -> Void)
+    func googleAccountTimeZone(reply: @escaping (String?) -> Void)
+    func getDashboardSummary(reply: @escaping (Data) -> Void)
+    func getWeekEvents(startISO: String, endISO: String, reply: @escaping (Data) -> Void)
+    func createCalendarEvent(_ data: Data, reply: @escaping (Data) -> Void)
+    func updateCalendarEvent(_ data: Data, reply: @escaping (Bool) -> Void)
+    func deleteCalendarEvent(eventId: String, reply: @escaping (Bool) -> Void)
 }
