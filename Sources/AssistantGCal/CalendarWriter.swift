@@ -24,9 +24,11 @@ public final class CalendarWriter: Sendable {
     @discardableResult
     public func create(title: String, start: Date, end: Date,
                        location: String?, description: String?,
-                       category: String = "generic") async throws -> WeekEvent {
+                       category: String = "Misc") async throws -> WeekEvent {
         let bootstrap = AssistantCalendarBootstrap(client: client, db: db)
         let repo = GCalRepository(db: db)
+        let resolvedCategory = try CategoryRepository(db: db).resolve(category)
+        let colorId = GoogleEventColor.nearestColorId(toHex: resolvedCategory.colorHex)
 
         let calID: String
         if isOnline() {
@@ -41,15 +43,15 @@ public final class CalendarWriter: Sendable {
             do {
                 let ev = try await client.insertEvent(
                     calendarId: calID, summary: title, start: start, end: end,
-                    location: location, description: description)
+                    location: location, description: description, colorId: colorId)
                 try repo.upsert(GCalEventCache(
                     gcalEventId: ev.id, calendarId: calID,
                     title: ev.summary ?? title, startAt: start, endAt: end,
-                    location: location, category: category,
+                    location: location, category: resolvedCategory.name,
                     lastSyncedAt: Date(), rawJson: "{}"))
                 return WeekEvent(id: ev.id, title: ev.summary ?? title,
                                  startAt: start, endAt: end,
-                                 category: category, location: location)
+                                 category: resolvedCategory.name, location: location)
             } catch {
                 try enqueueInsert(title: title, start: start, end: end,
                                   location: location, description: description, repo: repo)
