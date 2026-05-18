@@ -636,6 +636,46 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func getWeekTasks(startISO: String, endISO: String, reply: @escaping (Data) -> Void) {
+        let iso = ISO8601DateFormatter()
+        guard let start = iso.date(from: startISO), let end = iso.date(from: endISO) else {
+            reply(Data()); return
+        }
+        do {
+            let tasks = try taskRepo.dueInRange(start: start, end: end)
+            let weekTasks = tasks.map { t in
+                WeekTask(id: t.id, title: t.title,
+                         dueAt: t.dueAt ?? Date(), category: t.category)
+            }
+            reply(try JSONEncoder().encode(WeekTasksResponse(tasks: weekTasks)))
+        } catch {
+            NSLog("[AssistantService] getWeekTasks error: \(error)")
+            reply(Data())
+        }
+    }
+
+    func rescheduleTask(taskId: String, dueISO: String, reply: @escaping (Bool) -> Void) {
+        let iso = ISO8601DateFormatter()
+        guard let due = iso.date(from: dueISO) else { reply(false); return }
+        do {
+            try taskRepo.setDueAt(id: taskId, dueAt: due)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] rescheduleTask error: \(error)")
+            reply(false)
+        }
+    }
+
+    func completeTask(taskId: String, reply: @escaping (Bool) -> Void) {
+        do {
+            try taskRepo.complete(id: taskId)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] completeTask error: \(error)")
+            reply(false)
+        }
+    }
+
     /// Re-PATCHes the Google colorId of every cached event in a category.
     private func recolorGoogleEvents(category: String, colorHex: String) {
         guard let client = gcalClient else { return }

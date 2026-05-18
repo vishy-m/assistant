@@ -38,4 +38,7 @@ public protocol AssistantServiceProtocol {
     func removeCategory(name: String, reply: @escaping (Bool) -> Void)
     func setEventCategory(eventId: String, category: String,
                           reply: @escaping (Bool) -> Void)
+    func getWeekTasks(startISO: String, endISO: String, reply: @escaping (Data) -> Void)
+    func rescheduleTask(taskId: String, dueISO: String, reply: @escaping (Bool) -> Void)
+    func completeTask(taskId: String, reply: @escaping (Bool) -> Void)
 }
