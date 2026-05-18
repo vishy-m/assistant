@@ -157,6 +157,13 @@ final class DashboardStore: ObservableObject {
 
     // MARK: - Chat
 
+    /// Clears the dashboard chat panel and starts a fresh conversation — the
+    /// next prompt creates a new session.
+    func clearChat() {
+        messages = []
+        sessionId = nil
+    }
+
     func send(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isSending else { return }

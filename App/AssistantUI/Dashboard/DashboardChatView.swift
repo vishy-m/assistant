@@ -48,8 +48,12 @@ struct DashboardChatView: View {
     }
 
     private func send() {
-        let text = input
+        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         input = ""
+        if text.lowercased() == "/clear" {
+            store.clearChat()
+            return
+        }
         store.send(text)
     }
 
