@@ -395,6 +395,46 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
+    func listCategories(reply: @escaping ([AssistantStore.Category]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listCategories { data in
+                let cats = (try? JSONDecoder().decode([AssistantStore.Category].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(cats) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
+    func saveCategory(originalName: String?, name: String, colorHex: String,
+                      reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.saveCategory(originalName: originalName, name: name,
+                               colorHex: colorHex) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func removeCategory(name: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.removeCategory(name: name) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func setEventCategory(eventId: String, category: String,
+                          reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.setEventCategory(eventId: eventId, category: category) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {
