@@ -134,3 +134,21 @@ public struct CalendarWriteResult: Codable, Equatable {
         self.errorMessage = errorMessage
     }
 }
+
+public struct WeekTask: Codable, Identifiable, Equatable {
+    public let id: String
+    public let title: String
+    public let dueAt: Date
+    public let category: String
+    public init(id: String, title: String, dueAt: Date, category: String) {
+        self.id = id
+        self.title = title
+        self.dueAt = dueAt
+        self.category = category
+    }
+}
+
+public struct WeekTasksResponse: Codable, Equatable {
+    public let tasks: [WeekTask]
+    public init(tasks: [WeekTask]) { self.tasks = tasks }
+}
