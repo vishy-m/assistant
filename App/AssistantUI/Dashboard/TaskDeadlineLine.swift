@@ -13,9 +13,11 @@ struct TaskDeadlineLine: View {
     @State private var dragOffset: CGFloat = 0
     @State private var showPopover = false
 
+    private var color: Color { store.categoryColor(task.category) }
+
     var body: some View {
-        let color = store.categoryColor(task.category)
-        return VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 0) {
+            Color.clear.frame(height: 7)
             Rectangle()
                 .fill(color)
                 .frame(height: 2)
@@ -23,9 +25,8 @@ struct TaskDeadlineLine: View {
                 .font(.caption2)
                 .foregroundStyle(color)
                 .lineLimit(1)
-            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, minHeight: 18, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .contentShape(Rectangle())
         .offset(y: dragOffset)
         .gesture(

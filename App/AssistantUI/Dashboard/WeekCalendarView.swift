@@ -140,8 +140,7 @@ struct WeekCalendarView: View {
     private func taskLine(_ task: WeekTask, dayStart: Date) -> some View {
         let top = layout.yOffset(for: task.dueAt, dayStart: dayStart)
         return TaskDeadlineLine(task: task, store: store, layout: layout)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .offset(y: top)
+            .offset(y: top - 7)
     }
 
     private func eventBlock(_ event: WeekEvent, dayStart: Date, dayEnd: Date,
