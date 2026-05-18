@@ -62,4 +62,24 @@ public struct TaskRepository {
             try AssistantStore.Task.deleteOne(db, key: id)
         }
     }
+
+    /// Incomplete tasks with a `dueAt` in [start, end). Used by the calendar.
+    public func dueInRange(start: Date, end: Date) throws -> [AssistantStore.Task] {
+        try db.queue.read { db in
+            try AssistantStore.Task
+                .filter(Column("completed_at") == nil)
+                .filter(Column("due_at") >= start && Column("due_at") < end)
+                .order(Column("due_at"))
+                .fetchAll(db)
+        }
+    }
+
+    /// Updates one task's due date.
+    public func setDueAt(id: String, dueAt: Date) throws {
+        try db.queue.write { db in
+            try db.execute(
+                sql: "UPDATE task SET due_at = ?, updated_at = ? WHERE id = ?",
+                arguments: [dueAt, Date(), id])
+        }
+    }
 }
