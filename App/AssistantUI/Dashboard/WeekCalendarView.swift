@@ -93,6 +93,7 @@ struct WeekCalendarView: View {
         let dayStart = cal.date(byAdding: .day, value: dayIndex, to: store.weekStart)!
         let dayEnd = cal.date(byAdding: .day, value: 1, to: dayStart)!
         let dayEvents = store.events.filter { $0.startAt < dayEnd && $0.endAt > dayStart }
+        let dayTasks = store.weekTasks.filter { $0.dueAt >= dayStart && $0.dueAt < dayEnd }
         let placements = WeekGridLayout.columns(for: dayEvents.map {
             WeekGridLayout.Interval(id: $0.id, start: $0.startAt, end: $0.endAt)
         })
@@ -123,6 +124,9 @@ struct WeekCalendarView: View {
                     eventBlock(event, dayStart: dayStart, dayEnd: dayEnd,
                                placement: placements[event.id])
                 }
+                ForEach(dayTasks) { task in
+                    taskLine(task, dayStart: dayStart)
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -131,6 +135,13 @@ struct WeekCalendarView: View {
 
     private func dayHeader(_ date: Date) -> String {
         return Self.dayHeaderFormatter.string(from: date)
+    }
+
+    private func taskLine(_ task: WeekTask, dayStart: Date) -> some View {
+        let top = layout.yOffset(for: task.dueAt, dayStart: dayStart)
+        return TaskDeadlineLine(task: task, store: store, layout: layout)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .offset(y: top)
     }
 
     private func eventBlock(_ event: WeekEvent, dayStart: Date, dayEnd: Date,
