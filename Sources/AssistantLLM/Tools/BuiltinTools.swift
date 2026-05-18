@@ -6,6 +6,7 @@ public enum BuiltinTools {
     public static func registerTaskTools(into registry: inout ToolRegistry,
                                           taskRepo: TaskRepository,
                                           gcalRepo: GCalRepository,
+                                          categoryRepo: CategoryRepository,
                                           clock: @escaping @Sendable () -> Date = { Date() }) {
 
         // create_task
@@ -21,7 +22,7 @@ public enum BuiltinTools {
                     "notes":     { "type": "string" },
                     "due_at":    { "type": "string", "description": "ISO 8601 datetime" },
                     "course_id": { "type": "string" },
-                    "category":  { "type": "string", "default": "generic" }
+                    "category":  { "type": "string", "default": "Misc" }
                   },
                   "required": ["title"]
                 }
@@ -36,13 +37,14 @@ public enum BuiltinTools {
                 }
                 let args = try JSONDecoder().decode(Args.self, from: argsJSON.data(using: .utf8) ?? Data())
                 let dueAt = FlexibleDate.parse(args.due_at)
+                let categoryName = try categoryRepo.resolve(args.category).name
                 let id = UUID().uuidString
                 let t = AssistantStore.Task(
                     id: id, title: args.title, notes: args.notes,
                     dueAt: dueAt, completedAt: nil,
                     courseId: args.course_id, gradeItemId: nil,
                     priority: 0,
-                    category: args.category ?? "generic",
+                    category: categoryName,
                     source: "agent")
                 try taskRepo.insert(t)
                 return #"{"id":"\#(id)","status":"created"}"#

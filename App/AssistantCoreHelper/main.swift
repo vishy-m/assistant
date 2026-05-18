@@ -38,7 +38,8 @@ let chain = LLMChain(providers: [claude, openai, gemmaHosted, ollama])
 var registry = ToolRegistry()
 BuiltinTools.registerTaskTools(into: &registry,
                                taskRepo: TaskRepository(db: db),
-                               gcalRepo: GCalRepository(db: db))
+                               gcalRepo: GCalRepository(db: db),
+                               categoryRepo: CategoryRepository(db: db))
 
 let loop = ToolLoop(chain: chain, registry: registry)
 let service = AssistantService(db: db, loop: loop)
