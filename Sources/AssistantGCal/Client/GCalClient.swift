@@ -145,7 +145,8 @@ public final class GCalClient: Sendable {
                             summary: String,
                             start: Date, end: Date,
                             location: String?,
-                            description: String?) async throws -> GCalEvent {
+                            description: String?,
+                            colorId: String? = nil) async throws -> GCalEvent {
         let iso = ISO8601DateFormatter()
         iso.timeZone = TimeZone.current
         let tz = TimeZone.current.identifier
@@ -156,6 +157,7 @@ public final class GCalClient: Sendable {
         ]
         if let l = location { body["location"] = l }
         if let d = description { body["description"] = d }
+        if let cid = colorId { body["colorId"] = cid }
         let data = try JSONSerialization.data(withJSONObject: body)
         let req = try makeRequest("POST",
                                   path: "/calendar/v3/calendars/\(calendarId)/events",
@@ -169,7 +171,8 @@ public final class GCalClient: Sendable {
                             summary: String?,
                             start: Date?, end: Date?,
                             location: String?,
-                            description: String?) async throws -> GCalEvent {
+                            description: String?,
+                            colorId: String? = nil) async throws -> GCalEvent {
         let iso = ISO8601DateFormatter()
         iso.timeZone = TimeZone.current
         let tz = TimeZone.current.identifier
@@ -179,6 +182,7 @@ public final class GCalClient: Sendable {
         if let d = description { body["description"] = d }
         if let st = start { body["start"] = ["dateTime": iso.string(from: st), "timeZone": tz] }
         if let en = end { body["end"] = ["dateTime": iso.string(from: en), "timeZone": tz] }
+        if let cid = colorId { body["colorId"] = cid }
         let data = try JSONSerialization.data(withJSONObject: body)
         let req = try makeRequest("PATCH",
                                   path: "/calendar/v3/calendars/\(calendarId)/events/\(eventId)",
