@@ -11,6 +11,7 @@ struct WeekCalendarView: View {
     @State private var pendingCreateStart: Date?
     @State private var pendingCreateEnd: Date?
     @State private var showCreate = false
+    @State private var showCategories = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,6 +33,9 @@ struct WeekCalendarView: View {
                         CalendarEventPopover(mode: .create(start: start, end: end), store: store)
                     }
                 }
+                .sheet(isPresented: $showCategories) {
+                    CategoryManagerView(store: store)
+                }
             }
         }
     }
@@ -44,6 +48,10 @@ struct WeekCalendarView: View {
                 .buttonStyle(.plain).foregroundStyle(GradeTheme.accent)
             Button { store.shiftWeek(by: 1) } label: { Image(systemName: "chevron.right") }
                 .buttonStyle(.plain)
+            Button { showCategories = true } label: {
+                Image(systemName: "tag")
+            }
+            .buttonStyle(.plain)
             Spacer()
             Text(weekTitle).font(GradeTheme.metric(13))
         }
