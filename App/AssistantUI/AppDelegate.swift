@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                 action: #selector(openDashboard(_:)), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Grades",
                                 action: #selector(openGrades(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Tasks",
+                                action: #selector(openTasks(_:)), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Settings…",
                                 action: #selector(openSettings(_:)), keyEquivalent: ","))
         menu.addItem(.separator())
@@ -47,6 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openGrades(_ sender: Any?) {
         Task { @MainActor in GradeDashboardWindow.shared.show() }
+    }
+
+    @objc private func openTasks(_ sender: Any?) {
+        Task { @MainActor in TasksDashboardWindow.shared.show() }
     }
 
     @objc private func openSettings(_ sender: Any?) {
