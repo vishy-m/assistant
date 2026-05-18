@@ -568,6 +568,89 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func listCategories(reply: @escaping (Data) -> Void) {
+        do {
+            let categories = try CategoryRepository(db: db).all()
+            reply(try JSONEncoder().encode(categories))
+        } catch {
+            NSLog("[AssistantService] listCategories error: \(error)")
+            reply(Data())
+        }
+    }
+
+    func saveCategory(originalName: String?, name: String, colorHex: String,
+                      reply: @escaping (Bool) -> Void) {
+        let repo = CategoryRepository(db: db)
+        do {
+            if let originalName {
+                let existing = try repo.find(name: originalName)
+                let updated = Category(name: name, colorHex: colorHex,
+                                       isDefault: existing?.isDefault ?? false)
+                try repo.update(originalName: originalName, to: updated)
+                reply(true)
+                if existing?.colorHex != colorHex {
+                    recolorGoogleEvents(category: name, colorHex: colorHex)
+                }
+            } else {
+                try repo.create(Category(name: name, colorHex: colorHex))
+                reply(true)
+            }
+        } catch {
+            NSLog("[AssistantService] saveCategory error: \(error)")
+            reply(false)
+        }
+    }
+
+    func removeCategory(name: String, reply: @escaping (Bool) -> Void) {
+        do {
+            try CategoryRepository(db: db).delete(name: name)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] removeCategory error: \(error)")
+            reply(false)
+        }
+    }
+
+    func setEventCategory(eventId: String, category: String,
+                          reply: @escaping (Bool) -> Void) {
+        let gcalRepo = GCalRepository(db: db)
+        let catRepo = CategoryRepository(db: db)
+        do {
+            guard var cached = try gcalRepo.find(id: eventId) else { reply(false); return }
+            let resolved = try catRepo.resolve(category)
+            cached.category = resolved.name
+            try gcalRepo.upsert(cached)
+            reply(true)
+            if let client = gcalClient {
+                let colorId = GoogleEventColor.nearestColorId(toHex: resolved.colorHex)
+                _Concurrency.Task {
+                    _ = try? await client.updateEvent(
+                        calendarId: cached.calendarId, eventId: eventId,
+                        summary: nil, start: nil, end: nil,
+                        location: nil, description: nil, colorId: colorId)
+                }
+            }
+        } catch {
+            NSLog("[AssistantService] setEventCategory error: \(error)")
+            reply(false)
+        }
+    }
+
+    /// Re-PATCHes the Google colorId of every cached event in a category.
+    private func recolorGoogleEvents(category: String, colorHex: String) {
+        guard let client = gcalClient else { return }
+        let colorId = GoogleEventColor.nearestColorId(toHex: colorHex)
+        _Concurrency.Task {
+            let events = (try? CategoryRepository(db: self.db).events(category: category)) ?? []
+            for ev in events {
+                _ = try? await client.updateEvent(
+                    calendarId: ev.calendarId, eventId: ev.gcalEventId,
+                    summary: nil, start: nil, end: nil,
+                    location: nil, description: nil, colorId: colorId)
+            }
+        }
+    }
+
     private func buildCalculatorInput(courseId: String,
                                        projection: [String: Double]) throws -> GradeCalculatorInput {
         let gradeRepo = GradeRepository(db: db)
