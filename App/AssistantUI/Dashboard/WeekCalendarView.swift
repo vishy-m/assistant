@@ -4,8 +4,8 @@ import AssistantShared
 struct WeekCalendarView: View {
     @ObservedObject var store: DashboardStore
 
-    private let layout = WeekGridLayout(hourHeight: 44, dayStartHour: 0)
-    private let visibleStartHour = 7
+    private let dayStartHour = 0
+    private let dayHeaderHeight: CGFloat = 20
     private let cal = Calendar(identifier: .gregorian)
 
     @State private var pendingCreateStart: Date?
@@ -17,25 +17,25 @@ struct WeekCalendarView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            ScrollViewReader { proxy in
-                ScrollView {
-                    HStack(alignment: .top, spacing: 0) {
-                        hourGutter
-                        ForEach(0..<7, id: \.self) { dayIndex in
-                            dayColumn(dayIndex)
-                        }
-                    }
-                    .id("grid")
-                }
-                .onAppear { proxy.scrollTo("hour-\(visibleStartHour)", anchor: .top) }
-                .popover(isPresented: $showCreate) {
-                    if let start = pendingCreateStart, let end = pendingCreateEnd {
-                        CalendarEventPopover(mode: .create(start: start, end: end), store: store)
+            GeometryReader { geo in
+                // All 24 hours fit the available height — no vertical scroll.
+                let hourHeight = max((geo.size.height - dayHeaderHeight) / 24, 1)
+                let layout = WeekGridLayout(hourHeight: hourHeight,
+                                            dayStartHour: dayStartHour)
+                HStack(alignment: .top, spacing: 0) {
+                    hourGutter(layout: layout)
+                    ForEach(0..<7, id: \.self) { dayIndex in
+                        dayColumn(dayIndex, layout: layout)
                     }
                 }
-                .sheet(isPresented: $showCategories) {
-                    CategoryManagerView(store: store)
+            }
+            .popover(isPresented: $showCreate) {
+                if let start = pendingCreateStart, let end = pendingCreateEnd {
+                    CalendarEventPopover(mode: .create(start: start, end: end), store: store)
                 }
+            }
+            .sheet(isPresented: $showCategories) {
+                CategoryManagerView(store: store)
             }
         }
     }
@@ -69,15 +69,16 @@ struct WeekCalendarView: View {
         return "Week of \(Self.monthDayFormatter.string(from: store.weekStart))"
     }
 
-    private var hourGutter: some View {
+    private func hourGutter(layout: WeekGridLayout) -> some View {
         VStack(spacing: 0) {
+            // Spacer matching the day-header row so labels align with grid lines.
+            Color.clear.frame(width: 44, height: dayHeaderHeight)
             ForEach(0..<24, id: \.self) { hour in
                 Text(hourLabel(hour))
                     .font(GradeTheme.mono(9))
                     .foregroundStyle(.tertiary)
                     .frame(width: 44, height: layout.hourHeight, alignment: .topTrailing)
                     .padding(.trailing, 4)
-                    .id("hour-\(hour)")
             }
         }
     }
@@ -89,7 +90,7 @@ struct WeekCalendarView: View {
         return "\(hour - 12)p"
     }
 
-    private func dayColumn(_ dayIndex: Int) -> some View {
+    private func dayColumn(_ dayIndex: Int, layout: WeekGridLayout) -> some View {
         let dayStart = cal.date(byAdding: .day, value: dayIndex, to: store.weekStart)!
         let dayEnd = cal.date(byAdding: .day, value: 1, to: dayStart)!
         let dayEvents = store.events.filter { $0.startAt < dayEnd && $0.endAt > dayStart }
@@ -102,7 +103,7 @@ struct WeekCalendarView: View {
             Text(dayHeader(dayStart))
                 .font(GradeTheme.mono(10))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 2)
+                .frame(height: dayHeaderHeight)
             ZStack(alignment: .topLeading) {
                 // Hour grid lines
                 VStack(spacing: 0) {
@@ -122,10 +123,10 @@ struct WeekCalendarView: View {
                 .frame(height: CGFloat(24) * layout.hourHeight)
                 ForEach(dayEvents) { event in
                     eventBlock(event, dayStart: dayStart, dayEnd: dayEnd,
-                               placement: placements[event.id])
+                               placement: placements[event.id], layout: layout)
                 }
                 ForEach(dayTasks) { task in
-                    taskLine(task, dayStart: dayStart)
+                    taskLine(task, dayStart: dayStart, layout: layout)
                 }
             }
         }
@@ -137,14 +138,16 @@ struct WeekCalendarView: View {
         return Self.dayHeaderFormatter.string(from: date)
     }
 
-    private func taskLine(_ task: WeekTask, dayStart: Date) -> some View {
+    private func taskLine(_ task: WeekTask, dayStart: Date,
+                          layout: WeekGridLayout) -> some View {
         let top = layout.yOffset(for: task.dueAt, dayStart: dayStart)
         return TaskDeadlineLine(task: task, store: store, layout: layout)
             .offset(y: top - 7)
     }
 
     private func eventBlock(_ event: WeekEvent, dayStart: Date, dayEnd: Date,
-                            placement: WeekGridLayout.Placement?) -> some View {
+                            placement: WeekGridLayout.Placement?,
+                            layout: WeekGridLayout) -> some View {
         let clampedStart = max(event.startAt, dayStart)
         let clampedEnd = min(event.endAt, dayEnd)
         let top = layout.yOffset(for: clampedStart, dayStart: dayStart)
