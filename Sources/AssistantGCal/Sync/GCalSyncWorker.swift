@@ -101,7 +101,7 @@ public final actor GCalSyncWorker {
             startAt: start,
             endAt: end,
             location: event.location,
-            category: "generic",
+            category: "Misc",
             lastSyncedAt: clock(),
             rawJson: String(data: raw, encoding: .utf8) ?? "{}")
         try cacheRepo.upsert(cached)
