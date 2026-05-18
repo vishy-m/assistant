@@ -124,7 +124,7 @@ final class DashboardStore: ObservableObject {
     private func startTimer() {
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            _Concurrency.Task { @MainActor in
                 self?.refreshSummary()
                 self?.refreshEvents()
             }

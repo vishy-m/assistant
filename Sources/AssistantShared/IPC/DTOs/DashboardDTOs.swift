@@ -103,11 +103,14 @@ public struct CreateEventRequest: Codable, Equatable {
     public let startAt: Date
     public let endAt: Date
     public let location: String?
-    public init(title: String, startAt: Date, endAt: Date, location: String?) {
+    public let category: String
+    public init(title: String, startAt: Date, endAt: Date,
+                location: String?, category: String = "Misc") {
         self.title = title
         self.startAt = startAt
         self.endAt = endAt
         self.location = location
+        self.category = category
     }
 }
 

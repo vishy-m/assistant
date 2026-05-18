@@ -13,6 +13,7 @@ struct CalendarEventPopover: View {
 
     @State private var title: String = ""
     @State private var durationMinutes: Int
+    @State private var category: String
 
     init(mode: Mode, store: DashboardStore) {
         self.mode = mode
@@ -23,6 +24,13 @@ struct CalendarEventPopover: View {
             self._durationMinutes = State(initialValue: max(15, minutes))
         case .detail:
             self._durationMinutes = State(initialValue: 60)
+        }
+        switch mode {
+        case .create:
+            _category = State(initialValue:
+                store.categories.first(where: { $0.isDefault })?.name ?? "Misc")
+        case .detail(let event):
+            _category = State(initialValue: event.category)
         }
     }
 
@@ -37,6 +45,11 @@ struct CalendarEventPopover: View {
                         value: $durationMinutes, in: 15...480, step: 15)
                 Text(rangeLabel(start, start.addingTimeInterval(Double(durationMinutes) * 60)))
                     .font(GradeTheme.mono(10)).foregroundStyle(.secondary)
+                Picker("Category", selection: $category) {
+                    ForEach(store.categories, id: \.name) { c in
+                        Text(c.name).tag(c.name)
+                    }
+                }
                 HStack {
                     Spacer()
                     Button("Cancel") { dismiss() }
@@ -44,7 +57,7 @@ struct CalendarEventPopover: View {
                         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !t.isEmpty else { return }
                         let end = start.addingTimeInterval(Double(durationMinutes) * 60)
-                        store.createEvent(title: t, start: start, end: end)
+                        store.createEvent(title: t, start: start, end: end, category: category)
                         dismiss()
                     }
                     .keyboardShortcut(.defaultAction)
@@ -55,6 +68,14 @@ struct CalendarEventPopover: View {
                     .font(GradeTheme.mono(10)).foregroundStyle(.secondary)
                 if let loc = event.location, !loc.isEmpty {
                     Text(loc).font(.caption)
+                }
+                Picker("Category", selection: $category) {
+                    ForEach(store.categories, id: \.name) { c in
+                        Text(c.name).tag(c.name)
+                    }
+                }
+                .onChange(of: category) { newCategory in
+                    store.setEventCategory(event, category: newCategory)
                 }
                 HStack {
                     Spacer()

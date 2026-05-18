@@ -528,7 +528,7 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             do {
                 let ev = try await writer.create(
                     title: req.title, start: req.startAt, end: req.endAt,
-                    location: req.location, description: nil)
+                    location: req.location, description: nil, category: req.category)
                 reply((try? JSONEncoder().encode(CalendarWriteResult(
                     event: ev, errorMessage: nil))) ?? Data())
             } catch {
