@@ -676,6 +676,81 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func listTasks(reply: @escaping (Data) -> Void) {
+        do {
+            reply(try JSONEncoder().encode(try taskRepo.all()))
+        } catch {
+            NSLog("[AssistantService] listTasks error: \(error)")
+            reply(Data())
+        }
+    }
+
+    func createTask(_ data: Data, reply: @escaping (Bool) -> Void) {
+        do {
+            let task = try JSONDecoder().decode(AssistantStore.Task.self, from: data)
+            try taskRepo.insert(task)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] createTask error: \(error)")
+            reply(false)
+        }
+    }
+
+    func updateTask(_ data: Data, reply: @escaping (Bool) -> Void) {
+        do {
+            let task = try JSONDecoder().decode(AssistantStore.Task.self, from: data)
+            try taskRepo.update(task)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] updateTask error: \(error)")
+            reply(false)
+        }
+    }
+
+    func deleteTask(taskId: String, reply: @escaping (Bool) -> Void) {
+        do {
+            try taskRepo.delete(id: taskId)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] deleteTask error: \(error)")
+            reply(false)
+        }
+    }
+
+    func setTaskCompleted(taskId: String, completed: Bool, reply: @escaping (Bool) -> Void) {
+        do {
+            try taskRepo.setCompleted(id: taskId, completed: completed)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] setTaskCompleted error: \(error)")
+            reply(false)
+        }
+    }
+
+    func clearCompletedTasks(reply: @escaping (Bool) -> Void) {
+        do {
+            try taskRepo.deleteCompleted()
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] clearCompletedTasks error: \(error)")
+            reply(false)
+        }
+    }
+
+    func getTasksNote(reply: @escaping (String) -> Void) {
+        reply(((try? SettingRepository(db: db).get("tasks_scratchpad")) ?? nil) ?? "")
+    }
+
+    func setTasksNote(_ note: String, reply: @escaping (Bool) -> Void) {
+        do {
+            try SettingRepository(db: db).set("tasks_scratchpad", value: note)
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] setTasksNote error: \(error)")
+            reply(false)
+        }
+    }
+
     /// Re-PATCHes the Google colorId of every cached event in a category.
     private func recolorGoogleEvents(category: String, colorHex: String) {
         guard let client = gcalClient else { return }

@@ -41,4 +41,12 @@ public protocol AssistantServiceProtocol {
     func getWeekTasks(startISO: String, endISO: String, reply: @escaping (Data) -> Void)
     func rescheduleTask(taskId: String, dueISO: String, reply: @escaping (Bool) -> Void)
     func completeTask(taskId: String, reply: @escaping (Bool) -> Void)
+    func listTasks(reply: @escaping (Data) -> Void)
+    func createTask(_ data: Data, reply: @escaping (Bool) -> Void)
+    func updateTask(_ data: Data, reply: @escaping (Bool) -> Void)
+    func deleteTask(taskId: String, reply: @escaping (Bool) -> Void)
+    func setTaskCompleted(taskId: String, completed: Bool, reply: @escaping (Bool) -> Void)
+    func clearCompletedTasks(reply: @escaping (Bool) -> Void)
+    func getTasksNote(reply: @escaping (String) -> Void)
+    func setTasksNote(_ note: String, reply: @escaping (Bool) -> Void)
 }
