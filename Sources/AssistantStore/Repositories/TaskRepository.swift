@@ -82,4 +82,20 @@ public struct TaskRepository {
                 arguments: [dueAt, Date(), id])
         }
     }
+
+    /// Marks a task complete (now) or incomplete (clears the completion).
+    public func setCompleted(id: String, completed: Bool) throws {
+        try db.queue.write { db in
+            try db.execute(
+                sql: "UPDATE task SET completed_at = ?, updated_at = ? WHERE id = ?",
+                arguments: [completed ? Date() : nil, Date(), id])
+        }
+    }
+
+    /// Deletes every completed task.
+    public func deleteCompleted() throws {
+        try db.queue.write { db in
+            try db.execute(sql: "DELETE FROM task WHERE completed_at IS NOT NULL")
+        }
+    }
 }
