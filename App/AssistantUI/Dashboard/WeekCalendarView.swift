@@ -11,9 +11,6 @@ struct WeekCalendarView: View {
     private let bottomBuffer: CGFloat = 24
     private let cal = Calendar(identifier: .gregorian)
 
-    @State private var pendingCreateStart: Date?
-    @State private var pendingCreateEnd: Date?
-    @State private var showCreate = false
     @State private var showCategories = false
 
     var body: some View {
@@ -31,11 +28,6 @@ struct WeekCalendarView: View {
                     ForEach(0..<7, id: \.self) { dayIndex in
                         dayColumn(dayIndex, layout: layout)
                     }
-                }
-            }
-            .popover(isPresented: $showCreate) {
-                if let start = pendingCreateStart, let end = pendingCreateEnd {
-                    CalendarEventPopover(mode: .create(start: start, end: end), store: store)
                 }
             }
             .sheet(isPresented: $showCategories) {
@@ -119,12 +111,8 @@ struct WeekCalendarView: View {
                     }
                 }
                 // Tap or drag an empty span to create an event.
-                DayCreateSurface(dayStart: dayStart, layout: layout) { start, end in
-                    pendingCreateStart = start
-                    pendingCreateEnd = end
-                    showCreate = true
-                }
-                .frame(height: CGFloat(24) * layout.hourHeight)
+                DayCreateSurface(dayStart: dayStart, layout: layout, store: store)
+                    .frame(height: CGFloat(24) * layout.hourHeight)
                 ForEach(dayEvents) { event in
                     eventBlock(event, dayStart: dayStart, dayEnd: dayEnd,
                                placement: placements[event.id], layout: layout)
@@ -171,19 +159,24 @@ struct WeekCalendarView: View {
 
 /// Transparent overlay over a day column. A tap creates a one-hour event at
 /// that time; dragging vertically creates an event spanning the dragged range.
-/// Both endpoints snap to 15 minutes via `WeekGridLayout`.
+/// The create popover spawns at the cursor. Times snap to 15 minutes.
 private struct DayCreateSurface: View {
     let dayStart: Date
     let layout: WeekGridLayout
-    let onCreate: (Date, Date) -> Void
+    let store: DashboardStore
 
     @State private var band: (lo: CGFloat, hi: CGFloat)?
+    @State private var showCreate = false
+    @State private var createStart: Date?
+    @State private var createEnd: Date?
+    @State private var anchor: CGPoint = .zero
 
     var body: some View {
         Rectangle()
             .fill(Color.clear)
             .contentShape(Rectangle())
             .overlay(alignment: .top) { bandOverlay }
+            .overlay(alignment: .topLeading) { popoverAnchor }
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
@@ -197,9 +190,26 @@ private struct DayCreateSurface: View {
                         let start = layout.time(forYOffset: lo, dayStart: dayStart)
                         var end = layout.time(forYOffset: hi, dayStart: dayStart)
                         if end <= start { end = start.addingTimeInterval(3600) }
-                        onCreate(start, end)
+                        createStart = start
+                        createEnd = end
+                        anchor = value.location
+                        showCreate = true
                     }
             )
+    }
+
+    /// A 1 pt invisible view at the cursor location, so the create popover
+    /// spawns there instead of at the calendar's edge.
+    @ViewBuilder
+    private var popoverAnchor: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .offset(x: anchor.x, y: anchor.y)
+            .popover(isPresented: $showCreate) {
+                if let start = createStart, let end = createEnd {
+                    CalendarEventPopover(mode: .create(start: start, end: end), store: store)
+                }
+            }
     }
 
     @ViewBuilder
