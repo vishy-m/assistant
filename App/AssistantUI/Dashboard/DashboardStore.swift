@@ -14,6 +14,7 @@ final class DashboardStore: ObservableObject {
     // Calendar
     @Published var weekStart: Date = DashboardStore.startOfWeek(for: Date())
     @Published var events: [WeekEvent] = []
+    @Published var weekTasks: [WeekTask] = []
     @Published var categories: [AssistantStore.Category] = []
 
     // Chat
@@ -46,6 +47,7 @@ final class DashboardStore: ObservableObject {
     func refreshAll() {
         refreshSummary()
         refreshEvents()
+        refreshTasks()
         refreshCategories()
         loadChatHistory()
         startTimer()
@@ -60,6 +62,12 @@ final class DashboardStore: ObservableObject {
     func refreshEvents() {
         XPCClient.shared.getWeekEvents(start: weekStart, end: weekEnd) { [weak self] events in
             self?.events = events
+        }
+    }
+
+    func refreshTasks() {
+        XPCClient.shared.getWeekTasks(start: weekStart, end: weekEnd) { [weak self] tasks in
+            self?.weekTasks = tasks
         }
     }
 
@@ -127,6 +135,7 @@ final class DashboardStore: ObservableObject {
             _Concurrency.Task { @MainActor in
                 self?.refreshSummary()
                 self?.refreshEvents()
+                self?.refreshTasks()
             }
         }
     }
@@ -137,11 +146,13 @@ final class DashboardStore: ObservableObject {
         let cal = Calendar(identifier: .gregorian)
         weekStart = cal.date(byAdding: .day, value: 7 * weeks, to: weekStart) ?? weekStart
         refreshEvents()
+        refreshTasks()
     }
 
     func goToToday() {
         weekStart = DashboardStore.startOfWeek(for: Date())
         refreshEvents()
+        refreshTasks()
     }
 
     // MARK: - Chat
@@ -169,6 +180,7 @@ final class DashboardStore: ObservableObject {
             }
             self.refreshSummary()
             self.refreshEvents()
+            self.refreshTasks()
         }
     }
 
@@ -201,6 +213,27 @@ final class DashboardStore: ObservableObject {
         events.removeAll { $0.id == event.id }
         XPCClient.shared.deleteCalendarEvent(eventId: event.id) { [weak self] ok in
             if !ok { self?.refreshEvents() }
+        }
+    }
+
+    // MARK: - Task edits (optimistic)
+
+    func rescheduleTask(_ task: WeekTask, newDue: Date) {
+        if let idx = weekTasks.firstIndex(where: { $0.id == task.id }) {
+            weekTasks[idx] = WeekTask(id: task.id, title: task.title,
+                                      dueAt: newDue, category: task.category)
+        }
+        XPCClient.shared.rescheduleTask(taskId: task.id, dueAt: newDue) { [weak self] ok in
+            self?.refreshSummary()
+            if !ok { self?.refreshTasks() }
+        }
+    }
+
+    func completeTask(_ task: WeekTask) {
+        weekTasks.removeAll { $0.id == task.id }
+        XPCClient.shared.completeTask(taskId: task.id) { [weak self] ok in
+            self?.refreshSummary()
+            if !ok { self?.refreshTasks() }
         }
     }
 }
