@@ -6,6 +6,9 @@ struct WeekCalendarView: View {
 
     private let dayStartHour = 0
     private let dayHeaderHeight: CGFloat = 20
+    /// Empty space kept below the 24-hour grid so a deadline line / event
+    /// near midnight renders its rule and label without being clipped.
+    private let bottomBuffer: CGFloat = 24
     private let cal = Calendar(identifier: .gregorian)
 
     @State private var pendingCreateStart: Date?
@@ -19,7 +22,8 @@ struct WeekCalendarView: View {
             Divider()
             GeometryReader { geo in
                 // All 24 hours fit the available height — no vertical scroll.
-                let hourHeight = max((geo.size.height - dayHeaderHeight) / 24, 1)
+                let hourHeight = max(
+                    (geo.size.height - dayHeaderHeight - bottomBuffer) / 24, 1)
                 let layout = WeekGridLayout(hourHeight: hourHeight,
                                             dayStartHour: dayStartHour)
                 HStack(alignment: .top, spacing: 0) {
