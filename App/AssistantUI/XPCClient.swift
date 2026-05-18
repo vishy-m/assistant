@@ -469,6 +469,73 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
+    func listTasks(reply: @escaping ([AssistantStore.Task]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listTasks { data in
+                let tasks = (try? JSONDecoder().decode(
+                    [AssistantStore.Task].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(tasks) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
+    func createTask(_ task: AssistantStore.Task, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(task)
+            let proxy = try makeProxy()
+            proxy.createTask(data) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func updateTask(_ task: AssistantStore.Task, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(task)
+            let proxy = try makeProxy()
+            proxy.updateTask(data) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func deleteTask(taskId: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.deleteTask(taskId: taskId) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func setTaskCompleted(taskId: String, completed: Bool,
+                          reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.setTaskCompleted(taskId: taskId, completed: completed) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func clearCompletedTasks(reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.clearCompletedTasks { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func getTasksNote(reply: @escaping (String) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.getTasksNote { note in DispatchQueue.main.async { reply(note) } }
+        } catch { DispatchQueue.main.async { reply("") } }
+    }
+
+    func setTasksNote(_ note: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.setTasksNote(note) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {
