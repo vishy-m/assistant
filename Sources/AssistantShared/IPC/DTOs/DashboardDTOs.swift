@@ -60,14 +60,16 @@ public struct DueSoonItem: Codable, Identifiable, Equatable {
     public let kind: Kind
     public let title: String
     public let courseName: String?
+    public let category: String?
     public let dueAt: Date
     public let isOverdue: Bool
     public init(id: String, kind: Kind, title: String, courseName: String?,
-                dueAt: Date, isOverdue: Bool) {
+                category: String? = nil, dueAt: Date, isOverdue: Bool) {
         self.id = id
         self.kind = kind
         self.title = title
         self.courseName = courseName
+        self.category = category
         self.dueAt = dueAt
         self.isOverdue = isOverdue
     }

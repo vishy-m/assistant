@@ -474,6 +474,7 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
                             kind: e.kind == .task ? .task : .gradeItem,
                             title: e.title,
                             courseName: e.courseId.flatMap { courseName[$0] },
+                            category: e.category,
                             dueAt: e.dueAt, isOverdue: e.isOverdue)
             }
 
