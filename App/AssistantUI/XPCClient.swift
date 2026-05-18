@@ -435,6 +435,40 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
+    func getWeekTasks(start: Date, end: Date,
+                      reply: @escaping ([WeekTask]) -> Void) {
+        let iso = ISO8601DateFormatter()
+        do {
+            let proxy = try makeProxy()
+            proxy.getWeekTasks(startISO: iso.string(from: start),
+                               endISO: iso.string(from: end)) { data in
+                let tasks = (try? JSONDecoder().decode(
+                    WeekTasksResponse.self, from: data))?.tasks ?? []
+                DispatchQueue.main.async { reply(tasks) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
+    func rescheduleTask(taskId: String, dueAt: Date,
+                        reply: @escaping (Bool) -> Void) {
+        let iso = ISO8601DateFormatter()
+        do {
+            let proxy = try makeProxy()
+            proxy.rescheduleTask(taskId: taskId, dueISO: iso.string(from: dueAt)) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func completeTask(taskId: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.completeTask(taskId: taskId) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
     // MARK: - Connection management
 
     private func makeProxy() throws -> AssistantServiceProtocol {
