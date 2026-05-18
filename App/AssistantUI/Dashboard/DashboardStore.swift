@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import AssistantShared
+import AssistantStore
 
 /// Owns all dashboard data and is the only object that talks to the daemon.
 @MainActor
@@ -13,6 +14,7 @@ final class DashboardStore: ObservableObject {
     // Calendar
     @Published var weekStart: Date = DashboardStore.startOfWeek(for: Date())
     @Published var events: [WeekEvent] = []
+    @Published var categories: [AssistantStore.Category] = []
 
     // Chat
     @Published var messages: [ChatMessage] = []
@@ -44,6 +46,7 @@ final class DashboardStore: ObservableObject {
     func refreshAll() {
         refreshSummary()
         refreshEvents()
+        refreshCategories()
         loadChatHistory()
         startTimer()
     }
@@ -57,6 +60,51 @@ final class DashboardStore: ObservableObject {
     func refreshEvents() {
         XPCClient.shared.getWeekEvents(start: weekStart, end: weekEnd) { [weak self] events in
             self?.events = events
+        }
+    }
+
+    func refreshCategories() {
+        XPCClient.shared.listCategories { [weak self] cats in
+            self?.categories = cats
+        }
+    }
+
+    /// Resolves a category name to its color. Unknown/nil → the default
+    /// category's color, or a neutral fallback.
+    func categoryColor(_ name: String?) -> Color {
+        if let name,
+           let match = categories.first(where: { $0.name.lowercased() == name.lowercased() }) {
+            return GradeTheme.color(fromHex: match.colorHex)
+        }
+        if let def = categories.first(where: { $0.isDefault }) {
+            return GradeTheme.color(fromHex: def.colorHex)
+        }
+        return GradeTheme.color(fromHex: "8A8F98")
+    }
+
+    func saveCategory(originalName: String?, name: String, colorHex: String) {
+        XPCClient.shared.saveCategory(originalName: originalName, name: name,
+                                      colorHex: colorHex) { [weak self] _ in
+            self?.refreshCategories()
+            self?.refreshEvents()
+        }
+    }
+
+    func deleteCategory(name: String) {
+        XPCClient.shared.removeCategory(name: name) { [weak self] _ in
+            self?.refreshCategories()
+            self?.refreshEvents()
+        }
+    }
+
+    func setEventCategory(_ event: WeekEvent, category: String) {
+        if let idx = events.firstIndex(where: { $0.id == event.id }) {
+            events[idx] = WeekEvent(id: event.id, title: event.title,
+                                    startAt: event.startAt, endAt: event.endAt,
+                                    category: category, location: event.location)
+        }
+        XPCClient.shared.setEventCategory(eventId: event.id, category: category) { [weak self] ok in
+            if !ok { self?.refreshEvents() }
         }
     }
 
@@ -126,9 +174,10 @@ final class DashboardStore: ObservableObject {
 
     // MARK: - Calendar edits (optimistic)
 
-    func createEvent(title: String, start: Date, end: Date) {
+    func createEvent(title: String, start: Date, end: Date, category: String) {
         XPCClient.shared.createCalendarEvent(
-            CreateEventRequest(title: title, startAt: start, endAt: end, location: nil)
+            CreateEventRequest(title: title, startAt: start, endAt: end,
+                               location: nil, category: category)
         ) { [weak self] result in
             if let ev = result.event { self?.events.append(ev) }
             self?.refreshEvents()
