@@ -642,7 +642,9 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         let colorId = GoogleEventColor.nearestColorId(toHex: colorHex)
         _Concurrency.Task {
             let events = (try? CategoryRepository(db: self.db).events(category: category)) ?? []
+            let quota = QuotaGuard(db: self.db)
             for ev in events {
+                guard (try? quota.tryConsume()) == true else { break }
                 _ = try? await client.updateEvent(
                     calendarId: ev.calendarId, eventId: ev.gcalEventId,
                     summary: nil, start: nil, end: nil,

@@ -43,6 +43,7 @@ private struct CategoryRow: View {
     let category: AssistantStore.Category
     @State private var name: String
     @State private var color: Color
+    @State private var colorSaveTask: _Concurrency.Task<Void, Never>?
 
     init(store: DashboardStore, category: AssistantStore.Category) {
         self.store = store
@@ -56,8 +57,14 @@ private struct CategoryRow: View {
             ColorPicker("", selection: $color, supportsOpacity: false)
                 .labelsHidden()
                 .onChange(of: color) { newColor in
-                    store.saveCategory(originalName: category.name, name: name,
-                                       colorHex: hexString(newColor))
+                    colorSaveTask?.cancel()
+                    let hex = hexString(newColor)
+                    colorSaveTask = _Concurrency.Task { @MainActor in
+                        try? await _Concurrency.Task.sleep(nanoseconds: 400_000_000)
+                        guard !_Concurrency.Task.isCancelled else { return }
+                        store.saveCategory(originalName: category.name, name: name,
+                                           colorHex: hex)
+                    }
                 }
             TextField("Name", text: $name)
                 .textFieldStyle(.roundedBorder)
