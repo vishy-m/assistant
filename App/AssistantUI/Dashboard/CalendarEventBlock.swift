@@ -23,7 +23,7 @@ struct CalendarEventBlock: View {
         }
         .padding(3)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(GradeTheme.accent.opacity(0.28))
+        .background(store.categoryColor(event.category).opacity(0.30))
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(resizeHandle, alignment: .bottom)
         .offset(y: dragOffset)

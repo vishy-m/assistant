@@ -24,7 +24,7 @@ struct DueSoonView: View {
     private func row(_ item: DueSoonItem) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Circle()
-                .fill(item.isOverdue ? Color.red : GradeTheme.accent)
+                .fill(store.categoryColor(item.category))
                 .frame(width: 6, height: 6)
                 .padding(.top, 5)
             VStack(alignment: .leading, spacing: 1) {
