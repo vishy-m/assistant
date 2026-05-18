@@ -24,6 +24,7 @@ final class TasksDashboardWindow {
         w.setContentSize(NSSize(width: 760, height: 560))
         w.title = "Tasks"
         w.titlebarAppearsTransparent = true
+        w.isReleasedWhenClosed = false
         w.center()
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
