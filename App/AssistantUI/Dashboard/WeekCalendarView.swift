@@ -199,17 +199,19 @@ private struct DayCreateSurface: View {
     }
 
     /// A 1 pt invisible view at the cursor location, so the create popover
-    /// spawns there instead of at the calendar's edge.
+    /// spawns there instead of at the calendar's edge. `.position` (not
+    /// `.offset`) is required: the popover anchors to the layout frame, and
+    /// only `.position` actually relocates it.
     @ViewBuilder
     private var popoverAnchor: some View {
         Color.clear
             .frame(width: 1, height: 1)
-            .offset(x: anchor.x, y: anchor.y)
             .popover(isPresented: $showCreate) {
                 if let start = createStart, let end = createEnd {
                     CalendarEventPopover(mode: .create(start: start, end: end), store: store)
                 }
             }
+            .position(x: anchor.x, y: anchor.y)
     }
 
     @ViewBuilder
