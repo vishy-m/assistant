@@ -2,14 +2,15 @@ import SwiftUI
 
 struct DashboardView: View {
     @ObservedObject var store: DashboardStore
+    @StateObject private var taskStore = TaskStore()
 
     var body: some View {
         HStack(spacing: 0) {
-            // Left rail: grades + due soon stacked.
+            // Left rail: grades + tasks stacked.
             VStack(spacing: 0) {
                 GradesRailView(store: store)
                 Divider()
-                DueSoonView(store: store)
+                TasksListView(store: taskStore)
             }
             .frame(width: 220)
             .background(GradeTheme.railBg)
@@ -29,5 +30,6 @@ struct DashboardView: View {
                 .background(GradeTheme.railBg)
         }
         .background(GradeTheme.windowBg)
+        .onAppear { taskStore.refresh() }
     }
 }
