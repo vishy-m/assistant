@@ -146,7 +146,8 @@ public final class GCalClient: Sendable {
                             start: Date, end: Date,
                             location: String?,
                             description: String?,
-                            colorId: String? = nil) async throws -> GCalEvent {
+                            colorId: String? = nil,
+                            recurrence: [String]? = nil) async throws -> GCalEvent {
         let iso = ISO8601DateFormatter()
         iso.timeZone = TimeZone.current
         let tz = TimeZone.current.identifier
@@ -158,6 +159,7 @@ public final class GCalClient: Sendable {
         if let l = location { body["location"] = l }
         if let d = description { body["description"] = d }
         if let cid = colorId { body["colorId"] = cid }
+        if let rec = recurrence, !rec.isEmpty { body["recurrence"] = rec }
         let data = try JSONSerialization.data(withJSONObject: body)
         let req = try makeRequest("POST",
                                   path: "/calendar/v3/calendars/\(calendarId)/events",

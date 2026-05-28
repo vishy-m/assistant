@@ -24,6 +24,7 @@ public struct GCalEvent: Codable, Equatable {
     public let end: GCalTime?
     public let location: String?
     public let status: String?          // "confirmed", "tentative", "cancelled"
+    public let recurringEventId: String?   // set on expanded instances of a series
 }
 
 public struct GCalEventList: Codable, Equatable {
