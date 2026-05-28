@@ -82,14 +82,16 @@ public struct WeekEvent: Codable, Identifiable, Equatable {
     public let endAt: Date
     public let category: String
     public let location: String?
+    public let isRecurring: Bool
     public init(id: String, title: String, startAt: Date, endAt: Date,
-                category: String, location: String?) {
+                category: String, location: String?, isRecurring: Bool = false) {
         self.id = id
         self.title = title
         self.startAt = startAt
         self.endAt = endAt
         self.category = category
         self.location = location
+        self.isRecurring = isRecurring
     }
 }
 
@@ -104,13 +106,16 @@ public struct CreateEventRequest: Codable, Equatable {
     public let endAt: Date
     public let location: String?
     public let category: String
+    public let recurrence: RecurrenceRule?
     public init(title: String, startAt: Date, endAt: Date,
-                location: String?, category: String = "Misc") {
+                location: String?, category: String = "Misc",
+                recurrence: RecurrenceRule? = nil) {
         self.title = title
         self.startAt = startAt
         self.endAt = endAt
         self.location = location
         self.category = category
+        self.recurrence = recurrence
     }
 }
 
