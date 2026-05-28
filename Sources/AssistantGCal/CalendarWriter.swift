@@ -24,11 +24,19 @@ public final class CalendarWriter: Sendable {
     @discardableResult
     public func create(title: String, start: Date, end: Date,
                        location: String?, description: String?,
-                       category: String = "Misc") async throws -> WeekEvent {
+                       category: String = "Misc",
+                       recurrence: RecurrenceRule? = nil) async throws -> WeekEvent {
         let bootstrap = AssistantCalendarBootstrap(client: client, db: db)
         let repo = GCalRepository(db: db)
         let resolvedCategory = try CategoryRepository(db: db).resolve(category)
         let colorId = GoogleEventColor.nearestColorId(toHex: resolvedCategory.colorHex)
+        let rrule = recurrence.map { [$0.rruleString] }
+
+        // Recurring create is online-only: the rule is expanded by Google and
+        // the occurrences flow back through sync.
+        if recurrence != nil && !isOnline() {
+            throw WriteError.offlineNoCalendar
+        }
 
         let calID: String
         if isOnline() {
@@ -43,18 +51,29 @@ public final class CalendarWriter: Sendable {
             do {
                 let ev = try await client.insertEvent(
                     calendarId: calID, summary: title, start: start, end: end,
-                    location: location, description: description, colorId: colorId)
-                try repo.upsert(GCalEventCache(
-                    gcalEventId: ev.id, calendarId: calID,
-                    title: ev.summary ?? title, startAt: start, endAt: end,
-                    location: location, category: resolvedCategory.name,
-                    lastSyncedAt: Date(), rawJson: "{}"))
+                    location: location, description: description,
+                    colorId: colorId, recurrence: rrule)
+                // For a recurring master we do NOT cache a row: Google does not
+                // return the master under singleEvents=true, so a cached master
+                // would linger as a phantom duplicate. The expanded instances
+                // arrive via the next sync instead.
+                if recurrence == nil {
+                    try repo.upsert(GCalEventCache(
+                        gcalEventId: ev.id, calendarId: calID,
+                        title: ev.summary ?? title, startAt: start, endAt: end,
+                        location: location, category: resolvedCategory.name,
+                        lastSyncedAt: Date(), rawJson: "{}"))
+                }
                 return WeekEvent(id: ev.id, title: ev.summary ?? title,
                                  startAt: start, endAt: end,
-                                 category: resolvedCategory.name, location: location)
+                                 category: resolvedCategory.name, location: location,
+                                 isRecurring: recurrence != nil)
             } catch {
-                try enqueueInsert(title: title, start: start, end: end,
-                                  location: location, description: description, repo: repo)
+                // Only one-off events queue offline; recurring failures surface.
+                if recurrence == nil {
+                    try enqueueInsert(title: title, start: start, end: end,
+                                      location: location, description: description, repo: repo)
+                }
                 throw error
             }
         }
@@ -80,6 +99,19 @@ public final class CalendarWriter: Sendable {
     public func delete(eventId: String) async throws {
         let repo = GCalRepository(db: db)
         guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
+
+        // Whole-series semantics: deleting any instance deletes the recurring
+        // master on Google and purges every cached row for that series.
+        if let masterId = cached.recurringEventId {
+            do {
+                try await client.deleteEvent(calendarId: cached.calendarId, eventId: masterId)
+            } catch GCalError.notFound {
+                // Already gone on Google — still purge locally.
+            }
+            try repo.deleteCachedSeries(recurringEventId: masterId)
+            return
+        }
+
         do {
             try await client.deleteEvent(calendarId: cached.calendarId, eventId: eventId)
         } catch GCalError.notFound {
