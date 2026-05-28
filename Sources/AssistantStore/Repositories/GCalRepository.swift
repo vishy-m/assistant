@@ -36,6 +36,17 @@ public struct GCalRepository {
         }
     }
 
+    /// Deletes every cached row belonging to a recurring series — both the
+    /// expanded instances (matched by `recurring_event_id`) and the master row
+    /// itself (matched by `gcal_event_id`).
+    public func deleteCachedSeries(recurringEventId: String) throws {
+        try db.queue.write { db in
+            try db.execute(
+                sql: "DELETE FROM gcal_event_cache WHERE recurring_event_id = ? OR gcal_event_id = ?",
+                arguments: [recurringEventId, recurringEventId])
+        }
+    }
+
     // Outbox
     public func enqueue(_ op: PendingGCalOp) throws {
         try db.queue.write { db in try op.insert(db) }
