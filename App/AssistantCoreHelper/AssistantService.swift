@@ -17,6 +17,7 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     private var loop: ToolLoop
     private var gcalClient: GCalClient?
     private var calendarWriter: CalendarWriter?
+    private var syncWorker: GCalSyncWorker?
     private let promptRateLimiter = RateLimiter(limit: 30, window: 60)
 
     init(db: AssistantDB, loop: ToolLoop) {
@@ -33,6 +34,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     func attachGCalClient(_ client: GCalClient) {
         self.gcalClient = client
         self.calendarWriter = CalendarWriter(client: client, db: db)
+    }
+
+    func attachSyncWorker(_ worker: GCalSyncWorker) {
+        self.syncWorker = worker
     }
 
     func ping(reply: @escaping (String) -> Void) { reply("pong") }
@@ -506,7 +511,8 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
                     events.append(WeekEvent(
                         id: e.gcalEventId, title: e.title,
                         startAt: e.startAt, endAt: e.endAt,
-                        category: e.category, location: e.location))
+                        category: e.category, location: e.location,
+                        isRecurring: e.recurringEventId != nil))
                 }
                 day = cal.date(byAdding: .day, value: 1, to: day) ?? end
             }
@@ -528,7 +534,13 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             do {
                 let ev = try await writer.create(
                     title: req.title, start: req.startAt, end: req.endAt,
-                    location: req.location, description: nil, category: req.category)
+                    location: req.location, description: nil, category: req.category,
+                    recurrence: req.recurrence)
+                // A recurring master is not cached locally; pull its expanded
+                // occurrences in now so the calendar shows them immediately.
+                if req.recurrence != nil {
+                    try? await syncWorker?.runOnce()
+                }
                 reply((try? JSONEncoder().encode(CalendarWriteResult(
                     event: ev, errorMessage: nil))) ?? Data())
             } catch {

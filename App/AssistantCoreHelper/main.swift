@@ -54,6 +54,7 @@ let gcalClient = GCalClient(http: http,
 service.attachGCalClient(gcalClient)
 let quota = QuotaGuard(db: db)
 let syncWorker = GCalSyncWorker(client: gcalClient, db: db, quota: quota)
+service.attachSyncWorker(syncWorker)
 let outbox = OutboxProcessor(client: gcalClient, db: db, quota: quota)
 
 // Register GCal tools into the existing registry, then rebuild + install the loop.
