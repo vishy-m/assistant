@@ -28,18 +28,21 @@ struct CalendarEventBlock: View {
         .overlay(resizeHandle, alignment: .bottom)
         .offset(y: dragOffset)
         .padding(.bottom, -resizeDelta)
-        .gesture(moveGesture)
+        .gesture(moveGesture, including: event.isRecurring ? .subviews : .all)
         .onTapGesture { showPopover = true }
         .popover(isPresented: $showPopover) {
             CalendarEventPopover(mode: .detail(event), store: store)
         }
     }
 
+    @ViewBuilder
     private var resizeHandle: some View {
-        Rectangle()
-            .fill(Color.white.opacity(0.001))
-            .frame(height: 8)
-            .gesture(resizeGesture)
+        if !event.isRecurring {
+            Rectangle()
+                .fill(Color.white.opacity(0.001))
+                .frame(height: 8)
+                .gesture(resizeGesture)
+        }
     }
 
     private var moveGesture: some Gesture {
