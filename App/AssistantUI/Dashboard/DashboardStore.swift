@@ -201,7 +201,10 @@ final class DashboardStore: ObservableObject {
                                location: nil, category: category,
                                recurrence: recurrence)
         ) { [weak self] result in
-            if let ev = result.event { self?.events.append(ev) }
+            // Recurring create returns the master event id, which sync never
+            // surfaces (singleEvents=true expands to instance ids); appending
+            // it would leave a phantom row until the next refresh.
+            if let ev = result.event, recurrence == nil { self?.events.append(ev) }
             self?.refreshEvents()
         }
     }

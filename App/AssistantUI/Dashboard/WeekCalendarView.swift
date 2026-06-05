@@ -208,7 +208,10 @@ private struct DayCreateSurface: View {
             .frame(width: 1, height: 1)
             .popover(isPresented: $showCreate) {
                 if let start = createStart, let end = createEnd {
+                    // .id forces a fresh view (and fresh @State) per gesture so
+                    // a cancelled create's title/recurrence don't leak forward.
                     CalendarEventPopover(mode: .create(start: start, end: end), store: store)
+                        .id(start)
                 }
             }
             .position(x: anchor.x, y: anchor.y)
