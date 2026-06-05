@@ -9,8 +9,11 @@ struct RecurrenceEditor: View {
     private enum EndKind: Hashable { case never, onDate, afterCount }
 
     // Calendar weekday ints (1 = Sun … 7 = Sat) with single-letter labels.
-    private let weekdays: [(int: Int, label: String)] = [
-        (1, "S"), (2, "M"), (3, "T"), (4, "W"), (5, "T"), (6, "F"), (7, "S")
+    // Full names are used for the VoiceOver label since "T"/"S" repeat.
+    private let weekdays: [(int: Int, label: String, name: String)] = [
+        (1, "S", "Sunday"), (2, "M", "Monday"), (3, "T", "Tuesday"),
+        (4, "W", "Wednesday"), (5, "T", "Thursday"), (6, "F", "Friday"),
+        (7, "S", "Saturday")
     ]
 
     var body: some View {
@@ -30,7 +33,7 @@ struct RecurrenceEditor: View {
             if rule.frequency == .weekly {
                 HStack(spacing: 4) {
                     ForEach(weekdays, id: \.int) { day in
-                        dayToggle(day.int, day.label)
+                        dayToggle(day.int, day.label, day.name)
                     }
                 }
             }
@@ -67,7 +70,7 @@ struct RecurrenceEditor: View {
         }
     }
 
-    private func dayToggle(_ weekday: Int, _ label: String) -> some View {
+    private func dayToggle(_ weekday: Int, _ label: String, _ name: String) -> some View {
         let on = rule.byWeekday.contains(weekday)
         return Button {
             if on { rule.byWeekday.removeAll { $0 == weekday } }
@@ -81,6 +84,7 @@ struct RecurrenceEditor: View {
                 .clipShape(Circle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(name)
     }
 
     // MARK: - End-condition bindings
