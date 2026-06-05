@@ -14,6 +14,9 @@ struct CalendarEventPopover: View {
     @State private var title: String = ""
     @State private var durationMinutes: Int
     @State private var category: String
+    @State private var repeats = false
+    @State private var rule = RecurrenceRule(frequency: .weekly, interval: 1,
+                                             byWeekday: [], untilDate: nil, count: nil)
 
     init(mode: Mode, store: DashboardStore) {
         self.mode = mode
@@ -50,6 +53,10 @@ struct CalendarEventPopover: View {
                         Text(c.name).tag(c.name)
                     }
                 }
+                Toggle("Repeat", isOn: $repeats)
+                if repeats {
+                    RecurrenceEditor(rule: $rule)
+                }
                 HStack {
                     Spacer()
                     Button("Cancel") { dismiss() }
@@ -57,7 +64,9 @@ struct CalendarEventPopover: View {
                         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !t.isEmpty else { return }
                         let end = start.addingTimeInterval(Double(durationMinutes) * 60)
-                        store.createEvent(title: t, start: start, end: end, category: category)
+                        store.createEvent(title: t, start: start, end: end,
+                                          category: category,
+                                          recurrence: repeats ? rule : nil)
                         dismiss()
                     }
                     .keyboardShortcut(.defaultAction)
@@ -87,7 +96,7 @@ struct CalendarEventPopover: View {
             }
         }
         .padding(14)
-        .frame(width: 240)
+        .frame(width: 290)
     }
 
     private func durationLabel(_ minutes: Int) -> String {

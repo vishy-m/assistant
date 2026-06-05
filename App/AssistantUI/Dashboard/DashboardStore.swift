@@ -109,7 +109,8 @@ final class DashboardStore: ObservableObject {
         if let idx = events.firstIndex(where: { $0.id == event.id }) {
             events[idx] = WeekEvent(id: event.id, title: event.title,
                                     startAt: event.startAt, endAt: event.endAt,
-                                    category: category, location: event.location)
+                                    category: category, location: event.location,
+                                    isRecurring: event.isRecurring)
         }
         XPCClient.shared.setEventCategory(eventId: event.id, category: category) { [weak self] ok in
             if !ok { self?.refreshEvents() }
@@ -193,10 +194,12 @@ final class DashboardStore: ObservableObject {
 
     // MARK: - Calendar edits (optimistic)
 
-    func createEvent(title: String, start: Date, end: Date, category: String) {
+    func createEvent(title: String, start: Date, end: Date, category: String,
+                     recurrence: RecurrenceRule? = nil) {
         XPCClient.shared.createCalendarEvent(
             CreateEventRequest(title: title, startAt: start, endAt: end,
-                               location: nil, category: category)
+                               location: nil, category: category,
+                               recurrence: recurrence)
         ) { [weak self] result in
             if let ev = result.event { self?.events.append(ev) }
             self?.refreshEvents()
@@ -207,7 +210,8 @@ final class DashboardStore: ObservableObject {
         if let idx = events.firstIndex(where: { $0.id == event.id }) {
             events[idx] = WeekEvent(id: event.id, title: event.title,
                                     startAt: newStart, endAt: newEnd,
-                                    category: event.category, location: event.location)
+                                    category: event.category, location: event.location,
+                                    isRecurring: event.isRecurring)
         }
         XPCClient.shared.updateCalendarEvent(
             UpdateEventRequest(eventId: event.id, startAt: newStart, endAt: newEnd)
