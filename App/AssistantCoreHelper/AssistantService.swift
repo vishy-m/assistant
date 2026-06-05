@@ -539,7 +539,11 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
                 // A recurring master is not cached locally; pull its expanded
                 // occurrences in now so the calendar shows them immediately.
                 if req.recurrence != nil {
-                    try? await syncWorker?.runOnce()
+                    do {
+                        try await syncWorker?.runOnce()
+                    } catch {
+                        NSLog("[AssistantService] post-create sync error: \(error)")
+                    }
                 }
                 reply((try? JSONEncoder().encode(CalendarWriteResult(
                     event: ev, errorMessage: nil))) ?? Data())
