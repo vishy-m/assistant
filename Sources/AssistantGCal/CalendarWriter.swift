@@ -109,6 +109,31 @@ public final class CalendarWriter: Sendable {
         try repo.upsert(updated)
     }
 
+    /// Assign or change an event's class and event type. Patches Google's
+    /// extended properties + color, then mirrors the local cache.
+    public func updateClassification(eventId: String,
+                                     courseId: String?,
+                                     eventType: String?) async throws {
+        let repo = GCalRepository(db: db)
+        guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
+
+        let typeRow = try eventType.flatMap { try EventTypeRepository(db: db).find(id: $0) }
+        var extProps: [String: String] = [:]
+        if let courseId { extProps["assistant_course_id"] = courseId }
+        if let eventType { extProps["assistant_event_type"] = eventType }
+
+        _ = try await client.updateEvent(
+            calendarId: cached.calendarId, eventId: eventId,
+            summary: nil, start: nil, end: nil, location: nil, description: nil,
+            colorId: typeRow?.googleColorId, extendedProperties: extProps)
+
+        var updated = cached
+        updated.courseId = courseId
+        updated.eventType = eventType
+        updated.lastSyncedAt = Date()
+        try repo.upsert(updated)
+    }
+
     public func delete(eventId: String) async throws {
         let repo = GCalRepository(db: db)
         guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
