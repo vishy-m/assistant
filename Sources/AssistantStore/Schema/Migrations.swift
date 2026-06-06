@@ -15,5 +15,6 @@ public enum Migrations {
         Migration007CourseCreditHours.register(&migrator)
         Migration008Category.register(&migrator)
         Migration009RecurringEventId.register(&migrator)
+        Migration010CourseContact.register(&migrator)
     }
 }
