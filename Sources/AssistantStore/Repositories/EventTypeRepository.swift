@@ -16,7 +16,15 @@ public struct EventTypeRepository {
     }
 
     public func upsert(_ type: EventType) throws {
-        try db.queue.write { db in try type.save(db) }
+        try db.queue.write { db in
+            if let existing = try EventType.fetchOne(db, key: type.id), existing.isBuiltin {
+                var safe = type
+                safe.isBuiltin = true
+                try safe.save(db)
+            } else {
+                try type.save(db)
+            }
+        }
     }
 
     /// Built-in types may be recolored (via `upsert`) but never deleted.
@@ -24,7 +32,7 @@ public struct EventTypeRepository {
         try db.queue.write { db in
             guard let existing = try EventType.fetchOne(db, key: id),
                   !existing.isBuiltin else { return }
-            _ = try EventType.deleteOne(db, key: id)
+            try existing.delete(db)
         }
     }
 }
