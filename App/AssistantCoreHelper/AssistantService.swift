@@ -596,6 +596,20 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func listEventTypes(reply: @escaping (Data) -> Void) {
+        do {
+            let types = try EventTypeRepository(db: db).all()
+            let dtos = types.map {
+                EventTypeDTO(id: $0.id, name: $0.name, colorHex: $0.colorHex,
+                             symbolName: $0.symbolName, isBuiltin: $0.isBuiltin)
+            }
+            reply(try JSONEncoder().encode(dtos))
+        } catch {
+            NSLog("[AssistantService] listEventTypes error: \(error)")
+            reply(Data())
+        }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         let repo = CategoryRepository(db: db)

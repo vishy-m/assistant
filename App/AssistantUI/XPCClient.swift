@@ -405,6 +405,16 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply([]) } }
     }
 
+    func listEventTypes(reply: @escaping ([EventTypeDTO]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listEventTypes { data in
+                let types = (try? JSONDecoder().decode([EventTypeDTO].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(types) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         do {
