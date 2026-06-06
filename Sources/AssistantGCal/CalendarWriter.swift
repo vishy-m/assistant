@@ -25,7 +25,9 @@ public final class CalendarWriter: Sendable {
     public func create(title: String, start: Date, end: Date,
                        location: String?, description: String?,
                        category: String = "Misc",
-                       recurrence: RecurrenceRule? = nil) async throws -> WeekEvent {
+                       recurrence: RecurrenceRule? = nil,
+                       courseId: String? = nil,
+                       eventType: String? = nil) async throws -> WeekEvent {
         let bootstrap = AssistantCalendarBootstrap(client: client, db: db)
         let repo = GCalRepository(db: db)
         let resolvedCategory = try CategoryRepository(db: db).resolve(category)
@@ -37,6 +39,13 @@ public final class CalendarWriter: Sendable {
         if recurrence != nil && !isOnline() {
             throw WriteError.offlineNoCalendar
         }
+
+        // A class event's color comes from its event type; otherwise category color.
+        let typeRow = try eventType.flatMap { try EventTypeRepository(db: db).find(id: $0) }
+        let effectiveColorId = typeRow?.googleColorId ?? colorId
+        var extProps: [String: String] = [:]
+        if let courseId { extProps["assistant_course_id"] = courseId }
+        if let eventType { extProps["assistant_event_type"] = eventType }
 
         let calID: String
         if isOnline() {
@@ -52,7 +61,8 @@ public final class CalendarWriter: Sendable {
                 let ev = try await client.insertEvent(
                     calendarId: calID, summary: title, start: start, end: end,
                     location: location, description: description,
-                    colorId: colorId, recurrence: rrule)
+                    colorId: effectiveColorId, recurrence: rrule,
+                    extendedProperties: extProps)
                 // For a recurring master we do NOT cache a row: Google does not
                 // return the master under singleEvents=true, so a cached master
                 // would linger as a phantom duplicate. The expanded instances
@@ -62,12 +72,15 @@ public final class CalendarWriter: Sendable {
                         gcalEventId: ev.id, calendarId: calID,
                         title: ev.summary ?? title, startAt: start, endAt: end,
                         location: location, category: resolvedCategory.name,
-                        lastSyncedAt: Date(), rawJson: "{}"))
+                        lastSyncedAt: Date(), rawJson: "{}",
+                        recurringEventId: nil,
+                        courseId: courseId, eventType: eventType))
                 }
                 return WeekEvent(id: ev.id, title: ev.summary ?? title,
                                  startAt: start, endAt: end,
                                  category: resolvedCategory.name, location: location,
-                                 isRecurring: recurrence != nil)
+                                 isRecurring: recurrence != nil,
+                                 courseId: courseId, eventType: eventType)
             } catch {
                 // Only one-off events queue offline; recurring failures surface.
                 if recurrence == nil {
@@ -92,6 +105,33 @@ public final class CalendarWriter: Sendable {
         updated.startAt = start
         updated.endAt = end
         updated.title = ev.summary ?? cached.title
+        updated.lastSyncedAt = Date()
+        try repo.upsert(updated)
+    }
+
+    /// Assign or change an event's class and event type. Patches Google's
+    /// extended properties + color, then mirrors the local cache.
+    public func updateClassification(eventId: String,
+                                     courseId: String?,
+                                     eventType: String?) async throws {
+        let repo = GCalRepository(db: db)
+        guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
+
+        let typeRow = try eventType.flatMap { try EventTypeRepository(db: db).find(id: $0) }
+        var extProps: [String: String] = [:]
+        if let courseId { extProps["assistant_course_id"] = courseId }
+        if let eventType { extProps["assistant_event_type"] = eventType }
+
+        // Response intentionally discarded: the next sync reconciles the cache
+        // from Google. Online-only — no outbox/offline support this phase.
+        _ = try await client.updateEvent(
+            calendarId: cached.calendarId, eventId: eventId,
+            summary: nil, start: nil, end: nil, location: nil, description: nil,
+            colorId: typeRow?.googleColorId, extendedProperties: extProps)
+
+        var updated = cached
+        updated.courseId = courseId
+        updated.eventType = eventType
         updated.lastSyncedAt = Date()
         try repo.upsert(updated)
     }
@@ -121,6 +161,10 @@ public final class CalendarWriter: Sendable {
         try repo.deleteCached(id: eventId)
     }
 
+    // NOTE: the outbox intentionally does not carry courseId/eventType in this
+    // phase. Recurring class events are online-only, and one-off offline class
+    // events are a rare edge; offline-created events are simply unclassified
+    // until reclassified online. Revisit with the creation UI (later phase).
     private func enqueueInsert(title: String, start: Date, end: Date,
                                location: String?, description: String?,
                                repo: GCalRepository) throws {

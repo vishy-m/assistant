@@ -94,6 +94,7 @@ public final actor GCalSyncWorker {
             "summary": event.summary ?? "",
             "description": event.description ?? ""
         ])) ?? Data()
+        let priv = event.extendedProperties?.privateProps
         let cached = GCalEventCache(
             gcalEventId: event.id,
             calendarId: calendarId,
@@ -104,7 +105,9 @@ public final actor GCalSyncWorker {
             category: "Misc",
             lastSyncedAt: clock(),
             rawJson: String(data: raw, encoding: .utf8) ?? "{}",
-            recurringEventId: event.recurringEventId)
+            recurringEventId: event.recurringEventId,
+            courseId: priv?["assistant_course_id"],
+            eventType: priv?["assistant_event_type"])
         try cacheRepo.upsert(cached)
     }
 }

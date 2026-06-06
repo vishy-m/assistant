@@ -512,7 +512,8 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
                         id: e.gcalEventId, title: e.title,
                         startAt: e.startAt, endAt: e.endAt,
                         category: e.category, location: e.location,
-                        isRecurring: e.recurringEventId != nil))
+                        isRecurring: e.recurringEventId != nil,
+                        courseId: e.courseId, eventType: e.eventType))
                 }
                 day = cal.date(byAdding: .day, value: 1, to: day) ?? end
             }
@@ -535,7 +536,8 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
                 let ev = try await writer.create(
                     title: req.title, start: req.startAt, end: req.endAt,
                     location: req.location, description: nil, category: req.category,
-                    recurrence: req.recurrence)
+                    recurrence: req.recurrence,
+                    courseId: req.courseId, eventType: req.eventType)
                 // A recurring master is not cached locally; pull its expanded
                 // occurrences in now so the calendar shows them immediately.
                 if req.recurrence != nil {

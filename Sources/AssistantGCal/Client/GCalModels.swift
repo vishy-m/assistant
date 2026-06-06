@@ -16,6 +16,11 @@ public struct GCalTime: Codable, Equatable {
     public let timeZone: String?
 }
 
+public struct GCalExtendedProperties: Codable, Equatable {
+    public let privateProps: [String: String]?
+    enum CodingKeys: String, CodingKey { case privateProps = "private" }
+}
+
 public struct GCalEvent: Codable, Equatable {
     public let id: String
     public let summary: String?
@@ -25,6 +30,8 @@ public struct GCalEvent: Codable, Equatable {
     public let location: String?
     public let status: String?          // "confirmed", "tentative", "cancelled"
     public let recurringEventId: String?   // set on expanded instances of a series
+    public let colorId: String?
+    public let extendedProperties: GCalExtendedProperties?
 }
 
 public struct GCalEventList: Codable, Equatable {
