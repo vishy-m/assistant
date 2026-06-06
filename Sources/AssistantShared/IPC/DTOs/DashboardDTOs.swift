@@ -83,8 +83,11 @@ public struct WeekEvent: Codable, Identifiable, Equatable {
     public let category: String
     public let location: String?
     public let isRecurring: Bool
+    public let courseId: String?
+    public let eventType: String?
     public init(id: String, title: String, startAt: Date, endAt: Date,
-                category: String, location: String?, isRecurring: Bool = false) {
+                category: String, location: String?, isRecurring: Bool = false,
+                courseId: String? = nil, eventType: String? = nil) {
         self.id = id
         self.title = title
         self.startAt = startAt
@@ -92,6 +95,24 @@ public struct WeekEvent: Codable, Identifiable, Equatable {
         self.category = category
         self.location = location
         self.isRecurring = isRecurring
+        self.courseId = courseId
+        self.eventType = eventType
+    }
+
+    // Custom decoder so responses from an older daemon — which omit newer keys —
+    // decode with defaults/nils instead of throwing keyNotFound, which would
+    // blank the calendar on any app/daemon version skew.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        startAt = try c.decode(Date.self, forKey: .startAt)
+        endAt = try c.decode(Date.self, forKey: .endAt)
+        category = try c.decode(String.self, forKey: .category)
+        location = try c.decodeIfPresent(String.self, forKey: .location)
+        isRecurring = try c.decodeIfPresent(Bool.self, forKey: .isRecurring) ?? false
+        courseId = try c.decodeIfPresent(String.self, forKey: .courseId)
+        eventType = try c.decodeIfPresent(String.self, forKey: .eventType)
     }
 }
 
@@ -107,15 +128,36 @@ public struct CreateEventRequest: Codable, Equatable {
     public let location: String?
     public let category: String
     public let recurrence: RecurrenceRule?
+    public let courseId: String?
+    public let eventType: String?
     public init(title: String, startAt: Date, endAt: Date,
                 location: String?, category: String = "Misc",
-                recurrence: RecurrenceRule? = nil) {
+                recurrence: RecurrenceRule? = nil,
+                courseId: String? = nil, eventType: String? = nil) {
         self.title = title
         self.startAt = startAt
         self.endAt = endAt
         self.location = location
         self.category = category
         self.recurrence = recurrence
+        self.courseId = courseId
+        self.eventType = eventType
+    }
+}
+
+public struct EventTypeDTO: Codable, Identifiable, Equatable {
+    public let id: String
+    public let name: String
+    public let colorHex: String
+    public let symbolName: String?
+    public let isBuiltin: Bool
+    public init(id: String, name: String, colorHex: String,
+                symbolName: String?, isBuiltin: Bool) {
+        self.id = id
+        self.name = name
+        self.colorHex = colorHex
+        self.symbolName = symbolName
+        self.isBuiltin = isBuiltin
     }
 }
 
