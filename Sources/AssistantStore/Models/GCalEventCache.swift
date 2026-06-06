@@ -14,10 +14,13 @@ public struct GCalEventCache: Codable, Equatable, FetchableRecord, PersistableRe
     public var lastSyncedAt: Date
     public var rawJson: String
     public var recurringEventId: String?
+    public var courseId: String?
+    public var eventType: String?
 
     public init(gcalEventId: String, calendarId: String, title: String,
                 startAt: Date, endAt: Date, location: String?, category: String,
-                lastSyncedAt: Date, rawJson: String, recurringEventId: String? = nil) {
+                lastSyncedAt: Date, rawJson: String, recurringEventId: String? = nil,
+                courseId: String? = nil, eventType: String? = nil) {
         self.gcalEventId = gcalEventId
         self.calendarId = calendarId
         self.title = title
@@ -28,6 +31,8 @@ public struct GCalEventCache: Codable, Equatable, FetchableRecord, PersistableRe
         self.lastSyncedAt = lastSyncedAt
         self.rawJson = rawJson
         self.recurringEventId = recurringEventId
+        self.courseId = courseId
+        self.eventType = eventType
     }
 
     enum CodingKeys: String, CodingKey {
@@ -39,5 +44,7 @@ public struct GCalEventCache: Codable, Equatable, FetchableRecord, PersistableRe
         case lastSyncedAt = "last_synced_at"
         case rawJson = "raw_json"
         case recurringEventId = "recurring_event_id"
+        case courseId = "course_id"
+        case eventType = "event_type"
     }
 }
