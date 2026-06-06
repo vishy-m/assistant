@@ -110,7 +110,8 @@ final class DashboardStore: ObservableObject {
             events[idx] = WeekEvent(id: event.id, title: event.title,
                                     startAt: event.startAt, endAt: event.endAt,
                                     category: category, location: event.location,
-                                    isRecurring: event.isRecurring)
+                                    isRecurring: event.isRecurring,
+                                    courseId: event.courseId, eventType: event.eventType)
         }
         XPCClient.shared.setEventCategory(eventId: event.id, category: category) { [weak self] ok in
             if !ok { self?.refreshEvents() }
@@ -214,7 +215,8 @@ final class DashboardStore: ObservableObject {
             events[idx] = WeekEvent(id: event.id, title: event.title,
                                     startAt: newStart, endAt: newEnd,
                                     category: event.category, location: event.location,
-                                    isRecurring: event.isRecurring)
+                                    isRecurring: event.isRecurring,
+                                    courseId: event.courseId, eventType: event.eventType)
         }
         XPCClient.shared.updateCalendarEvent(
             UpdateEventRequest(eventId: event.id, startAt: newStart, endAt: newEnd)
