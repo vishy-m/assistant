@@ -32,12 +32,6 @@ public final class CalendarWriter: Sendable {
         let repo = GCalRepository(db: db)
         let resolvedCategory = try CategoryRepository(db: db).resolve(category)
         let colorId = GoogleEventColor.nearestColorId(toHex: resolvedCategory.colorHex)
-        // A class event's color comes from its event type; otherwise category color.
-        let typeRow = try eventType.flatMap { try EventTypeRepository(db: db).find(id: $0) }
-        let effectiveColorId = typeRow?.googleColorId ?? colorId
-        var extProps: [String: String] = [:]
-        if let courseId { extProps["assistant_course_id"] = courseId }
-        if let eventType { extProps["assistant_event_type"] = eventType }
         let rrule = recurrence.map { [$0.rruleString] }
 
         // Recurring create is online-only: the rule is expanded by Google and
@@ -45,6 +39,13 @@ public final class CalendarWriter: Sendable {
         if recurrence != nil && !isOnline() {
             throw WriteError.offlineNoCalendar
         }
+
+        // A class event's color comes from its event type; otherwise category color.
+        let typeRow = try eventType.flatMap { try EventTypeRepository(db: db).find(id: $0) }
+        let effectiveColorId = typeRow?.googleColorId ?? colorId
+        var extProps: [String: String] = [:]
+        if let courseId { extProps["assistant_course_id"] = courseId }
+        if let eventType { extProps["assistant_event_type"] = eventType }
 
         let calID: String
         if isOnline() {
@@ -133,6 +134,10 @@ public final class CalendarWriter: Sendable {
         try repo.deleteCached(id: eventId)
     }
 
+    // NOTE: the outbox intentionally does not carry courseId/eventType in this
+    // phase. Recurring class events are online-only, and one-off offline class
+    // events are a rare edge; offline-created events are simply unclassified
+    // until reclassified online. Revisit with the creation UI (later phase).
     private func enqueueInsert(title: String, start: Date, end: Date,
                                location: String?, description: String?,
                                repo: GCalRepository) throws {
