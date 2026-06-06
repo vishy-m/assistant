@@ -122,6 +122,8 @@ public final class CalendarWriter: Sendable {
         if let courseId { extProps["assistant_course_id"] = courseId }
         if let eventType { extProps["assistant_event_type"] = eventType }
 
+        // Response intentionally discarded: the next sync reconciles the cache
+        // from Google. Online-only — no outbox/offline support this phase.
         _ = try await client.updateEvent(
             calendarId: cached.calendarId, eventId: eventId,
             summary: nil, start: nil, end: nil, location: nil, description: nil,
