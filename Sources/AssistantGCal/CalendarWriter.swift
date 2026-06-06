@@ -25,11 +25,19 @@ public final class CalendarWriter: Sendable {
     public func create(title: String, start: Date, end: Date,
                        location: String?, description: String?,
                        category: String = "Misc",
-                       recurrence: RecurrenceRule? = nil) async throws -> WeekEvent {
+                       recurrence: RecurrenceRule? = nil,
+                       courseId: String? = nil,
+                       eventType: String? = nil) async throws -> WeekEvent {
         let bootstrap = AssistantCalendarBootstrap(client: client, db: db)
         let repo = GCalRepository(db: db)
         let resolvedCategory = try CategoryRepository(db: db).resolve(category)
         let colorId = GoogleEventColor.nearestColorId(toHex: resolvedCategory.colorHex)
+        // A class event's color comes from its event type; otherwise category color.
+        let typeRow = try eventType.flatMap { try EventTypeRepository(db: db).find(id: $0) }
+        let effectiveColorId = typeRow?.googleColorId ?? colorId
+        var extProps: [String: String] = [:]
+        if let courseId { extProps["assistant_course_id"] = courseId }
+        if let eventType { extProps["assistant_event_type"] = eventType }
         let rrule = recurrence.map { [$0.rruleString] }
 
         // Recurring create is online-only: the rule is expanded by Google and
@@ -52,7 +60,8 @@ public final class CalendarWriter: Sendable {
                 let ev = try await client.insertEvent(
                     calendarId: calID, summary: title, start: start, end: end,
                     location: location, description: description,
-                    colorId: colorId, recurrence: rrule)
+                    colorId: effectiveColorId, recurrence: rrule,
+                    extendedProperties: extProps)
                 // For a recurring master we do NOT cache a row: Google does not
                 // return the master under singleEvents=true, so a cached master
                 // would linger as a phantom duplicate. The expanded instances
@@ -62,12 +71,15 @@ public final class CalendarWriter: Sendable {
                         gcalEventId: ev.id, calendarId: calID,
                         title: ev.summary ?? title, startAt: start, endAt: end,
                         location: location, category: resolvedCategory.name,
-                        lastSyncedAt: Date(), rawJson: "{}"))
+                        lastSyncedAt: Date(), rawJson: "{}",
+                        recurringEventId: nil,
+                        courseId: courseId, eventType: eventType))
                 }
                 return WeekEvent(id: ev.id, title: ev.summary ?? title,
                                  startAt: start, endAt: end,
                                  category: resolvedCategory.name, location: location,
-                                 isRecurring: recurrence != nil)
+                                 isRecurring: recurrence != nil,
+                                 courseId: courseId, eventType: eventType)
             } catch {
                 // Only one-off events queue offline; recurring failures surface.
                 if recurrence == nil {
