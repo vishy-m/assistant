@@ -147,7 +147,8 @@ public final class GCalClient: Sendable {
                             location: String?,
                             description: String?,
                             colorId: String? = nil,
-                            recurrence: [String]? = nil) async throws -> GCalEvent {
+                            recurrence: [String]? = nil,
+                            extendedProperties: [String: String]? = nil) async throws -> GCalEvent {
         let iso = ISO8601DateFormatter()
         iso.timeZone = TimeZone.current
         let tz = TimeZone.current.identifier
@@ -160,6 +161,9 @@ public final class GCalClient: Sendable {
         if let d = description { body["description"] = d }
         if let cid = colorId { body["colorId"] = cid }
         if let rec = recurrence, !rec.isEmpty { body["recurrence"] = rec }
+        if let ext = extendedProperties, !ext.isEmpty {
+            body["extendedProperties"] = ["private": ext]
+        }
         let data = try JSONSerialization.data(withJSONObject: body)
         let req = try makeRequest("POST",
                                   path: "/calendar/v3/calendars/\(calendarId)/events",
@@ -174,7 +178,8 @@ public final class GCalClient: Sendable {
                             start: Date?, end: Date?,
                             location: String?,
                             description: String?,
-                            colorId: String? = nil) async throws -> GCalEvent {
+                            colorId: String? = nil,
+                            extendedProperties: [String: String]? = nil) async throws -> GCalEvent {
         let iso = ISO8601DateFormatter()
         iso.timeZone = TimeZone.current
         let tz = TimeZone.current.identifier
@@ -185,6 +190,9 @@ public final class GCalClient: Sendable {
         if let st = start { body["start"] = ["dateTime": iso.string(from: st), "timeZone": tz] }
         if let en = end { body["end"] = ["dateTime": iso.string(from: en), "timeZone": tz] }
         if let cid = colorId { body["colorId"] = cid }
+        if let ext = extendedProperties, !ext.isEmpty {
+            body["extendedProperties"] = ["private": ext]
+        }
         let data = try JSONSerialization.data(withJSONObject: body)
         let req = try makeRequest("PATCH",
                                   path: "/calendar/v3/calendars/\(calendarId)/events/\(eventId)",
