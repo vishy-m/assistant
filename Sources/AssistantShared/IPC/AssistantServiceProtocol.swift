@@ -34,6 +34,8 @@ public protocol AssistantServiceProtocol {
     func deleteCalendarEvent(eventId: String, reply: @escaping (Bool) -> Void)
     func listCategories(reply: @escaping (Data) -> Void)
     func listEventTypes(reply: @escaping (Data) -> Void)
+    func listClasses(reply: @escaping (Data) -> Void)
+    func getClassDetail(courseId: String, reply: @escaping (Data) -> Void)
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void)
     func removeCategory(name: String, reply: @escaping (Bool) -> Void)

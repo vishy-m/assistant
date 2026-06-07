@@ -30,6 +30,16 @@ public struct GCalRepository {
         }
     }
 
+    /// All cached events linked to a course, ordered by start time.
+    public func eventsForCourse(_ courseId: String) throws -> [GCalEventCache] {
+        try db.queue.read { db in
+            try GCalEventCache
+                .filter(Column("course_id") == courseId)
+                .order(Column("start_at"))
+                .fetchAll(db)
+        }
+    }
+
     public func deleteCached(id: String) throws {
         _ = try db.queue.write { db in
             try GCalEventCache.deleteOne(db, key: id)
