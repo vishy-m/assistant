@@ -17,7 +17,9 @@ struct CalendarEventBlock: View {
     private var fillColor: Color {
         store.eventTypeColor(event.eventType) ?? store.categoryColor(event.category)
     }
-    /// Dimmed when a class filter is active and this event is a different class.
+    /// Dimmed when a class filter is active and this event isn't that class.
+    /// Non-class events (courseId == nil) intentionally dim too, so the focused
+    /// class stands out while the rest of the schedule recedes.
     private var isDimmed: Bool {
         if let filter = store.classFilter { return event.courseId != filter }
         return false
@@ -49,6 +51,7 @@ struct CalendarEventBlock: View {
         }
         .overlay(resizeHandle, alignment: .bottom)
         .opacity(isDimmed ? 0.25 : 1)
+        .animation(.easeInOut(duration: 0.2), value: isDimmed)
         .offset(y: dragOffset)
         .padding(.bottom, -resizeDelta)
         .gesture(moveGesture, including: event.isRecurring ? .subviews : .all)
