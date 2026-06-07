@@ -700,6 +700,21 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func setEventClassification(eventId: String, courseId: String?, eventType: String?,
+                                reply: @escaping (Bool) -> Void) {
+        guard let writer = calendarWriter else { reply(false); return }
+        _Concurrency.Task {
+            do {
+                try await writer.updateClassification(eventId: eventId,
+                                                      courseId: courseId, eventType: eventType)
+                reply(true)
+            } catch {
+                NSLog("[AssistantService] setEventClassification error: \(error)")
+                reply(false)
+            }
+        }
+    }
+
     func getWeekTasks(startISO: String, endISO: String, reply: @escaping (Data) -> Void) {
         let iso = ISO8601DateFormatter()
         guard let start = iso.date(from: startISO), let end = iso.date(from: endISO) else {

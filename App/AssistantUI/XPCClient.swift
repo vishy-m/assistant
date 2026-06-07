@@ -465,6 +465,17 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
+    func setEventClassification(eventId: String, courseId: String?, eventType: String?,
+                                reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.setEventClassification(eventId: eventId, courseId: courseId,
+                                         eventType: eventType) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
     func getWeekTasks(start: Date, end: Date,
                       reply: @escaping ([WeekTask]) -> Void) {
         let iso = ISO8601DateFormatter()

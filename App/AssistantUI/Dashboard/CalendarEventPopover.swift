@@ -17,6 +17,8 @@ struct CalendarEventPopover: View {
     @State private var repeats = false
     @State private var rule = RecurrenceRule(frequency: .weekly, interval: 1,
                                              byWeekday: [], untilDate: nil, count: nil)
+    @State private var courseId: String?
+    @State private var eventType: String?
 
     init(mode: Mode, store: DashboardStore) {
         self.mode = mode
@@ -32,8 +34,12 @@ struct CalendarEventPopover: View {
         case .create:
             _category = State(initialValue:
                 store.categories.first(where: { $0.isDefault })?.name ?? "Misc")
+            _courseId = State(initialValue: nil)
+            _eventType = State(initialValue: nil)
         case .detail(let event):
             _category = State(initialValue: event.category)
+            _courseId = State(initialValue: event.courseId)
+            _eventType = State(initialValue: event.eventType)
         }
     }
 
@@ -53,6 +59,18 @@ struct CalendarEventPopover: View {
                         Text(c.name).tag(c.name)
                     }
                 }
+                Picker("Class", selection: $courseId) {
+                    Text("None").tag(String?.none)
+                    ForEach(store.courses, id: \.id) { course in
+                        Text(course.name).tag(String?.some(course.id))
+                    }
+                }
+                Picker("Type", selection: $eventType) {
+                    Text("None").tag(String?.none)
+                    ForEach(store.eventTypes) { type in
+                        Text(type.name).tag(String?.some(type.id))
+                    }
+                }
                 Toggle("Repeat", isOn: $repeats)
                 if repeats {
                     RecurrenceEditor(rule: $rule)
@@ -66,7 +84,8 @@ struct CalendarEventPopover: View {
                         let end = start.addingTimeInterval(Double(durationMinutes) * 60)
                         store.createEvent(title: t, start: start, end: end,
                                           category: category,
-                                          recurrence: repeats ? rule : nil)
+                                          recurrence: repeats ? rule : nil,
+                                          courseId: courseId, eventType: eventType)
                         dismiss()
                     }
                     .keyboardShortcut(.defaultAction)
@@ -85,6 +104,24 @@ struct CalendarEventPopover: View {
                 }
                 .onChange(of: category) { newCategory in
                     store.setEventCategory(event, category: newCategory)
+                }
+                Picker("Class", selection: $courseId) {
+                    Text("None").tag(String?.none)
+                    ForEach(store.courses, id: \.id) { course in
+                        Text(course.name).tag(String?.some(course.id))
+                    }
+                }
+                .onChange(of: courseId) { newCourseId in
+                    store.setEventClassification(event, courseId: newCourseId, eventType: eventType)
+                }
+                Picker("Type", selection: $eventType) {
+                    Text("None").tag(String?.none)
+                    ForEach(store.eventTypes) { type in
+                        Text(type.name).tag(String?.some(type.id))
+                    }
+                }
+                .onChange(of: eventType) { newEventType in
+                    store.setEventClassification(event, courseId: courseId, eventType: newEventType)
                 }
                 HStack {
                     Spacer()

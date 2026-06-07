@@ -6,6 +6,7 @@ struct ClassDetailView: View {
     let courseId: String
     @ObservedObject var store: ClassStore
     @State private var showEditor = false
+    @State private var showAddEvent = false
 
     var body: some View {
         Group {
@@ -20,6 +21,11 @@ struct ClassDetailView: View {
         .sheet(isPresented: $showEditor) {
             if let detail = store.detail {
                 ClassInfoEditorSheet(detail: detail) { store.loadDetail(courseId: courseId) }
+            }
+        }
+        .sheet(isPresented: $showAddEvent) {
+            ClassEventCreatorSheet(courseId: courseId, store: store) {
+                store.loadDetail(courseId: courseId)
             }
         }
     }
@@ -52,6 +58,7 @@ struct ClassDetailView: View {
         .navigationTitle(detail.name)
         .toolbar {
             ToolbarItemGroup {
+                Button("Add Event") { showAddEvent = true }
                 Button("Grades") { GradeDashboardWindow.shared.show() }
                 Button("Edit") { showEditor = true }
             }

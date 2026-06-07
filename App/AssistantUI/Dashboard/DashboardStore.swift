@@ -167,6 +167,20 @@ final class DashboardStore: ObservableObject {
         }
     }
 
+    func setEventClassification(_ event: WeekEvent, courseId: String?, eventType: String?) {
+        if let idx = events.firstIndex(where: { $0.id == event.id }) {
+            events[idx] = WeekEvent(id: event.id, title: event.title,
+                                    startAt: event.startAt, endAt: event.endAt,
+                                    category: event.category, location: event.location,
+                                    isRecurring: event.isRecurring,
+                                    courseId: courseId, eventType: eventType)
+        }
+        XPCClient.shared.setEventClassification(
+            eventId: event.id, courseId: courseId, eventType: eventType) { [weak self] ok in
+            if !ok { self?.refreshEvents() }
+        }
+    }
+
     func loadChatHistory() {
         XPCClient.shared.getMostRecentSessionId { [weak self] sid in
             guard let self, let sid else { return }
@@ -245,11 +259,13 @@ final class DashboardStore: ObservableObject {
     // MARK: - Calendar edits (optimistic)
 
     func createEvent(title: String, start: Date, end: Date, category: String,
-                     recurrence: RecurrenceRule? = nil) {
+                     recurrence: RecurrenceRule? = nil,
+                     courseId: String? = nil, eventType: String? = nil) {
         XPCClient.shared.createCalendarEvent(
             CreateEventRequest(title: title, startAt: start, endAt: end,
                                location: nil, category: category,
-                               recurrence: recurrence)
+                               recurrence: recurrence,
+                               courseId: courseId, eventType: eventType)
         ) { [weak self] result in
             // Recurring create returns the master event id, which sync never
             // surfaces (singleEvents=true expands to instance ids); appending

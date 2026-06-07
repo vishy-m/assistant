@@ -6,10 +6,14 @@ import AssistantShared
 final class ClassStore: ObservableObject {
     @Published var classes: [ClassSummary] = []
     @Published var detail: ClassDetail?
+    @Published var eventTypes: [EventTypeDTO] = []
 
     func refresh() {
         XPCClient.shared.listClasses { [weak self] classes in
             self?.classes = classes
+        }
+        XPCClient.shared.listEventTypes { [weak self] types in
+            self?.eventTypes = types
         }
     }
 

@@ -85,13 +85,15 @@ public final class CalendarWriter: Sendable {
                 // Only one-off events queue offline; recurring failures surface.
                 if recurrence == nil {
                     try enqueueInsert(title: title, start: start, end: end,
-                                      location: location, description: description, repo: repo)
+                                      location: location, description: description,
+                                      courseId: courseId, eventType: eventType, repo: repo)
                 }
                 throw error
             }
         }
         try enqueueInsert(title: title, start: start, end: end,
-                          location: location, description: description, repo: repo)
+                          location: location, description: description,
+                          courseId: courseId, eventType: eventType, repo: repo)
         throw WriteError.offlineNoCalendar
     }
 
@@ -118,9 +120,12 @@ public final class CalendarWriter: Sendable {
         guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
 
         let typeRow = try eventType.flatMap { try EventTypeRepository(db: db).find(id: $0) }
-        var extProps: [String: String] = [:]
-        if let courseId { extProps["assistant_course_id"] = courseId }
-        if let eventType { extProps["assistant_event_type"] = eventType }
+        // Always send both keys; nil clears them on Google (JSON null) so the
+        // classification doesn't get re-applied on the next sync.
+        let extProps: [String: String?] = [
+            "assistant_course_id": courseId,
+            "assistant_event_type": eventType
+        ]
 
         // Response intentionally discarded: the next sync reconciles the cache
         // from Google. Online-only — no outbox/offline support this phase.
@@ -161,12 +166,9 @@ public final class CalendarWriter: Sendable {
         try repo.deleteCached(id: eventId)
     }
 
-    // NOTE: the outbox intentionally does not carry courseId/eventType in this
-    // phase. Recurring class events are online-only, and one-off offline class
-    // events are a rare edge; offline-created events are simply unclassified
-    // until reclassified online. Revisit with the creation UI (later phase).
     private func enqueueInsert(title: String, start: Date, end: Date,
                                location: String?, description: String?,
+                               courseId: String?, eventType: String?,
                                repo: GCalRepository) throws {
         let iso = ISO8601DateFormatter()
         let payload = OutboxPayload.insertEvent(InsertEventPayload(
@@ -174,7 +176,9 @@ public final class CalendarWriter: Sendable {
             startISO: iso.string(from: start),
             endISO: iso.string(from: end),
             location: location,
-            description: description))
+            description: description,
+            courseId: courseId,
+            eventType: eventType))
         let json = String(data: try JSONEncoder().encode(payload), encoding: .utf8) ?? "{}"
         try repo.enqueue(PendingGCalOp(
             id: UUID().uuidString, opType: "insert_event",
