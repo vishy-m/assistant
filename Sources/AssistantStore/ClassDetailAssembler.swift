@@ -2,6 +2,12 @@ import Foundation
 import AssistantShared
 
 /// Pure mappers from store records to the Classes-window DTOs. No I/O.
+///
+/// Callers MUST pre-filter `events` and `tasks` to the given course — the
+/// assembler does not re-check `courseId`. (`GCalRepository.eventsForCourse`
+/// pre-filters events; tasks must be filtered by the caller.) Events are
+/// re-sorted by start time defensively even though `eventsForCourse` already
+/// returns them ordered.
 public enum ClassDetailAssembler {
 
     public static func summary(course: Course,
