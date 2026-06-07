@@ -174,9 +174,14 @@ public struct ClassSummary: Codable, Identifiable, Equatable {
     public init(id: String, name: String, term: String?, colorHex: String?,
                 iconName: String?, professorName: String?, classroom: String?,
                 openTaskCount: Int, scheduleEventCount: Int) {
-        self.id = id; self.name = name; self.term = term; self.colorHex = colorHex
-        self.iconName = iconName; self.professorName = professorName
-        self.classroom = classroom; self.openTaskCount = openTaskCount
+        self.id = id
+        self.name = name
+        self.term = term
+        self.colorHex = colorHex
+        self.iconName = iconName
+        self.professorName = professorName
+        self.classroom = classroom
+        self.openTaskCount = openTaskCount
         self.scheduleEventCount = scheduleEventCount
     }
 }
@@ -188,8 +193,11 @@ public struct ClassEventItem: Codable, Identifiable, Equatable {
     public let endAt: Date
     public let eventType: String?
     public init(id: String, title: String, startAt: Date, endAt: Date, eventType: String?) {
-        self.id = id; self.title = title; self.startAt = startAt
-        self.endAt = endAt; self.eventType = eventType
+        self.id = id
+        self.title = title
+        self.startAt = startAt
+        self.endAt = endAt
+        self.eventType = eventType
     }
 }
 
@@ -199,7 +207,10 @@ public struct ClassTaskItem: Codable, Identifiable, Equatable {
     public let dueAt: Date?
     public let isCompleted: Bool
     public init(id: String, title: String, dueAt: Date?, isCompleted: Bool) {
-        self.id = id; self.title = title; self.dueAt = dueAt; self.isCompleted = isCompleted
+        self.id = id
+        self.title = title
+        self.dueAt = dueAt
+        self.isCompleted = isCompleted
     }
 }
 
@@ -217,10 +228,16 @@ public struct ClassDetail: Codable, Identifiable, Equatable {
     public init(id: String, name: String, term: String?, colorHex: String?,
                 iconName: String?, professorName: String?, professorEmail: String?,
                 classroom: String?, events: [ClassEventItem], tasks: [ClassTaskItem]) {
-        self.id = id; self.name = name; self.term = term; self.colorHex = colorHex
-        self.iconName = iconName; self.professorName = professorName
-        self.professorEmail = professorEmail; self.classroom = classroom
-        self.events = events; self.tasks = tasks
+        self.id = id
+        self.name = name
+        self.term = term
+        self.colorHex = colorHex
+        self.iconName = iconName
+        self.professorName = professorName
+        self.professorEmail = professorEmail
+        self.classroom = classroom
+        self.events = events
+        self.tasks = tasks
     }
 }
 
