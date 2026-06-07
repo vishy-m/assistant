@@ -190,9 +190,9 @@ public final class GCalClient: Sendable {
         if let st = start { body["start"] = ["dateTime": iso.string(from: st), "timeZone": tz] }
         if let en = end { body["end"] = ["dateTime": iso.string(from: en), "timeZone": tz] }
         if let cid = colorId { body["colorId"] = cid }
-        if let ext = extendedProperties {
+        if let ext = extendedProperties, !ext.isEmpty {
             // nil value → JSON null, which removes the key from Google's event.
-            let priv = ext.mapValues { $0 as Any? ?? NSNull() }
+            let priv: [String: Any] = ext.mapValues { value -> Any in value ?? NSNull() }
             body["extendedProperties"] = ["private": priv]
         }
         let data = try JSONSerialization.data(withJSONObject: body)
