@@ -18,8 +18,8 @@ struct ClassInfoEditorSheet: View {
     @State private var iconName: String = ""
     @State private var base: Course?
 
-    private let iconChoices = ["book.closed", "function", "atom", "flask",
-                               "laptopcomputer", "paintbrush", "globe", "music.note"]
+    private static let iconChoices = ["book.closed", "function", "atom", "flask",
+                                      "laptopcomputer", "paintbrush", "globe", "music.note"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -32,7 +32,7 @@ struct ClassInfoEditorSheet: View {
                 TextField("Classroom", text: $classroom)
                 TextField("Color hex (e.g. 4F6B7A)", text: $colorHex)
                 Picker("Icon", selection: $iconName) {
-                    ForEach(iconChoices, id: \.self) { icon in
+                    ForEach(Self.iconChoices, id: \.self) { icon in
                         Label(icon, systemImage: icon).tag(icon)
                     }
                 }
@@ -40,7 +40,9 @@ struct ClassInfoEditorSheet: View {
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
-                Button("Save") { save() }.keyboardShortcut(.defaultAction)
+                Button("Save") { save() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(base == nil)
             }
         }
         .padding(16)
@@ -70,7 +72,8 @@ struct ClassInfoEditorSheet: View {
         course.classroom = classroom.isEmpty ? nil : classroom
         course.color = colorHex.isEmpty ? nil : colorHex
         course.iconName = iconName
-        XPCClient.shared.upsertCourse(course) { _ in
+        XPCClient.shared.upsertCourse(course) { ok in
+            guard ok else { return }
             onSave()
             dismiss()
         }
