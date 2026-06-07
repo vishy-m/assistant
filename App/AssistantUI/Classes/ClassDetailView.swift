@@ -25,17 +25,19 @@ struct ClassDetailView: View {
     }
 
     private func content(_ detail: ClassDetail) -> some View {
-        ScrollView {
+        let schedule = scheduleEvents(detail)
+        let examList = exams(detail)
+        return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header(detail)
-                if !scheduleEvents(detail).isEmpty {
+                if !schedule.isEmpty {
                     section("Schedule") {
-                        ForEach(scheduleEvents(detail)) { eventRow($0) }
+                        ForEach(schedule) { eventRow($0) }
                     }
                 }
-                if !exams(detail).isEmpty {
+                if !examList.isEmpty {
                     section("Exams") {
-                        ForEach(exams(detail)) { eventRow($0) }
+                        ForEach(examList) { eventRow($0) }
                     }
                 }
                 if !detail.tasks.isEmpty {
@@ -93,7 +95,7 @@ struct ClassDetailView: View {
     private func section<Content: View>(_ title: String,
                                         @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased()).font(GradeTheme.mono(10)).foregroundStyle(.tertiary)
+            EyebrowLabel(title)
             content()
         }
     }
