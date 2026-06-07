@@ -16,6 +16,10 @@ final class DashboardStore: ObservableObject {
     @Published var events: [WeekEvent] = []
     @Published var weekTasks: [WeekTask] = []
     @Published var categories: [AssistantStore.Category] = []
+    @Published var eventTypes: [EventTypeDTO] = []
+    @Published var courses: [Course] = []
+    /// When set to a course id, the calendar dims events of other classes.
+    @Published var classFilter: String?
 
     // Chat
     @Published var messages: [ChatMessage] = []
@@ -49,6 +53,8 @@ final class DashboardStore: ObservableObject {
         refreshEvents()
         refreshTasks()
         refreshCategories()
+        refreshEventTypes()
+        refreshClasses()
         loadChatHistory()
         startTimer()
     }
@@ -77,6 +83,18 @@ final class DashboardStore: ObservableObject {
         }
     }
 
+    func refreshEventTypes() {
+        XPCClient.shared.listEventTypes { [weak self] types in
+            self?.eventTypes = types
+        }
+    }
+
+    func refreshClasses() {
+        XPCClient.shared.listCourses { [weak self] courses in
+            self?.courses = courses
+        }
+    }
+
     /// Resolves a category name to its color. Unknown/nil → the default
     /// category's color, or a neutral fallback.
     func categoryColor(_ name: String?) -> Color {
@@ -88,6 +106,37 @@ final class DashboardStore: ObservableObject {
             return GradeTheme.color(fromHex: def.colorHex)
         }
         return GradeTheme.color(fromHex: "8A8F98")
+    }
+
+    /// The fill color for an event type id, or nil if unknown/unset.
+    func eventTypeColor(_ id: String?) -> Color? {
+        guard let id, let t = eventTypes.first(where: { $0.id == id }) else { return nil }
+        return GradeTheme.color(fromHex: t.colorHex)
+    }
+
+    /// A class's identity (border/glyph) color from its Course.color, or nil.
+    func classColor(_ courseId: String?) -> Color? {
+        guard let courseId,
+              let c = courses.first(where: { $0.id == courseId }),
+              let hex = c.color else { return nil }
+        return GradeTheme.color(fromHex: hex)
+    }
+
+    /// A class's SF Symbol glyph name, or nil.
+    func classIcon(_ courseId: String?) -> String? {
+        guard let courseId,
+              let c = courses.first(where: { $0.id == courseId }) else { return nil }
+        return c.iconName
+    }
+
+    /// "Course Name — Type Name" for accessibility, omitting absent parts.
+    func classTypeLabel(for event: WeekEvent) -> String {
+        var parts: [String] = []
+        if let cid = event.courseId,
+           let c = courses.first(where: { $0.id == cid }) { parts.append(c.name) }
+        if let tid = event.eventType,
+           let t = eventTypes.first(where: { $0.id == tid }) { parts.append(t.name) }
+        return parts.joined(separator: " — ")
     }
 
     func saveCategory(originalName: String?, name: String, colorHex: String) {
