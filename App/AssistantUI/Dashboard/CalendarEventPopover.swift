@@ -34,8 +34,12 @@ struct CalendarEventPopover: View {
         case .create:
             _category = State(initialValue:
                 store.categories.first(where: { $0.isDefault })?.name ?? "Misc")
+            _courseId = State(initialValue: nil)
+            _eventType = State(initialValue: nil)
         case .detail(let event):
             _category = State(initialValue: event.category)
+            _courseId = State(initialValue: event.courseId)
+            _eventType = State(initialValue: event.eventType)
         }
     }
 
@@ -100,6 +104,24 @@ struct CalendarEventPopover: View {
                 }
                 .onChange(of: category) { newCategory in
                     store.setEventCategory(event, category: newCategory)
+                }
+                Picker("Class", selection: $courseId) {
+                    Text("None").tag(String?.none)
+                    ForEach(store.courses, id: \.id) { course in
+                        Text(course.name).tag(String?.some(course.id))
+                    }
+                }
+                .onChange(of: courseId) { newCourseId in
+                    store.setEventClassification(event, courseId: newCourseId, eventType: eventType)
+                }
+                Picker("Type", selection: $eventType) {
+                    Text("None").tag(String?.none)
+                    ForEach(store.eventTypes) { type in
+                        Text(type.name).tag(String?.some(type.id))
+                    }
+                }
+                .onChange(of: eventType) { newEventType in
+                    store.setEventClassification(event, courseId: courseId, eventType: newEventType)
                 }
                 HStack {
                     Spacer()
