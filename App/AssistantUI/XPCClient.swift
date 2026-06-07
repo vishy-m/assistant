@@ -415,6 +415,21 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply([]) } }
     }
 
+    func upsertEventType(_ type: EventTypeDTO, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(type)
+            let proxy = try makeProxy()
+            proxy.upsertEventType(data) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func deleteEventType(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.deleteEventType(id: id) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
     func listClasses(reply: @escaping ([ClassSummary]) -> Void) {
         do {
             let proxy = try makeProxy()

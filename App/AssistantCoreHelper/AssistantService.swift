@@ -610,6 +610,37 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func upsertEventType(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard let dto = try? JSONDecoder().decode(EventTypeDTO.self, from: data) else {
+            reply(false); return
+        }
+        do {
+            let repo = EventTypeRepository(db: db)
+            let existing = try repo.find(id: dto.id)
+            let maxSort = try repo.all().map(\.sortOrder).max() ?? 0
+            let sortOrder = existing?.sortOrder ?? (maxSort + 1)
+            try repo.upsert(EventType(
+                id: dto.id, name: dto.name, colorHex: dto.colorHex,
+                googleColorId: GoogleEventColor.nearestColorId(toHex: dto.colorHex),
+                symbolName: dto.symbolName,
+                isBuiltin: existing?.isBuiltin ?? false, sortOrder: sortOrder))
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] upsertEventType error: \(error)")
+            reply(false)
+        }
+    }
+
+    func deleteEventType(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            try EventTypeRepository(db: db).delete(id: id)  // no-ops on built-ins
+            reply(true)
+        } catch {
+            NSLog("[AssistantService] deleteEventType error: \(error)")
+            reply(false)
+        }
+    }
+
     func listClasses(reply: @escaping (Data) -> Void) {
         do {
             let courses = try CourseRepository(db: db).all()
