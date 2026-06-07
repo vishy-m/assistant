@@ -120,6 +120,12 @@ public final class CalendarWriter: Sendable {
         guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
 
         let typeRow = try eventType.flatMap { try EventTypeRepository(db: db).find(id: $0) }
+        // Color precedence (matches create): event-type color wins, else the
+        // event's category color. Always resolve a concrete colorId so clearing
+        // the type resets Google's color instead of leaving the old one stale.
+        let categoryColorId = GoogleEventColor.nearestColorId(
+            toHex: try CategoryRepository(db: db).resolve(cached.category).colorHex)
+        let effectiveColorId = typeRow?.googleColorId ?? categoryColorId
         // Always send both keys; nil clears them on Google (JSON null) so the
         // classification doesn't get re-applied on the next sync.
         let extProps: [String: String?] = [
@@ -132,7 +138,7 @@ public final class CalendarWriter: Sendable {
         _ = try await client.updateEvent(
             calendarId: cached.calendarId, eventId: eventId,
             summary: nil, start: nil, end: nil, location: nil, description: nil,
-            colorId: typeRow?.googleColorId, extendedProperties: extProps)
+            colorId: effectiveColorId, extendedProperties: extProps)
 
         var updated = cached
         updated.courseId = courseId
