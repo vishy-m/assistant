@@ -16,6 +16,7 @@ struct WeekCalendarView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            legend
             Divider()
             GeometryReader { geo in
                 // All 24 hours fit the available height — no vertical scroll.
@@ -48,10 +49,47 @@ struct WeekCalendarView: View {
                 Image(systemName: "tag")
             }
             .buttonStyle(.plain)
+            Menu {
+                Button("All Classes") { store.classFilter = nil }
+                ForEach(store.courses, id: \.id) { course in
+                    Button {
+                        store.classFilter = course.id
+                    } label: {
+                        Label(course.name, systemImage: course.iconName ?? "book.closed")
+                    }
+                }
+            } label: {
+                Image(systemName: store.classFilter == nil
+                      ? "line.3.horizontal.decrease.circle"
+                      : "line.3.horizontal.decrease.circle.fill")
+            }
+            .buttonStyle(.plain)
+            .help("Filter calendar by class")
             Spacer()
             Text(weekTitle).font(GradeTheme.metric(13))
         }
         .padding(10)
+    }
+
+    @ViewBuilder
+    private var legend: some View {
+        if !store.eventTypes.isEmpty {
+            HStack(spacing: 10) {
+                ForEach(store.eventTypes) { type in
+                    HStack(spacing: 3) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(GradeTheme.color(fromHex: type.colorHex))
+                            .frame(width: 8, height: 8)
+                        Text(type.name)
+                            .font(GradeTheme.mono(9))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.bottom, 4)
+        }
     }
 
     private static let monthDayFormatter: DateFormatter = {
