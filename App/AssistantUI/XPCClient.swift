@@ -415,6 +415,26 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply([]) } }
     }
 
+    func listClasses(reply: @escaping ([ClassSummary]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listClasses { data in
+                let classes = (try? JSONDecoder().decode([ClassSummary].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(classes) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
+    func getClassDetail(courseId: String, reply: @escaping (ClassDetail?) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.getClassDetail(courseId: courseId) { data in
+                let detail = try? JSONDecoder().decode(ClassDetail.self, from: data)
+                DispatchQueue.main.async { reply(detail) }
+            }
+        } catch { DispatchQueue.main.async { reply(nil) } }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         do {

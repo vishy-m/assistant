@@ -610,6 +610,38 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    func listClasses(reply: @escaping (Data) -> Void) {
+        do {
+            let courses = try CourseRepository(db: db).all()
+            let allTasks = try TaskRepository(db: db).all()
+            let gcalRepo = GCalRepository(db: db)
+            let summaries = try courses.map { course -> ClassSummary in
+                let events = try gcalRepo.eventsForCourse(course.id)
+                let tasks = allTasks.filter { $0.courseId == course.id }
+                return ClassDetailAssembler.summary(course: course, events: events, tasks: tasks)
+            }
+            reply(try JSONEncoder().encode(summaries))
+        } catch {
+            NSLog("[AssistantService] listClasses error: \(error)")
+            reply(Data())
+        }
+    }
+
+    func getClassDetail(courseId: String, reply: @escaping (Data) -> Void) {
+        do {
+            guard let course = try CourseRepository(db: db).find(id: courseId) else {
+                reply(Data()); return
+            }
+            let events = try GCalRepository(db: db).eventsForCourse(courseId)
+            let tasks = try TaskRepository(db: db).all().filter { $0.courseId == courseId }
+            let detail = ClassDetailAssembler.detail(course: course, events: events, tasks: tasks)
+            reply(try JSONEncoder().encode(detail))
+        } catch {
+            NSLog("[AssistantService] getClassDetail error: \(error)")
+            reply(Data())
+        }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         let repo = CategoryRepository(db: db)
