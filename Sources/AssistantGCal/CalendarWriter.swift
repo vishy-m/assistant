@@ -85,13 +85,15 @@ public final class CalendarWriter: Sendable {
                 // Only one-off events queue offline; recurring failures surface.
                 if recurrence == nil {
                     try enqueueInsert(title: title, start: start, end: end,
-                                      location: location, description: description, repo: repo)
+                                      location: location, description: description,
+                                      courseId: courseId, eventType: eventType, repo: repo)
                 }
                 throw error
             }
         }
         try enqueueInsert(title: title, start: start, end: end,
-                          location: location, description: description, repo: repo)
+                          location: location, description: description,
+                          courseId: courseId, eventType: eventType, repo: repo)
         throw WriteError.offlineNoCalendar
     }
 
@@ -164,12 +166,9 @@ public final class CalendarWriter: Sendable {
         try repo.deleteCached(id: eventId)
     }
 
-    // NOTE: the outbox intentionally does not carry courseId/eventType in this
-    // phase. Recurring class events are online-only, and one-off offline class
-    // events are a rare edge; offline-created events are simply unclassified
-    // until reclassified online. Revisit with the creation UI (later phase).
     private func enqueueInsert(title: String, start: Date, end: Date,
                                location: String?, description: String?,
+                               courseId: String?, eventType: String?,
                                repo: GCalRepository) throws {
         let iso = ISO8601DateFormatter()
         let payload = OutboxPayload.insertEvent(InsertEventPayload(
@@ -177,7 +176,9 @@ public final class CalendarWriter: Sendable {
             startISO: iso.string(from: start),
             endISO: iso.string(from: end),
             location: location,
-            description: description))
+            description: description,
+            courseId: courseId,
+            eventType: eventType))
         let json = String(data: try JSONEncoder().encode(payload), encoding: .utf8) ?? "{}"
         try repo.enqueue(PendingGCalOp(
             id: UUID().uuidString, opType: "insert_event",
