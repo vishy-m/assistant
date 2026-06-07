@@ -179,7 +179,7 @@ public final class GCalClient: Sendable {
                             location: String?,
                             description: String?,
                             colorId: String? = nil,
-                            extendedProperties: [String: String]? = nil) async throws -> GCalEvent {
+                            extendedProperties: [String: String?]? = nil) async throws -> GCalEvent {
         let iso = ISO8601DateFormatter()
         iso.timeZone = TimeZone.current
         let tz = TimeZone.current.identifier
@@ -190,8 +190,10 @@ public final class GCalClient: Sendable {
         if let st = start { body["start"] = ["dateTime": iso.string(from: st), "timeZone": tz] }
         if let en = end { body["end"] = ["dateTime": iso.string(from: en), "timeZone": tz] }
         if let cid = colorId { body["colorId"] = cid }
-        if let ext = extendedProperties, !ext.isEmpty {
-            body["extendedProperties"] = ["private": ext]
+        if let ext = extendedProperties {
+            // nil value → JSON null, which removes the key from Google's event.
+            let priv = ext.mapValues { $0 as Any? ?? NSNull() }
+            body["extendedProperties"] = ["private": priv]
         }
         let data = try JSONSerialization.data(withJSONObject: body)
         let req = try makeRequest("PATCH",

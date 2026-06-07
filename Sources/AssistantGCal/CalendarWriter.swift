@@ -118,9 +118,12 @@ public final class CalendarWriter: Sendable {
         guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
 
         let typeRow = try eventType.flatMap { try EventTypeRepository(db: db).find(id: $0) }
-        var extProps: [String: String] = [:]
-        if let courseId { extProps["assistant_course_id"] = courseId }
-        if let eventType { extProps["assistant_event_type"] = eventType }
+        // Always send both keys; nil clears them on Google (JSON null) so the
+        // classification doesn't get re-applied on the next sync.
+        let extProps: [String: String?] = [
+            "assistant_course_id": courseId,
+            "assistant_event_type": eventType
+        ]
 
         // Response intentionally discarded: the next sync reconciles the cache
         // from Google. Online-only — no outbox/offline support this phase.
