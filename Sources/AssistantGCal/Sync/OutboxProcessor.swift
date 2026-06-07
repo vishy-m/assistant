@@ -94,6 +94,9 @@ public final actor OutboxProcessor {
                   let end = iso.date(from: p.endISO) else {
                 throw GCalError.decoding("bad ISO date")
             }
+            // Event-type color is applied on replay; category color is not carried
+            // offline (InsertEventPayload has no category), so non-class offline
+            // events replay without a colorId — a pre-existing limitation.
             let typeRow = try p.eventType.flatMap {
                 try EventTypeRepository(db: db).find(id: $0)
             }
