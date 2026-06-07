@@ -1,7 +1,11 @@
 # Xcode / build
 .build/
 DerivedData/
-*.xcodeproj
+# Track project.pbxproj (target/file membership) but ignore everything else in
+# the .xcodeproj bundle, so new source files added to the Xcode targets are
+# shared across clones rather than living only on one machine.
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
 *.xcworkspace
 xcuserdata/
 
