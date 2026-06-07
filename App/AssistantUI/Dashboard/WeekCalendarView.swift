@@ -51,17 +51,23 @@ struct WeekCalendarView: View {
             .buttonStyle(.plain)
             Menu {
                 Button("All Classes") { store.classFilter = nil }
-                ForEach(store.courses, id: \.id) { course in
-                    Button {
-                        store.classFilter = course.id
-                    } label: {
-                        Label(course.name, systemImage: course.iconName ?? "book.closed")
+                Section {
+                    ForEach(store.courses, id: \.id) { course in
+                        Button {
+                            store.classFilter = course.id
+                        } label: {
+                            Label(course.name,
+                                  systemImage: course.id == store.classFilter
+                                  ? "checkmark"
+                                  : (course.iconName ?? "book.closed"))
+                        }
                     }
                 }
             } label: {
                 Image(systemName: store.classFilter == nil
                       ? "line.3.horizontal.decrease.circle"
                       : "line.3.horizontal.decrease.circle.fill")
+                    .foregroundStyle(store.classFilter == nil ? .primary : GradeTheme.accent)
             }
             .buttonStyle(.plain)
             .help("Filter calendar by class")
