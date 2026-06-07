@@ -12,6 +12,7 @@ struct ClassesDashboardView: View {
                 if store.classes.isEmpty {
                     Text("No classes yet. Add a course in Grades.")
                         .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(40)
                 } else {
                     LazyVGrid(columns: columns, spacing: 12) {
@@ -30,6 +31,7 @@ struct ClassesDashboardView: View {
                 ClassDetailView(courseId: courseId, store: store)
             }
         }
+        .background(GradeTheme.windowBg)
         .onAppear { store.refresh() }
     }
 }
@@ -38,7 +40,7 @@ private struct ClassCard: View {
     let summary: ClassSummary
 
     private var accent: Color {
-        summary.colorHex.map { GradeTheme.color(fromHex: $0) } ?? .secondary
+        GradeTheme.color(fromHex: summary.colorHex)
     }
 
     var body: some View {
