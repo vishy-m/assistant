@@ -245,11 +245,13 @@ final class DashboardStore: ObservableObject {
     // MARK: - Calendar edits (optimistic)
 
     func createEvent(title: String, start: Date, end: Date, category: String,
-                     recurrence: RecurrenceRule? = nil) {
+                     recurrence: RecurrenceRule? = nil,
+                     courseId: String? = nil, eventType: String? = nil) {
         XPCClient.shared.createCalendarEvent(
             CreateEventRequest(title: title, startAt: start, endAt: end,
                                location: nil, category: category,
-                               recurrence: recurrence)
+                               recurrence: recurrence,
+                               courseId: courseId, eventType: eventType)
         ) { [weak self] result in
             // Recurring create returns the master event id, which sync never
             // surfaces (singleEvents=true expands to instance ids); appending
