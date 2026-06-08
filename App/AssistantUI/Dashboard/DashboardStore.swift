@@ -95,6 +95,20 @@ final class DashboardStore: ObservableObject {
         }
     }
 
+    func saveEventType(_ type: EventTypeDTO) {
+        XPCClient.shared.upsertEventType(type) { [weak self] _ in
+            self?.refreshEventTypes()
+            self?.refreshEvents()
+        }
+    }
+
+    func deleteEventType(id: String) {
+        XPCClient.shared.deleteEventType(id: id) { [weak self] _ in
+            self?.refreshEventTypes()
+            self?.refreshEvents()
+        }
+    }
+
     /// Resolves a category name to its color. Unknown/nil → the default
     /// category's color, or a neutral fallback.
     func categoryColor(_ name: String?) -> Color {
