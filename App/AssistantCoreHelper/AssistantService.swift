@@ -617,8 +617,12 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         do {
             let repo = EventTypeRepository(db: db)
             let existing = try repo.find(id: dto.id)
-            let maxSort = try repo.all().map(\.sortOrder).max() ?? 0
-            let sortOrder = existing?.sortOrder ?? (maxSort + 1)
+            let sortOrder: Int
+            if let existing {
+                sortOrder = existing.sortOrder
+            } else {
+                sortOrder = (try repo.all().map(\.sortOrder).max() ?? 0) + 1
+            }
             try repo.upsert(EventType(
                 id: dto.id, name: dto.name, colorHex: dto.colorHex,
                 googleColorId: GoogleEventColor.nearestColorId(toHex: dto.colorHex),
