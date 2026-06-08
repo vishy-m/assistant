@@ -12,6 +12,7 @@ struct WeekCalendarView: View {
     private let cal = Calendar(identifier: .gregorian)
 
     @State private var showCategories = false
+    @State private var showEventTypes = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,6 +35,9 @@ struct WeekCalendarView: View {
             .sheet(isPresented: $showCategories) {
                 CategoryManagerView(store: store)
             }
+            .sheet(isPresented: $showEventTypes) {
+                EventTypeManagerView(store: store)
+            }
         }
     }
 
@@ -49,6 +53,11 @@ struct WeekCalendarView: View {
                 Image(systemName: "tag")
             }
             .buttonStyle(.plain)
+            Button { showEventTypes = true } label: {
+                Image(systemName: "paintpalette")
+            }
+            .buttonStyle(.plain)
+            .help("Manage event types")
             Menu {
                 Button("All Classes") { store.classFilter = nil }
                 Section {

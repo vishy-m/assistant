@@ -66,6 +66,7 @@
 		8EF9B9FD529B45466BDB52C0 /* AssistantGCal in Frameworks */ = {isa = PBXBuildFile; productRef = 4060AD21E41BCCC9D15CA71A /* AssistantGCal */; };
 		97E0006774911267C8379CBE /* TaskDeadlinePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 246F9D9BE2BB5F990647BC86 /* TaskDeadlinePopover.swift */; };
 		9A946DD3F5DFF5A0CEAB7C53 /* CategoryManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5F9AABD2975E97F8BEEC22 /* CategoryManagerView.swift */; };
+		93D8AD268CA44CC5AC43491F /* EventTypeManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B73E9A3949245CF974A7ECD /* EventTypeManagerView.swift */; };
 		9B440870F4BB08FCE6B65063 /* Step4Hotkey.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8916A6A38FDB52B8F9BAD65 /* Step4Hotkey.swift */; };
 		9BC1BD8F2D4DBA5F345672F9 /* SettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21996CB0CA747849369B93A7 /* SettingsWindow.swift */; };
 		A270B9634E835AA22E979DCD /* GoogleAccountTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17173765B28F53A5C03DF079 /* GoogleAccountTab.swift */; };
@@ -99,6 +100,7 @@
 		06852D43594CF63625C8AEEB /* TaskDeadlineLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDeadlineLine.swift; sourceTree = "<group>"; };
 		06D8FF5DF96DD6023FEF6EA3 /* APIKeysTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeysTab.swift; sourceTree = "<group>"; };
 		0B5F9AABD2975E97F8BEEC22 /* CategoryManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryManagerView.swift; sourceTree = "<group>"; };
+		6B73E9A3949245CF974A7ECD /* EventTypeManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventTypeManagerView.swift; sourceTree = "<group>"; };
 		105EC00715B617AE4B0EEC22 /* GoogleAuthFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthFlow.swift; sourceTree = "<group>"; };
 		17173765B28F53A5C03DF079 /* GoogleAccountTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAccountTab.swift; sourceTree = "<group>"; };
 		1A29849DB92F0579660D1DB6 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -280,6 +282,7 @@
 				E96F15E4DCE9F47CB0E440AD /* CalendarEventBlock.swift */,
 				C7C68A3FD6A63964F1D6ED22 /* CalendarEventPopover.swift */,
 				0B5F9AABD2975E97F8BEEC22 /* CategoryManagerView.swift */,
+				6B73E9A3949245CF974A7ECD /* EventTypeManagerView.swift */,
 				1DF9036B3776DABA13F18632 /* DashboardChatView.swift */,
 				FD1893116C1DFF0CB17FA696 /* DashboardStore.swift */,
 				1A29849DB92F0579660D1DB6 /* DashboardView.swift */,
@@ -544,6 +547,7 @@
 				05B81D47C38C879691DC04C3 /* CalendarEventPopover.swift in Sources */,
 				2951E99E19495B6AD618896F /* CategoryEditorSheet.swift in Sources */,
 				9A946DD3F5DFF5A0CEAB7C53 /* CategoryManagerView.swift in Sources */,
+				93D8AD268CA44CC5AC43491F /* EventTypeManagerView.swift in Sources */,
 				69E70D44FF6E4A60A8B42A6D /* CourseDetailView.swift in Sources */,
 				FAB36582ADC726E44F5B082D /* CropSelectionController.swift in Sources */,
 				32DE71BCC37B1159C92ED97A /* DaemonInstaller.swift in Sources */,
