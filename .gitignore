@@ -18,3 +18,10 @@ Package.resolved
 
 # Generated launchd plists in user's home (just in case)
 *.plist.local
+
+.claude/
+
+/docs/
+/Tests/
+/taste-skill/
+/superpowers/
