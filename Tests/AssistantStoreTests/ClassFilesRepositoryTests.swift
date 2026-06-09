@@ -29,4 +29,47 @@ final class ClassFilesRepositoryTests: XCTestCase {
             XCTAssertEqual(try ClassPin.fetchOne(rdb, key: "p1")?.width, 100)
         }
     }
+
+    private func seedTree(_ db: AssistantDB) throws {
+        let fo = ClassFolderRepository(db: db)
+        let fi = ClassFileRepository(db: db)
+        let pi = ClassPinRepository(db: db)
+        try fo.create(ClassFolder(id: "root", courseId: "c1", parentFolderId: nil, name: "Notes"))
+        try fo.create(ClassFolder(id: "sub", courseId: "c1", parentFolderId: "root", name: "Wk1"))
+        try fi.create(ClassFile(id: "fA", courseId: "c1", folderId: "root", name: "a.pdf",
+                                storedName: "fA.pdf", contentType: "com.adobe.pdf", byteSize: 1))
+        try fi.create(ClassFile(id: "fB", courseId: "c1", folderId: "sub", name: "b.pdf",
+                                storedName: "fB.pdf", contentType: "com.adobe.pdf", byteSize: 1))
+        try pi.upsert(ClassPin(id: "pB", courseId: "c1", fileId: "fB", x: 0, y: 0,
+                               width: 10, height: 10))
+    }
+
+    func testFolderAndFileCRUD() throws {
+        let db = try InMemoryDB.make()
+        try seedTree(db)
+        XCTAssertEqual(try ClassFolderRepository(db: db).all(courseId: "c1").count, 2)
+        XCTAssertEqual(try ClassFileRepository(db: db).all(courseId: "c1").map(\.id).sorted(),
+                       ["fA", "fB"])
+        try ClassFileRepository(db: db).move(id: "fB", toFolder: "root")
+        XCTAssertEqual(try ClassFileRepository(db: db).find(id: "fB")?.folderId, "root")
+    }
+
+    func testDeleteFileReturnsStoredNameAndRemovesPins() throws {
+        let db = try InMemoryDB.make()
+        try seedTree(db)
+        let stored = try ClassFileRepository(db: db).delete(id: "fB")
+        XCTAssertEqual(stored, "fB.pdf")
+        XCTAssertNil(try ClassFileRepository(db: db).find(id: "fB"))
+        XCTAssertTrue(try ClassPinRepository(db: db).all(courseId: "c1").isEmpty)
+    }
+
+    func testDeleteFolderCascadesAndReturnsStoredNames() throws {
+        let db = try InMemoryDB.make()
+        try seedTree(db)
+        let stored = try ClassFolderRepository(db: db).deleteRecursively(id: "root")
+        XCTAssertEqual(stored.sorted(), ["fA.pdf", "fB.pdf"])
+        XCTAssertTrue(try ClassFolderRepository(db: db).all(courseId: "c1").isEmpty)
+        XCTAssertTrue(try ClassFileRepository(db: db).all(courseId: "c1").isEmpty)
+        XCTAssertTrue(try ClassPinRepository(db: db).all(courseId: "c1").isEmpty)
+    }
 }
