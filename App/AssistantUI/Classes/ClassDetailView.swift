@@ -1,12 +1,16 @@
 import SwiftUI
 import AppKit
 import AssistantShared
+import AssistantStore
 
 struct ClassDetailView: View {
     let courseId: String
     @ObservedObject var store: ClassStore
     @State private var showEditor = false
     @State private var showAddEvent = false
+    @State private var showAddTask = false
+    @State private var showEditTask = false
+    @State private var taskToEdit: AssistantStore.Task?
 
     var body: some View {
         Group {
@@ -28,32 +32,42 @@ struct ClassDetailView: View {
                 store.loadDetail(courseId: courseId)
             }
         }
+        .sheet(isPresented: $showAddTask) {
+            TaskEditorSheet(mode: .add, defaultCourseId: courseId,
+                            onSave: { store.addTask($0) })
+        }
+        .sheet(isPresented: $showEditTask) {
+            if let task = taskToEdit {
+                TaskEditorSheet(mode: .edit(task),
+                                onSave: { store.updateTask($0) },
+                                onDelete: { store.deleteTask($0) })
+            }
+        }
     }
 
     private func content(_ detail: ClassDetail) -> some View {
         let schedule = scheduleEvents(detail)
         let examList = exams(detail)
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header(detail)
-                if !schedule.isEmpty {
-                    section("Schedule") {
-                        ForEach(schedule) { eventRow($0) }
+        return HStack(alignment: .top, spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    header(detail)
+                    if !schedule.isEmpty {
+                        section("Schedule") {
+                            ForEach(schedule) { eventRow($0) }
+                        }
+                    }
+                    if !examList.isEmpty {
+                        section("Exams") {
+                            ForEach(examList) { eventRow($0) }
+                        }
                     }
                 }
-                if !examList.isEmpty {
-                    section("Exams") {
-                        ForEach(examList) { eventRow($0) }
-                    }
-                }
-                if !detail.tasks.isEmpty {
-                    section("Tasks & Deadlines") {
-                        ForEach(detail.tasks) { taskRow($0) }
-                    }
-                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Divider()
+            tasksPanel()
         }
         .navigationTitle(detail.name)
         .toolbar {
@@ -63,6 +77,34 @@ struct ClassDetailView: View {
                 Button("Edit") { showEditor = true }
             }
         }
+    }
+
+    /// Right-hand panel listing this class's tasks — create, edit, complete.
+    /// All tasks here belong to this class (created tasks auto-assign to it).
+    private func tasksPanel() -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    EyebrowLabel("Tasks & Deadlines")
+                    Spacer()
+                    Button { showAddTask = true } label: {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Add a task to this class")
+                }
+                if store.classTasks.isEmpty {
+                    Text("No tasks for this class")
+                        .font(.caption).foregroundStyle(.tertiary)
+                } else {
+                    ForEach(store.classTasks, id: \.id) { taskRow($0) }
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(width: 260)
+        .background(Color.primary.opacity(0.035))
     }
 
     // Schedule = recurring class-type sessions; exams shown separately.
@@ -117,11 +159,15 @@ struct ClassDetailView: View {
         .padding(.vertical, 2)
     }
 
-    private func taskRow(_ t: ClassTaskItem) -> some View {
-        HStack {
-            Image(systemName: t.isCompleted ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(t.isCompleted ? .green : .secondary)
-            Text(t.title).font(GradeTheme.mono(11)).strikethrough(t.isCompleted)
+    private func taskRow(_ t: AssistantStore.Task) -> some View {
+        let done = t.completedAt != nil
+        return HStack {
+            Button { store.toggleTaskCompleted(t) } label: {
+                Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(done ? .green : .secondary)
+            }
+            .buttonStyle(.plain)
+            Text(t.title).font(GradeTheme.mono(11)).strikethrough(done)
             Spacer()
             if let due = t.dueAt {
                 Text(Self.dateFormatter.string(from: due))
@@ -129,6 +175,8 @@ struct ClassDetailView: View {
             }
         }
         .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .onTapGesture { taskToEdit = t; showEditTask = true }
     }
 
     private static let dateFormatter: DateFormatter = {

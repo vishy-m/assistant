@@ -18,6 +18,7 @@ final class DashboardStore: ObservableObject {
     @Published var categories: [AssistantStore.Category] = []
     @Published var eventTypes: [EventTypeDTO] = []
     @Published var courses: [Course] = []
+    @Published var classSummaries: [ClassSummary] = []
     /// When set to a course id, the calendar dims events of other classes.
     @Published var classFilter: String?
 
@@ -27,6 +28,20 @@ final class DashboardStore: ObservableObject {
     @Published var isSending = false
 
     private var refreshTimer: Timer?
+    private var changeObserver: NSObjectProtocol?
+
+    init() {
+        // Keep the calendar's task deadline lines in sync with edits made in any
+        // other window (Tasks window, class panels).
+        changeObserver = NotificationCenter.default.addObserver(
+            forName: .assistantTasksDidChange, object: nil, queue: .main) { [weak self] _ in
+            _Concurrency.Task { @MainActor in self?.refreshTasks() }
+        }
+    }
+
+    deinit {
+        if let changeObserver { NotificationCenter.default.removeObserver(changeObserver) }
+    }
 
     struct ChatMessage: Identifiable {
         enum Role { case user, assistant, system }
@@ -92,6 +107,9 @@ final class DashboardStore: ObservableObject {
     func refreshClasses() {
         XPCClient.shared.listCourses { [weak self] courses in
             self?.courses = courses
+        }
+        XPCClient.shared.listClasses { [weak self] summaries in
+            self?.classSummaries = summaries
         }
     }
 

@@ -41,23 +41,17 @@ struct GradesRailView: View {
     private var classesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             EyebrowLabel("Classes")
-            if let classes = store.summary?.classes, !classes.isEmpty {
-                ForEach(classes) { c in
+            if store.classSummaries.isEmpty {
+                Text("No courses yet").font(.caption).foregroundStyle(.tertiary)
+            } else {
+                ForEach(store.classSummaries) { summary in
                     Button {
-                        GradeDashboardWindow.shared.show()
+                        ClassesDashboardWindow.shared.show()
                     } label: {
-                        HStack {
-                            Text(c.courseName).font(.callout).lineLimit(1)
-                            Spacer()
-                            Text("\(GradeTheme.num(c.currentPct))%  \(c.currentLetter)")
-                                .font(GradeTheme.metric(12))
-                                .foregroundStyle(.secondary)
-                        }
+                        ClassCard(summary: summary)
                     }
                     .buttonStyle(.plain)
                 }
-            } else {
-                Text("No courses yet").font(.caption).foregroundStyle(.tertiary)
             }
         }
     }

@@ -9,12 +9,34 @@ final class TaskStore: ObservableObject {
 
     @Published var tasks: [AssistantStore.Task] = []
     @Published var notesText: String = ""
+    /// Courses, for resolving a task's class chip (icon + name).
+    @Published var courses: [Course] = []
 
     private var notesSaveTask: _Concurrency.Task<Void, Never>?
+    private var changeObserver: NSObjectProtocol?
+
+    init() {
+        // Re-pull whenever any task changes anywhere (this or another window).
+        changeObserver = NotificationCenter.default.addObserver(
+            forName: .assistantTasksDidChange, object: nil, queue: .main) { [weak self] _ in
+            _Concurrency.Task { @MainActor in self?.refreshTasks() }
+        }
+    }
+
+    deinit {
+        if let changeObserver { NotificationCenter.default.removeObserver(changeObserver) }
+    }
 
     func refresh() {
         XPCClient.shared.listTasks { [weak self] tasks in self?.tasks = tasks }
         XPCClient.shared.getTasksNote { [weak self] note in self?.notesText = note }
+        XPCClient.shared.listCourses { [weak self] courses in self?.courses = courses }
+    }
+
+    /// The course a task is attached to, or nil if it isn't class-linked.
+    func course(for courseId: String?) -> Course? {
+        guard let courseId else { return nil }
+        return courses.first { $0.id == courseId }
     }
 
     private func refreshTasks() {

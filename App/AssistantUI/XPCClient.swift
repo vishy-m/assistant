@@ -3,6 +3,14 @@ import AssistantShared
 import AssistantStore
 import AssistantGrades
 
+extension Notification.Name {
+    /// Posted in-process after any successful task write. Every task-displaying
+    /// store observes it and re-pulls from the daemon (the single source of
+    /// truth), so the dashboard, Tasks window, and class panels stay in sync
+    /// regardless of which one made the change.
+    static let assistantTasksDidChange = Notification.Name("assistantTasksDidChange")
+}
+
 /// Wraps NSXPCConnection to the daemon. All future XPC calls go through here.
 ///
 /// Connection lifecycle: lazily created on first use, kept alive for the
@@ -509,23 +517,34 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply([]) } }
     }
 
+    /// Wraps a Bool task-write reply so a successful write broadcasts an
+    /// in-process change notification — every task view then re-pulls from the
+    /// shared daemon DB. Always delivers `reply` on the main queue.
+    private func taskWriteReply(_ reply: @escaping (Bool) -> Void) -> (Bool) -> Void {
+        { ok in
+            DispatchQueue.main.async {
+                reply(ok)
+                if ok {
+                    NotificationCenter.default.post(name: .assistantTasksDidChange, object: nil)
+                }
+            }
+        }
+    }
+
     func rescheduleTask(taskId: String, dueAt: Date,
                         reply: @escaping (Bool) -> Void) {
         let iso = ISO8601DateFormatter()
         do {
             let proxy = try makeProxy()
-            proxy.rescheduleTask(taskId: taskId, dueISO: iso.string(from: dueAt)) { ok in
-                DispatchQueue.main.async { reply(ok) }
-            }
+            proxy.rescheduleTask(taskId: taskId, dueISO: iso.string(from: dueAt),
+                                 reply: taskWriteReply(reply))
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
     func completeTask(taskId: String, reply: @escaping (Bool) -> Void) {
         do {
             let proxy = try makeProxy()
-            proxy.completeTask(taskId: taskId) { ok in
-                DispatchQueue.main.async { reply(ok) }
-            }
+            proxy.completeTask(taskId: taskId, reply: taskWriteReply(reply))
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
@@ -544,7 +563,7 @@ final class XPCClient {
         do {
             let data = try JSONEncoder().encode(task)
             let proxy = try makeProxy()
-            proxy.createTask(data) { ok in DispatchQueue.main.async { reply(ok) } }
+            proxy.createTask(data, reply: taskWriteReply(reply))
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
@@ -552,16 +571,14 @@ final class XPCClient {
         do {
             let data = try JSONEncoder().encode(task)
             let proxy = try makeProxy()
-            proxy.updateTask(data) { ok in DispatchQueue.main.async { reply(ok) } }
+            proxy.updateTask(data, reply: taskWriteReply(reply))
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
     func deleteTask(taskId: String, reply: @escaping (Bool) -> Void) {
         do {
             let proxy = try makeProxy()
-            proxy.deleteTask(taskId: taskId) { ok in
-                DispatchQueue.main.async { reply(ok) }
-            }
+            proxy.deleteTask(taskId: taskId, reply: taskWriteReply(reply))
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
@@ -569,16 +586,15 @@ final class XPCClient {
                           reply: @escaping (Bool) -> Void) {
         do {
             let proxy = try makeProxy()
-            proxy.setTaskCompleted(taskId: taskId, completed: completed) { ok in
-                DispatchQueue.main.async { reply(ok) }
-            }
+            proxy.setTaskCompleted(taskId: taskId, completed: completed,
+                                   reply: taskWriteReply(reply))
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
     func clearCompletedTasks(reply: @escaping (Bool) -> Void) {
         do {
             let proxy = try makeProxy()
-            proxy.clearCompletedTasks { ok in DispatchQueue.main.async { reply(ok) } }
+            proxy.clearCompletedTasks(reply: taskWriteReply(reply))
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 

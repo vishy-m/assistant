@@ -45,7 +45,7 @@ struct TasksListView: View {
             }
         }
         .sheet(isPresented: $showAdd) {
-            TaskEditorSheet(mode: .add, store: store)
+            TaskEditorSheet(mode: .add, onSave: { store.addTask($0) })
         }
     }
 

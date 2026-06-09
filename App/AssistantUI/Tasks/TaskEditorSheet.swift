@@ -2,11 +2,16 @@ import SwiftUI
 import AssistantStore
 
 /// Add or edit a task — title, optional due date, Low/Normal/High priority.
+/// Store-agnostic: the caller supplies `onSave`/`onDelete`. New tasks are
+/// stamped with `defaultCourseId` (nil for the universal Tasks window, the
+/// class's id when invoked from a class page) so class tasks auto-assign.
 struct TaskEditorSheet: View {
     enum Mode { case add, edit(AssistantStore.Task) }
 
     let mode: Mode
-    @ObservedObject var store: TaskStore
+    let defaultCourseId: String?
+    let onSave: (AssistantStore.Task) -> Void
+    let onDelete: ((AssistantStore.Task) -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String
@@ -14,9 +19,13 @@ struct TaskEditorSheet: View {
     @State private var dueDate: Date
     @State private var priority: Int
 
-    init(mode: Mode, store: TaskStore) {
+    init(mode: Mode, defaultCourseId: String? = nil,
+         onSave: @escaping (AssistantStore.Task) -> Void,
+         onDelete: ((AssistantStore.Task) -> Void)? = nil) {
         self.mode = mode
-        self._store = ObservedObject(wrappedValue: store)
+        self.defaultCourseId = defaultCourseId
+        self.onSave = onSave
+        self.onDelete = onDelete
         switch mode {
         case .add:
             _title = State(initialValue: "")
@@ -47,9 +56,9 @@ struct TaskEditorSheet: View {
                 Text("High").tag(2)
             }
             HStack {
-                if case .edit(let task) = mode {
+                if case .edit(let task) = mode, let onDelete {
                     Button("Delete", role: .destructive) {
-                        store.deleteTask(task)
+                        onDelete(task)
                         dismiss()
                     }
                 }
@@ -75,16 +84,16 @@ struct TaskEditorSheet: View {
         let due = hasDueDate ? dueDate : nil
         switch mode {
         case .add:
-            store.addTask(AssistantStore.Task(
+            onSave(AssistantStore.Task(
                 id: UUID().uuidString, title: trimmed, notes: nil, dueAt: due,
-                completedAt: nil, courseId: nil, gradeItemId: nil,
+                completedAt: nil, courseId: defaultCourseId, gradeItemId: nil,
                 priority: priority, category: "Misc", source: "user"))
         case .edit(let existing):
             var updated = existing
             updated.title = trimmed
             updated.dueAt = due
             updated.priority = priority
-            store.updateTask(updated)
+            onSave(updated)
         }
     }
 }

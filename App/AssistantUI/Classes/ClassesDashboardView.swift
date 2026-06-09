@@ -36,7 +36,9 @@ struct ClassesDashboardView: View {
     }
 }
 
-private struct ClassCard: View {
+/// A class summary rendered as a colored card. Shared by the Classes window
+/// grid and the dashboard rail.
+struct ClassCard: View {
     let summary: ClassSummary
 
     private var accent: Color {

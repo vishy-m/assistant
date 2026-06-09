@@ -43,12 +43,28 @@ struct TaskRow: View {
                     .font(GradeTheme.mono(9))
                     .foregroundStyle(isOverdue(due) && !done ? .red : .secondary)
             }
+
+            if let course = store.course(for: task.courseId) {
+                let color = GradeTheme.color(fromHex: course.color)
+                HStack(spacing: 4) {
+                    Image(systemName: course.iconName ?? "book.closed")
+                    Text(course.name).lineLimit(1)
+                }
+                .font(GradeTheme.mono(10).weight(.bold))
+                .foregroundStyle(.white.opacity(0.92))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(color.opacity(0.7))
+                .clipShape(Capsule())
+            }
         }
         .padding(.vertical, 5)
         .contentShape(Rectangle())
         .onTapGesture { showEditor = true }
         .sheet(isPresented: $showEditor) {
-            TaskEditorSheet(mode: .edit(task), store: store)
+            TaskEditorSheet(mode: .edit(task),
+                            onSave: { store.updateTask($0) },
+                            onDelete: { store.deleteTask($0) })
         }
     }
 
