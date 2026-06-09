@@ -56,6 +56,16 @@ final class AssistantServiceIntegrationTests: XCTestCase {
             func deleteEventType(id: String, reply: @escaping (Bool) -> Void) { reply(false) }
             func listClasses(reply: @escaping (Data) -> Void) { reply(Data()) }
             func getClassDetail(courseId: String, reply: @escaping (Data) -> Void) { reply(Data()) }
+            func listClassFolders(courseId: String, reply: @escaping (Data) -> Void) { reply(Data()) }
+            func listClassFiles(courseId: String, reply: @escaping (Data) -> Void) { reply(Data()) }
+            func createClassFolder(_ data: Data, reply: @escaping (Bool) -> Void) { reply(false) }
+            func renameClassFolder(id: String, name: String, reply: @escaping (Bool) -> Void) { reply(false) }
+            func moveClassFolder(id: String, parentId: String?, reply: @escaping (Bool) -> Void) { reply(false) }
+            func deleteClassFolder(id: String, reply: @escaping (Bool) -> Void) { reply(false) }
+            func addClassFile(_ data: Data, bytes: Data, reply: @escaping (Bool) -> Void) { reply(false) }
+            func renameClassFile(id: String, name: String, reply: @escaping (Bool) -> Void) { reply(false) }
+            func moveClassFile(id: String, folderId: String?, reply: @escaping (Bool) -> Void) { reply(false) }
+            func deleteClassFile(id: String, reply: @escaping (Bool) -> Void) { reply(false) }
             func saveCategory(originalName: String?, name: String, colorHex: String,
                               reply: @escaping (Bool) -> Void) { reply(false) }
             func removeCategory(name: String, reply: @escaping (Bool) -> Void) { reply(false) }

@@ -462,6 +462,92 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply(nil) } }
     }
 
+    func listClassFolders(courseId: String, reply: @escaping ([ClassFolderDTO]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listClassFolders(courseId: courseId) { data in
+                let v = (try? JSONDecoder().decode([ClassFolderDTO].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(v) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
+    func listClassFiles(courseId: String, reply: @escaping ([ClassFileDTO]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listClassFiles(courseId: courseId) { data in
+                let v = (try? JSONDecoder().decode([ClassFileDTO].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(v) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
+    func createClassFolder(_ folder: ClassFolderDTO, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(folder)
+            let proxy = try makeProxy()
+            proxy.createClassFolder(data) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func renameClassFolder(id: String, name: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.renameClassFolder(id: id, name: name) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func moveClassFolder(id: String, parentId: String?, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.moveClassFolder(id: id, parentId: parentId) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func deleteClassFolder(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.deleteClassFolder(id: id) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func addClassFile(_ file: ClassFileDTO, bytes: Data, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(file)
+            let proxy = try makeProxy()
+            proxy.addClassFile(data, bytes: bytes) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func renameClassFile(id: String, name: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.renameClassFile(id: id, name: name) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func moveClassFile(id: String, folderId: String?, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.moveClassFile(id: id, folderId: folderId) { ok in
+                DispatchQueue.main.async { reply(ok) }
+            }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func deleteClassFile(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.deleteClassFile(id: id) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         do {
