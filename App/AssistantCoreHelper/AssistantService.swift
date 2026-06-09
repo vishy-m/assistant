@@ -771,6 +771,34 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         } catch { NSLog("[AssistantService] deleteClassFile error: \(error)"); reply(false) }
     }
 
+    func listClassPins(courseId: String, reply: @escaping (Data) -> Void) {
+        do {
+            let dtos = try ClassPinRepository(db: db).all(courseId: courseId).map {
+                ClassPinDTO(id: $0.id, courseId: $0.courseId, fileId: $0.fileId,
+                            x: $0.x, y: $0.y, width: $0.width, height: $0.height,
+                            rotation: $0.rotation, zOrder: $0.zOrder)
+            }
+            reply(try JSONEncoder().encode(dtos))
+        } catch { NSLog("[AssistantService] listClassPins error: \(error)"); reply(Data()) }
+    }
+
+    func upsertClassPin(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard let dto = try? JSONDecoder().decode(ClassPinDTO.self, from: data) else {
+            reply(false); return
+        }
+        do {
+            try ClassPinRepository(db: db).upsert(ClassPin(
+                id: dto.id, courseId: dto.courseId, fileId: dto.fileId, x: dto.x, y: dto.y,
+                width: dto.width, height: dto.height, rotation: dto.rotation, zOrder: dto.zOrder))
+            reply(true)
+        } catch { NSLog("[AssistantService] upsertClassPin error: \(error)"); reply(false) }
+    }
+
+    func deleteClassPin(id: String, reply: @escaping (Bool) -> Void) {
+        do { try ClassPinRepository(db: db).delete(id: id); reply(true) }
+        catch { NSLog("[AssistantService] deleteClassPin error: \(error)"); reply(false) }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         let repo = CategoryRepository(db: db)

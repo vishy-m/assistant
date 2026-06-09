@@ -48,6 +48,9 @@ public protocol AssistantServiceProtocol {
     func renameClassFile(id: String, name: String, reply: @escaping (Bool) -> Void)
     func moveClassFile(id: String, folderId: String?, reply: @escaping (Bool) -> Void)
     func deleteClassFile(id: String, reply: @escaping (Bool) -> Void)
+    func listClassPins(courseId: String, reply: @escaping (Data) -> Void)
+    func upsertClassPin(_ data: Data, reply: @escaping (Bool) -> Void)
+    func deleteClassPin(id: String, reply: @escaping (Bool) -> Void)
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void)
     func removeCategory(name: String, reply: @escaping (Bool) -> Void)

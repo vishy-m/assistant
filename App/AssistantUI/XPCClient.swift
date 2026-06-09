@@ -548,6 +548,31 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
+    func listClassPins(courseId: String, reply: @escaping ([ClassPinDTO]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listClassPins(courseId: courseId) { data in
+                let v = (try? JSONDecoder().decode([ClassPinDTO].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(v) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
+    func upsertClassPin(_ pin: ClassPinDTO, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(pin)
+            let proxy = try makeProxy()
+            proxy.upsertClassPin(data) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func deleteClassPin(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.deleteClassPin(id: id) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         do {
