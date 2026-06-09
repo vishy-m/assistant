@@ -72,4 +72,19 @@ final class ClassFilesRepositoryTests: XCTestCase {
         XCTAssertTrue(try ClassFileRepository(db: db).all(courseId: "c1").isEmpty)
         XCTAssertTrue(try ClassPinRepository(db: db).all(courseId: "c1").isEmpty)
     }
+
+    func testPinUpsertListDelete() throws {
+        let db = try InMemoryDB.make()
+        let repo = ClassPinRepository(db: db)
+        try repo.upsert(ClassPin(id: "p1", courseId: "c1", fileId: "f1",
+                                 x: 1, y: 2, width: 80, height: 90))
+        try repo.upsert(ClassPin(id: "p1", courseId: "c1", fileId: "f1",
+                                 x: 5, y: 6, width: 80, height: 90, zOrder: 3))
+        let pins = try repo.all(courseId: "c1")
+        XCTAssertEqual(pins.count, 1)            // upsert replaced, not duplicated
+        XCTAssertEqual(pins.first?.x, 5)
+        XCTAssertEqual(pins.first?.zOrder, 3)
+        try repo.delete(id: "p1")
+        XCTAssertTrue(try repo.all(courseId: "c1").isEmpty)
+    }
 }
