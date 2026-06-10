@@ -16,6 +16,14 @@ extension Notification.Name {
     /// the originator skips itself (its local pins are already updated), so a
     /// window never reloads — and risks a mid-drag flicker — from its own edits.
     static let assistantPinsDidChange = Notification.Name("assistantPinsDidChange")
+
+    /// Posted in-process after a successful class file/folder write (create,
+    /// rename, move, delete, import). Same shape as `.assistantPinsDidChange`:
+    /// the originating `ClassStore` is the `object` and the class id rides in
+    /// `userInfo["courseId"]`. Other stores viewing that class re-pull their
+    /// file tree (and pins, since deleting a file cascades its pins); the
+    /// originator skips its own echo (it already reloaded locally).
+    static let assistantFilesDidChange = Notification.Name("assistantFilesDidChange")
 }
 
 /// Wraps NSXPCConnection to the daemon. All future XPC calls go through here.
