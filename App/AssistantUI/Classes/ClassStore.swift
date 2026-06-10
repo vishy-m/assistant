@@ -172,9 +172,12 @@ final class ClassStore: ObservableObject {
         XPCClient.shared.upsertClassPin(pin) { _ in }
     }
 
-    /// Commit a moved/resized/rotated pin (called on gesture end).
+    /// Commit a moved/resized/rotated pin (called on gesture end). No-op if the
+    /// pin is gone (e.g. a commit racing with its deletion), so we never recreate
+    /// a ghost pin on the daemon.
     func updatePin(_ pin: ClassPinDTO) {
-        if let i = pins.firstIndex(where: { $0.id == pin.id }) { pins[i] = pin }
+        guard let i = pins.firstIndex(where: { $0.id == pin.id }) else { return }
+        pins[i] = pin
         XPCClient.shared.upsertClassPin(pin) { _ in }
     }
 
