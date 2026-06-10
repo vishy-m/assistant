@@ -23,6 +23,7 @@ final class ClassStore: ObservableObject {
         (try? ClassFileStorage.defaultBase()).map { ClassFileStorage(base: $0) }
     private var changeObserver: NSObjectProtocol?
     private var pinObserver: NSObjectProtocol?
+    private var filesObserver: NSObjectProtocol?
 
     init() {
         // Re-pull this class's tasks whenever any task changes anywhere.
@@ -35,11 +36,17 @@ final class ClassStore: ObservableObject {
             forName: .assistantPinsDidChange, object: nil, queue: .main) { [weak self] note in
             _Concurrency.Task { @MainActor in self?.reloadPinsFromBroadcast(note) }
         }
+        // Re-pull this class's file tree when another window edits the same class.
+        filesObserver = NotificationCenter.default.addObserver(
+            forName: .assistantFilesDidChange, object: nil, queue: .main) { [weak self] note in
+            _Concurrency.Task { @MainActor in self?.reloadFilesFromBroadcast(note) }
+        }
     }
 
     deinit {
         if let changeObserver { NotificationCenter.default.removeObserver(changeObserver) }
         if let pinObserver { NotificationCenter.default.removeObserver(pinObserver) }
+        if let filesObserver { NotificationCenter.default.removeObserver(filesObserver) }
     }
 
     func refresh() {
@@ -89,6 +96,30 @@ final class ClassStore: ObservableObject {
         loadPins(courseId: courseId)
     }
 
+    /// After a local file/folder write: refresh our own tree (and pins), and on
+    /// success tell other windows viewing this class to do the same.
+    private func reloadAndBroadcastFiles(_ ok: Bool) {
+        reloadFiles()
+        if ok { broadcastFilesChanged() }
+    }
+
+    /// Tell other windows viewing this class to re-pull their file tree. Tagged
+    /// with `self` so we skip our own echo (we already reloaded locally).
+    private func broadcastFilesChanged() {
+        guard let courseId = currentCourseId else { return }
+        NotificationCenter.default.post(name: .assistantFilesDidChange, object: self,
+                                        userInfo: ["courseId": courseId])
+    }
+
+    /// Another window edited this class's files. Reload only if it was a
+    /// different store and the change is for the class we're currently showing.
+    private func reloadFilesFromBroadcast(_ note: Notification) {
+        guard note.object as AnyObject !== self,
+              let courseId = currentCourseId,
+              note.userInfo?["courseId"] as? String == courseId else { return }
+        reloadFiles()
+    }
+
     // MARK: - Task edits (auto-assigned to the viewed class)
 
     // Writes only; the `.assistantTasksDidChange` observer drives the reload
@@ -125,31 +156,31 @@ final class ClassStore: ObservableObject {
         guard let courseId = currentCourseId else { return }
         let dto = ClassFolderDTO(id: UUID().uuidString, courseId: courseId,
                                  parentFolderId: parentId, name: name, sortOrder: 0)
-        XPCClient.shared.createClassFolder(dto) { [weak self] _ in self?.reloadFiles() }
+        XPCClient.shared.createClassFolder(dto) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
     }
 
     func renameFolder(id: String, name: String) {
-        XPCClient.shared.renameClassFolder(id: id, name: name) { [weak self] _ in self?.reloadFiles() }
+        XPCClient.shared.renameClassFolder(id: id, name: name) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
     }
 
     func moveFolder(id: String, toParent parentId: String?) {
-        XPCClient.shared.moveClassFolder(id: id, parentId: parentId) { [weak self] _ in self?.reloadFiles() }
+        XPCClient.shared.moveClassFolder(id: id, parentId: parentId) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
     }
 
     func deleteFolder(id: String) {
-        XPCClient.shared.deleteClassFolder(id: id) { [weak self] _ in self?.reloadFiles() }
+        XPCClient.shared.deleteClassFolder(id: id) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
     }
 
     func renameFile(id: String, name: String) {
-        XPCClient.shared.renameClassFile(id: id, name: name) { [weak self] _ in self?.reloadFiles() }
+        XPCClient.shared.renameClassFile(id: id, name: name) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
     }
 
     func moveFile(id: String, toFolder folderId: String?) {
-        XPCClient.shared.moveClassFile(id: id, folderId: folderId) { [weak self] _ in self?.reloadFiles() }
+        XPCClient.shared.moveClassFile(id: id, folderId: folderId) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
     }
 
     func deleteFile(id: String) {
-        XPCClient.shared.deleteClassFile(id: id) { [weak self] _ in self?.reloadFiles() }
+        XPCClient.shared.deleteClassFile(id: id) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
     }
 
     /// Imports a file at `url` into `folderId` of the viewed class. Reads bytes,
@@ -165,7 +196,7 @@ final class ClassStore: ObservableObject {
         let dto = ClassFileDTO(id: fileId, courseId: courseId, folderId: folderId,
                                name: url.lastPathComponent, storedName: storedName,
                                contentType: uti, byteSize: bytes.count)
-        XPCClient.shared.addClassFile(dto, bytes: bytes) { [weak self] _ in self?.reloadFiles() }
+        XPCClient.shared.addClassFile(dto, bytes: bytes) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
     }
 
     // MARK: - Pins (local source of truth; write through to the daemon)
