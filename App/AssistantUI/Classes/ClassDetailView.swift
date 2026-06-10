@@ -128,7 +128,6 @@ struct ClassDetailView: View {
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(width: 260)
         .background(Color.primary.opacity(0.035))
     }
 
