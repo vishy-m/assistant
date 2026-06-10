@@ -9,6 +9,13 @@ extension Notification.Name {
     /// truth), so the dashboard, Tasks window, and class panels stay in sync
     /// regardless of which one made the change.
     static let assistantTasksDidChange = Notification.Name("assistantTasksDidChange")
+
+    /// Posted in-process after a successful class-pin write. The originating
+    /// `ClassStore` is the `object` and the changed class's id rides in
+    /// `userInfo["courseId"]`. Other stores viewing the same class re-pull pins;
+    /// the originator skips itself (its local pins are already updated), so a
+    /// window never reloads — and risks a mid-drag flicker — from its own edits.
+    static let assistantPinsDidChange = Notification.Name("assistantPinsDidChange")
 }
 
 /// Wraps NSXPCConnection to the daemon. All future XPC calls go through here.

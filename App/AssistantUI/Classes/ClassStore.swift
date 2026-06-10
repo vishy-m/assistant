@@ -22,6 +22,7 @@ final class ClassStore: ObservableObject {
     private let storage: ClassFileStorage? =
         (try? ClassFileStorage.defaultBase()).map { ClassFileStorage(base: $0) }
     private var changeObserver: NSObjectProtocol?
+    private var pinObserver: NSObjectProtocol?
 
     init() {
         // Re-pull this class's tasks whenever any task changes anywhere.
@@ -29,10 +30,16 @@ final class ClassStore: ObservableObject {
             forName: .assistantTasksDidChange, object: nil, queue: .main) { [weak self] _ in
             _Concurrency.Task { @MainActor in self?.reloadAfterTaskChange() }
         }
+        // Re-pull this class's pins when another window edits the same class.
+        pinObserver = NotificationCenter.default.addObserver(
+            forName: .assistantPinsDidChange, object: nil, queue: .main) { [weak self] note in
+            _Concurrency.Task { @MainActor in self?.reloadPinsFromBroadcast(note) }
+        }
     }
 
     deinit {
         if let changeObserver { NotificationCenter.default.removeObserver(changeObserver) }
+        if let pinObserver { NotificationCenter.default.removeObserver(pinObserver) }
     }
 
     func refresh() {
@@ -169,7 +176,9 @@ final class ClassStore: ObservableObject {
                                     fileId: fileId, x: x, y: y,
                                     zOrder: PinLayout.nextZOrder(pins))
         pins.append(pin)
-        XPCClient.shared.upsertClassPin(pin) { _ in }
+        XPCClient.shared.upsertClassPin(pin) { [weak self] ok in
+            if ok { self?.broadcastPinsChanged() }
+        }
     }
 
     /// Commit a moved/resized/rotated pin (called on gesture end). No-op if the
@@ -178,26 +187,49 @@ final class ClassStore: ObservableObject {
     func updatePin(_ pin: ClassPinDTO) {
         guard let i = pins.firstIndex(where: { $0.id == pin.id }) else { return }
         pins[i] = pin
-        XPCClient.shared.upsertClassPin(pin) { _ in }
+        XPCClient.shared.upsertClassPin(pin) { [weak self] ok in
+            if ok { self?.broadcastPinsChanged() }
+        }
     }
 
     func bringPinToFront(id: String) {
         guard let i = pins.firstIndex(where: { $0.id == id }) else { return }
         let raised = pins[i].withZOrder(PinLayout.nextZOrder(pins))
         pins[i] = raised
-        XPCClient.shared.upsertClassPin(raised) { _ in }
+        XPCClient.shared.upsertClassPin(raised) { [weak self] ok in
+            if ok { self?.broadcastPinsChanged() }
+        }
     }
 
     /// Remove the placement only; the underlying file is untouched.
     func deletePin(id: String) {
         pins.removeAll { $0.id == id }
-        XPCClient.shared.deleteClassPin(id: id) { _ in }
+        XPCClient.shared.deleteClassPin(id: id) { [weak self] ok in
+            if ok { self?.broadcastPinsChanged() }
+        }
     }
 
     /// On-disk URL of the file a pin points at, or nil if the file/storage is gone.
     func fileURL(for pin: ClassPinDTO) -> URL? {
         guard let file = filesById[pin.fileId], let storage else { return nil }
         return storage.fileURL(courseId: file.courseId, storedName: file.storedName)
+    }
+
+    /// Tell other windows viewing this class to re-pull pins. Tagged with `self`
+    /// so we ignore our own echo (local pins are already updated optimistically).
+    private func broadcastPinsChanged() {
+        guard let courseId = currentCourseId else { return }
+        NotificationCenter.default.post(name: .assistantPinsDidChange, object: self,
+                                        userInfo: ["courseId": courseId])
+    }
+
+    /// Another window edited pins. Reload only if it was a different store and the
+    /// change is for the class we're currently showing.
+    private func reloadPinsFromBroadcast(_ note: Notification) {
+        guard note.object as AnyObject !== self,
+              let courseId = currentCourseId,
+              note.userInfo?["courseId"] as? String == courseId else { return }
+        loadPins(courseId: courseId)
     }
 }
 
