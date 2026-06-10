@@ -12,8 +12,15 @@ final class ClassStore: ObservableObject {
     /// The viewed class's tasks (full records, for create/edit/complete).
     @Published var classTasks: [AssistantStore.Task] = []
     @Published var fileTree: FileTree = FileTree(folders: [], files: [])
+    /// Flat lookup of the viewed class's files by id (name / content type / URL resolution).
+    @Published var filesById: [String: ClassFileDTO] = [:]
+    /// The viewed class's canvas pins, held locally as the live source of truth.
+    @Published var pins: [ClassPinDTO] = []
 
     private var currentCourseId: String?
+    /// Resolves on-disk file URLs for previews. nil only if Application Support is unreachable.
+    private let storage: ClassFileStorage? =
+        (try? ClassFileStorage.defaultBase()).map { ClassFileStorage(base: $0) }
     private var changeObserver: NSObjectProtocol?
 
     init() {
@@ -45,6 +52,7 @@ final class ClassStore: ObservableObject {
         }
         loadClassTasks(courseId: courseId)
         loadFiles(courseId: courseId)
+        loadPins(courseId: courseId)
     }
 
     private func loadClassTasks(courseId: String) {
@@ -57,13 +65,21 @@ final class ClassStore: ObservableObject {
         XPCClient.shared.listClassFolders(courseId: courseId) { [weak self] folders in
             XPCClient.shared.listClassFiles(courseId: courseId) { files in
                 self?.fileTree = FileTreeBuilder.build(folders: folders, files: files)
+                self?.filesById = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0) })
             }
+        }
+    }
+
+    private func loadPins(courseId: String) {
+        XPCClient.shared.listClassPins(courseId: courseId) { [weak self] pins in
+            self?.pins = pins
         }
     }
 
     private func reloadFiles() {
         guard let courseId = currentCourseId else { return }
         loadFiles(courseId: courseId)
+        loadPins(courseId: courseId)
     }
 
     // MARK: - Task edits (auto-assigned to the viewed class)
@@ -143,5 +159,65 @@ final class ClassStore: ObservableObject {
                                name: url.lastPathComponent, storedName: storedName,
                                contentType: uti, byteSize: bytes.count)
         XPCClient.shared.addClassFile(dto, bytes: bytes) { [weak self] _ in self?.reloadFiles() }
+    }
+
+    // MARK: - Pins (local source of truth; write through to the daemon)
+
+    func createPin(fileId: String, x: Double, y: Double) {
+        guard let courseId = currentCourseId else { return }
+        let pin = PinLayout.makePin(id: UUID().uuidString, courseId: courseId,
+                                    fileId: fileId, x: x, y: y,
+                                    zOrder: PinLayout.nextZOrder(pins))
+        pins.append(pin)
+        XPCClient.shared.upsertClassPin(pin) { _ in }
+    }
+
+    /// Commit a moved/resized/rotated pin (called on gesture end). No-op if the
+    /// pin is gone (e.g. a commit racing with its deletion), so we never recreate
+    /// a ghost pin on the daemon.
+    func updatePin(_ pin: ClassPinDTO) {
+        guard let i = pins.firstIndex(where: { $0.id == pin.id }) else { return }
+        pins[i] = pin
+        XPCClient.shared.upsertClassPin(pin) { _ in }
+    }
+
+    func bringPinToFront(id: String) {
+        guard let i = pins.firstIndex(where: { $0.id == id }) else { return }
+        let raised = pins[i].withZOrder(PinLayout.nextZOrder(pins))
+        pins[i] = raised
+        XPCClient.shared.upsertClassPin(raised) { _ in }
+    }
+
+    /// Remove the placement only; the underlying file is untouched.
+    func deletePin(id: String) {
+        pins.removeAll { $0.id == id }
+        XPCClient.shared.deleteClassPin(id: id) { _ in }
+    }
+
+    /// On-disk URL of the file a pin points at, or nil if the file/storage is gone.
+    func fileURL(for pin: ClassPinDTO) -> URL? {
+        guard let file = filesById[pin.fileId], let storage else { return nil }
+        return storage.fileURL(courseId: file.courseId, storedName: file.storedName)
+    }
+}
+
+// Geometry-copy helpers — ClassPinDTO's fields are `let`, so mutations rebuild it.
+// Internal (not private) so PinView in the same module reuses them.
+extension ClassPinDTO {
+    func moved(x: Double, y: Double) -> ClassPinDTO {
+        ClassPinDTO(id: id, courseId: courseId, fileId: fileId, x: x, y: y,
+                    width: width, height: height, rotation: rotation, zOrder: zOrder)
+    }
+    func resized(width: Double, height: Double) -> ClassPinDTO {
+        ClassPinDTO(id: id, courseId: courseId, fileId: fileId, x: x, y: y,
+                    width: width, height: height, rotation: rotation, zOrder: zOrder)
+    }
+    func rotated(_ rotation: Double) -> ClassPinDTO {
+        ClassPinDTO(id: id, courseId: courseId, fileId: fileId, x: x, y: y,
+                    width: width, height: height, rotation: rotation, zOrder: zOrder)
+    }
+    func withZOrder(_ zOrder: Int) -> ClassPinDTO {
+        ClassPinDTO(id: id, courseId: courseId, fileId: fileId, x: x, y: y,
+                    width: width, height: height, rotation: rotation, zOrder: zOrder)
     }
 }

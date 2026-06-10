@@ -42,11 +42,13 @@
 		39FA3BF9CCCC4BE3A1F47719 /* ClassesDashboardWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 884E2CF516A54A7BBEFBC1FA /* ClassesDashboardWindow.swift */; };
 		A7C3F921D84B5E60F2819034 /* ClassDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2E4A871F93D6B50A7180245 /* ClassDetailView.swift */; };
 		3B33926C99E744318F352A22 /* ClassFilesPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */; };
+		FD190BC2A9CE40DAA801E34B /* ClassCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD4E986F58743C7B8DBFA7E /* ClassCanvasView.swift */; };
+		DC6F0D46715843CFBFEEFAB5 /* PinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F8CCAFE51B04362B408BA32 /* PinView.swift */; };
+		91015E4D4C4F42A597DE35EE /* FilePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C840DA4E8C24ABF8A89775A /* FilePreviewView.swift */; };
 		CB7D4A6E2F830B95E1A47C83 /* ClassInfoEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */; };
 		755613F89B6BAF1A3FB83F09 /* ClassEventCreatorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */; };
 		909C0568D4ECBE4EAB17DAB8 /* ClassMiniCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7ED284E550CCD1658EA705B /* ClassMiniCalendar.swift */; };
 		0A0298CC91A91380EAE98C23 /* ResizableSplit.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23BA5A515EEC13D32FCBC41 /* ResizableSplit.swift */; };
-		373F63F1FDEF171A0A8836F6 /* ClassCanvasPlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E70E91C0CF80BC557DE788 /* ClassCanvasPlaceholder.swift */; };
 		58D853A7EA09BFBBF4EE64F2 /* RateLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A09AD6576917FD9715C4828 /* RateLimiter.swift */; };
 		5A3240F0F18BBE25E8DE0416 /* TasksDashboardWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F59B846707274C37F67F8D01 /* TasksDashboardWindow.swift */; };
 		5AD0399D9272786C9EDC84F2 /* SettingsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A153FC0A37F63A684195E54E /* SettingsRootView.swift */; };
@@ -141,11 +143,13 @@
 		884E2CF516A54A7BBEFBC1FA /* ClassesDashboardWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassesDashboardWindow.swift; sourceTree = "<group>"; };
 		C2E4A871F93D6B50A7180245 /* ClassDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassDetailView.swift; sourceTree = "<group>"; };
 		70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassFilesPanel.swift; sourceTree = "<group>"; };
+		9CD4E986F58743C7B8DBFA7E /* ClassCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassCanvasView.swift; sourceTree = "<group>"; };
+		0F8CCAFE51B04362B408BA32 /* PinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinView.swift; sourceTree = "<group>"; };
+		5C840DA4E8C24ABF8A89775A /* FilePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewView.swift; sourceTree = "<group>"; };
 		FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassInfoEditorSheet.swift; sourceTree = "<group>"; };
 		D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassEventCreatorSheet.swift; sourceTree = "<group>"; };
 		A7ED284E550CCD1658EA705B /* ClassMiniCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassMiniCalendar.swift; sourceTree = "<group>"; };
 		D23BA5A515EEC13D32FCBC41 /* ResizableSplit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResizableSplit.swift; sourceTree = "<group>"; };
-		51E70E91C0CF80BC557DE788 /* ClassCanvasPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassCanvasPlaceholder.swift; sourceTree = "<group>"; };
 		72DD423EA0F9EFF2F520B170 /* TasksNotesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksNotesPanel.swift; sourceTree = "<group>"; };
 		8391FCFB24F0E7328A38C582 /* GradeDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradeDashboardView.swift; sourceTree = "<group>"; };
 		84A892CCF3499ED25646D0B2 /* AssistantService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantService.swift; sourceTree = "<group>"; };
@@ -248,11 +252,13 @@
 				D595A893BFF14DB48EA7DBCC /* ClassStore.swift */,
 				C2E4A871F93D6B50A7180245 /* ClassDetailView.swift */,
 				70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */,
+				9CD4E986F58743C7B8DBFA7E /* ClassCanvasView.swift */,
+				0F8CCAFE51B04362B408BA32 /* PinView.swift */,
+				5C840DA4E8C24ABF8A89775A /* FilePreviewView.swift */,
 				FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */,
 			D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */,
 				A7ED284E550CCD1658EA705B /* ClassMiniCalendar.swift */,
 				D23BA5A515EEC13D32FCBC41 /* ResizableSplit.swift */,
-				51E70E91C0CF80BC557DE788 /* ClassCanvasPlaceholder.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -615,11 +621,13 @@
 				39FA3BF9CCCC4BE3A1F47719 /* ClassesDashboardWindow.swift in Sources */,
 				A7C3F921D84B5E60F2819034 /* ClassDetailView.swift in Sources */,
 				3B33926C99E744318F352A22 /* ClassFilesPanel.swift in Sources */,
+				FD190BC2A9CE40DAA801E34B /* ClassCanvasView.swift in Sources */,
+				DC6F0D46715843CFBFEEFAB5 /* PinView.swift in Sources */,
+				91015E4D4C4F42A597DE35EE /* FilePreviewView.swift in Sources */,
 				CB7D4A6E2F830B95E1A47C83 /* ClassInfoEditorSheet.swift in Sources */,
 				755613F89B6BAF1A3FB83F09 /* ClassEventCreatorSheet.swift in Sources */,
 				909C0568D4ECBE4EAB17DAB8 /* ClassMiniCalendar.swift in Sources */,
 				0A0298CC91A91380EAE98C23 /* ResizableSplit.swift in Sources */,
-				373F63F1FDEF171A0A8836F6 /* ClassCanvasPlaceholder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
