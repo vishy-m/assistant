@@ -30,6 +30,14 @@ let package = Package(
         .target(name: "AssistantBriefings",
                 dependencies: ["AssistantShared", "AssistantStore", "AssistantLLM", "AssistantGCal"]),
         .target(name: "AssistantGrades",
-                dependencies: ["AssistantShared", "AssistantStore", "AssistantLLM"])
+                dependencies: ["AssistantShared", "AssistantStore", "AssistantLLM"]),
+        .testTarget(name: "AssistantSharedTests", dependencies: ["AssistantShared"]),
+        .testTarget(name: "AssistantStoreTests", dependencies: ["AssistantStore", "AssistantShared"]),
+        .testTarget(name: "AssistantLLMTests", dependencies: ["AssistantLLM", "AssistantStore"]),
+        .testTarget(name: "AssistantGCalTests", dependencies: ["AssistantGCal", "AssistantStore"]),
+        .testTarget(name: "AssistantBriefingsTests",
+                    dependencies: ["AssistantBriefings", "AssistantStore"]),
+        .testTarget(name: "AssistantGradesTests",
+                    dependencies: ["AssistantGrades", "AssistantStore"])
     ]
 )

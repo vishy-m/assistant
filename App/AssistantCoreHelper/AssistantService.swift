@@ -677,6 +677,128 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
+    private func classFileStorage() -> ClassFileStorage? {
+        (try? ClassFileStorage.defaultBase()).map { ClassFileStorage(base: $0) }
+    }
+
+    func listClassFolders(courseId: String, reply: @escaping (Data) -> Void) {
+        do {
+            let dtos = try ClassFolderRepository(db: db).all(courseId: courseId).map {
+                ClassFolderDTO(id: $0.id, courseId: $0.courseId,
+                               parentFolderId: $0.parentFolderId, name: $0.name,
+                               sortOrder: $0.sortOrder)
+            }
+            reply(try JSONEncoder().encode(dtos))
+        } catch { NSLog("[AssistantService] listClassFolders error: \(error)"); reply(Data()) }
+    }
+
+    func listClassFiles(courseId: String, reply: @escaping (Data) -> Void) {
+        do {
+            let dtos = try ClassFileRepository(db: db).all(courseId: courseId).map {
+                ClassFileDTO(id: $0.id, courseId: $0.courseId, folderId: $0.folderId,
+                             name: $0.name, storedName: $0.storedName,
+                             contentType: $0.contentType, byteSize: $0.byteSize)
+            }
+            reply(try JSONEncoder().encode(dtos))
+        } catch { NSLog("[AssistantService] listClassFiles error: \(error)"); reply(Data()) }
+    }
+
+    func createClassFolder(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard let dto = try? JSONDecoder().decode(ClassFolderDTO.self, from: data) else {
+            reply(false); return
+        }
+        do {
+            try ClassFolderRepository(db: db).create(ClassFolder(
+                id: dto.id, courseId: dto.courseId, parentFolderId: dto.parentFolderId,
+                name: dto.name, sortOrder: dto.sortOrder))
+            reply(true)
+        } catch { NSLog("[AssistantService] createClassFolder error: \(error)"); reply(false) }
+    }
+
+    func renameClassFolder(id: String, name: String, reply: @escaping (Bool) -> Void) {
+        do { try ClassFolderRepository(db: db).rename(id: id, name: name); reply(true) }
+        catch { NSLog("[AssistantService] renameClassFolder error: \(error)"); reply(false) }
+    }
+
+    func moveClassFolder(id: String, parentId: String?, reply: @escaping (Bool) -> Void) {
+        do { try ClassFolderRepository(db: db).move(id: id, toParent: parentId); reply(true) }
+        catch { NSLog("[AssistantService] moveClassFolder error: \(error)"); reply(false) }
+    }
+
+    func deleteClassFolder(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let courseId = try ClassFolderRepository(db: db).find(id: id)?.courseId
+            let storedNames = try ClassFolderRepository(db: db).deleteRecursively(id: id)
+            if let courseId, let storage = classFileStorage() {
+                for name in storedNames {
+                    try? storage.remove(courseId: courseId, storedName: name)
+                }
+            }
+            reply(true)
+        } catch { NSLog("[AssistantService] deleteClassFolder error: \(error)"); reply(false) }
+    }
+
+    func addClassFile(_ data: Data, bytes: Data, reply: @escaping (Bool) -> Void) {
+        guard let dto = try? JSONDecoder().decode(ClassFileDTO.self, from: data),
+              let storage = classFileStorage() else { reply(false); return }
+        do {
+            try storage.write(bytes, courseId: dto.courseId, storedName: dto.storedName)
+            try ClassFileRepository(db: db).create(ClassFile(
+                id: dto.id, courseId: dto.courseId, folderId: dto.folderId, name: dto.name,
+                storedName: dto.storedName, contentType: dto.contentType, byteSize: dto.byteSize))
+            reply(true)
+        } catch { NSLog("[AssistantService] addClassFile error: \(error)"); reply(false) }
+    }
+
+    func renameClassFile(id: String, name: String, reply: @escaping (Bool) -> Void) {
+        do { try ClassFileRepository(db: db).rename(id: id, name: name); reply(true) }
+        catch { NSLog("[AssistantService] renameClassFile error: \(error)"); reply(false) }
+    }
+
+    func moveClassFile(id: String, folderId: String?, reply: @escaping (Bool) -> Void) {
+        do { try ClassFileRepository(db: db).move(id: id, toFolder: folderId); reply(true) }
+        catch { NSLog("[AssistantService] moveClassFile error: \(error)"); reply(false) }
+    }
+
+    func deleteClassFile(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let courseId = try ClassFileRepository(db: db).find(id: id)?.courseId
+            let stored = try ClassFileRepository(db: db).delete(id: id)
+            if let courseId, let stored, let storage = classFileStorage() {
+                try? storage.remove(courseId: courseId, storedName: stored)
+            }
+            reply(true)
+        } catch { NSLog("[AssistantService] deleteClassFile error: \(error)"); reply(false) }
+    }
+
+    func listClassPins(courseId: String, reply: @escaping (Data) -> Void) {
+        do {
+            let dtos = try ClassPinRepository(db: db).all(courseId: courseId).map {
+                ClassPinDTO(id: $0.id, courseId: $0.courseId, fileId: $0.fileId,
+                            x: $0.x, y: $0.y, width: $0.width, height: $0.height,
+                            rotation: $0.rotation, zOrder: $0.zOrder)
+            }
+            reply(try JSONEncoder().encode(dtos))
+        } catch { NSLog("[AssistantService] listClassPins error: \(error)"); reply(Data()) }
+    }
+
+    func upsertClassPin(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard let dto = try? JSONDecoder().decode(ClassPinDTO.self, from: data) else {
+            reply(false); return
+        }
+        do {
+            try ClassPinRepository(db: db).upsert(ClassPin(
+                id: dto.id, courseId: dto.courseId, fileId: dto.fileId, x: dto.x, y: dto.y,
+                width: dto.width, height: dto.height, rotation: dto.rotation, zOrder: dto.zOrder))
+            reply(true)
+        } catch { NSLog("[AssistantService] upsertClassPin error: \(error)"); reply(false) }
+    }
+
+    func deleteClassPin(id: String, reply: @escaping (Bool) -> Void) {
+        do { try ClassPinRepository(db: db).delete(id: id); reply(true) }
+        catch { NSLog("[AssistantService] deleteClassPin error: \(error)"); reply(false) }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         let repo = CategoryRepository(db: db)
