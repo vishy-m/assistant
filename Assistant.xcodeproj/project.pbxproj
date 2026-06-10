@@ -42,6 +42,7 @@
 		39FA3BF9CCCC4BE3A1F47719 /* ClassesDashboardWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 884E2CF516A54A7BBEFBC1FA /* ClassesDashboardWindow.swift */; };
 		A7C3F921D84B5E60F2819034 /* ClassDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2E4A871F93D6B50A7180245 /* ClassDetailView.swift */; };
 		3B33926C99E744318F352A22 /* ClassFilesPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */; };
+		FD190BC2A9CE40DAA801E34B /* ClassCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD4E986F58743C7B8DBFA7E /* ClassCanvasView.swift */; };
 		DC6F0D46715843CFBFEEFAB5 /* PinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F8CCAFE51B04362B408BA32 /* PinView.swift */; };
 		91015E4D4C4F42A597DE35EE /* FilePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C840DA4E8C24ABF8A89775A /* FilePreviewView.swift */; };
 		CB7D4A6E2F830B95E1A47C83 /* ClassInfoEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */; };
@@ -143,6 +144,7 @@
 		884E2CF516A54A7BBEFBC1FA /* ClassesDashboardWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassesDashboardWindow.swift; sourceTree = "<group>"; };
 		C2E4A871F93D6B50A7180245 /* ClassDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassDetailView.swift; sourceTree = "<group>"; };
 		70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassFilesPanel.swift; sourceTree = "<group>"; };
+		9CD4E986F58743C7B8DBFA7E /* ClassCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassCanvasView.swift; sourceTree = "<group>"; };
 		0F8CCAFE51B04362B408BA32 /* PinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinView.swift; sourceTree = "<group>"; };
 		5C840DA4E8C24ABF8A89775A /* FilePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewView.swift; sourceTree = "<group>"; };
 		FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassInfoEditorSheet.swift; sourceTree = "<group>"; };
@@ -252,6 +254,7 @@
 				D595A893BFF14DB48EA7DBCC /* ClassStore.swift */,
 				C2E4A871F93D6B50A7180245 /* ClassDetailView.swift */,
 				70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */,
+				9CD4E986F58743C7B8DBFA7E /* ClassCanvasView.swift */,
 				0F8CCAFE51B04362B408BA32 /* PinView.swift */,
 				5C840DA4E8C24ABF8A89775A /* FilePreviewView.swift */,
 				FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */,
@@ -621,6 +624,7 @@
 				39FA3BF9CCCC4BE3A1F47719 /* ClassesDashboardWindow.swift in Sources */,
 				A7C3F921D84B5E60F2819034 /* ClassDetailView.swift in Sources */,
 				3B33926C99E744318F352A22 /* ClassFilesPanel.swift in Sources */,
+				FD190BC2A9CE40DAA801E34B /* ClassCanvasView.swift in Sources */,
 				DC6F0D46715843CFBFEEFAB5 /* PinView.swift in Sources */,
 				91015E4D4C4F42A597DE35EE /* FilePreviewView.swift in Sources */,
 				CB7D4A6E2F830B95E1A47C83 /* ClassInfoEditorSheet.swift in Sources */,
