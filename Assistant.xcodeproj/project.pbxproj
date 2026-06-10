@@ -49,7 +49,6 @@
 		755613F89B6BAF1A3FB83F09 /* ClassEventCreatorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */; };
 		909C0568D4ECBE4EAB17DAB8 /* ClassMiniCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7ED284E550CCD1658EA705B /* ClassMiniCalendar.swift */; };
 		0A0298CC91A91380EAE98C23 /* ResizableSplit.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23BA5A515EEC13D32FCBC41 /* ResizableSplit.swift */; };
-		373F63F1FDEF171A0A8836F6 /* ClassCanvasPlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E70E91C0CF80BC557DE788 /* ClassCanvasPlaceholder.swift */; };
 		58D853A7EA09BFBBF4EE64F2 /* RateLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A09AD6576917FD9715C4828 /* RateLimiter.swift */; };
 		5A3240F0F18BBE25E8DE0416 /* TasksDashboardWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F59B846707274C37F67F8D01 /* TasksDashboardWindow.swift */; };
 		5AD0399D9272786C9EDC84F2 /* SettingsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A153FC0A37F63A684195E54E /* SettingsRootView.swift */; };
@@ -151,7 +150,6 @@
 		D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassEventCreatorSheet.swift; sourceTree = "<group>"; };
 		A7ED284E550CCD1658EA705B /* ClassMiniCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassMiniCalendar.swift; sourceTree = "<group>"; };
 		D23BA5A515EEC13D32FCBC41 /* ResizableSplit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResizableSplit.swift; sourceTree = "<group>"; };
-		51E70E91C0CF80BC557DE788 /* ClassCanvasPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassCanvasPlaceholder.swift; sourceTree = "<group>"; };
 		72DD423EA0F9EFF2F520B170 /* TasksNotesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksNotesPanel.swift; sourceTree = "<group>"; };
 		8391FCFB24F0E7328A38C582 /* GradeDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradeDashboardView.swift; sourceTree = "<group>"; };
 		84A892CCF3499ED25646D0B2 /* AssistantService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantService.swift; sourceTree = "<group>"; };
@@ -261,7 +259,6 @@
 			D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */,
 				A7ED284E550CCD1658EA705B /* ClassMiniCalendar.swift */,
 				D23BA5A515EEC13D32FCBC41 /* ResizableSplit.swift */,
-				51E70E91C0CF80BC557DE788 /* ClassCanvasPlaceholder.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -631,7 +628,6 @@
 				755613F89B6BAF1A3FB83F09 /* ClassEventCreatorSheet.swift in Sources */,
 				909C0568D4ECBE4EAB17DAB8 /* ClassMiniCalendar.swift in Sources */,
 				0A0298CC91A91380EAE98C23 /* ResizableSplit.swift in Sources */,
-				373F63F1FDEF171A0A8836F6 /* ClassCanvasPlaceholder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
