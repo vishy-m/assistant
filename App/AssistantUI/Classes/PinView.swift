@@ -62,7 +62,12 @@ struct PinView: View {
     // Drag the title bar to move. Canvas-space translation stays correct under rotation.
     private var moveGesture: some Gesture {
         DragGesture(coordinateSpace: .named("canvas"))
-            .onChanged { value in dragOffset = value.translation }
+            .onChanged { value in
+                // Raise the pin once, at the start of the drag, so grabbing a
+                // half-covered pin brings it forward as you move it.
+                if dragOffset == .zero { onBringToFront() }
+                dragOffset = value.translation
+            }
             .onEnded { value in
                 let committed = pin.moved(x: pin.x + value.translation.width,
                                           y: pin.y + value.translation.height)
@@ -97,8 +102,11 @@ struct PinView: View {
             .gesture(
                 DragGesture(coordinateSpace: .named("canvas"))
                     .onChanged { value in
-                        // Angle from the pin center to the pointer, in canvas space.
-                        // +pi/2 because the handle sits at the top (12 o'clock = 0 rotation).
+                        // Absolute-angle ("grab and swing") rotation: the card's top
+                        // edge tracks the cursor. Because the handle sits at the current
+                        // top, grabbing it reads back the existing rotation (no snap);
+                        // swinging it around the center rotates the card. The +pi/2 maps
+                        // "pointer straight up" (12 o'clock) to rotation 0.
                         let angle = atan2(value.location.y - pin.y, value.location.x - pin.x)
                         liveRotation = angle + .pi / 2
                     }
