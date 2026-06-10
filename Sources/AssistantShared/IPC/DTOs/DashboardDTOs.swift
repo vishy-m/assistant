@@ -245,10 +245,12 @@ public struct UpdateEventRequest: Codable, Equatable {
     public let eventId: String
     public let startAt: Date
     public let endAt: Date
-    public init(eventId: String, startAt: Date, endAt: Date) {
+    public let title: String?
+    public init(eventId: String, startAt: Date, endAt: Date, title: String? = nil) {
         self.eventId = eventId
         self.startAt = startAt
         self.endAt = endAt
+        self.title = title
     }
 }
 
