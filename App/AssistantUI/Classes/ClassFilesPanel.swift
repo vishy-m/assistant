@@ -73,6 +73,7 @@ struct ClassFilesPanel: View {
         .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+        .onTapGesture { store.openFileTab(id: file.id) }
         .onDrag { NSItemProvider(object: file.id as NSString) }
         .contextMenu {
             Button("Rename") { renameFile(file) }
