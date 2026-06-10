@@ -44,6 +44,7 @@
 		3B33926C99E744318F352A22 /* ClassFilesPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */; };
 		CB7D4A6E2F830B95E1A47C83 /* ClassInfoEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */; };
 		755613F89B6BAF1A3FB83F09 /* ClassEventCreatorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */; };
+		909C0568D4ECBE4EAB17DAB8 /* ClassMiniCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7ED284E550CCD1658EA705B /* ClassMiniCalendar.swift */; };
 		58D853A7EA09BFBBF4EE64F2 /* RateLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A09AD6576917FD9715C4828 /* RateLimiter.swift */; };
 		5A3240F0F18BBE25E8DE0416 /* TasksDashboardWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F59B846707274C37F67F8D01 /* TasksDashboardWindow.swift */; };
 		5AD0399D9272786C9EDC84F2 /* SettingsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A153FC0A37F63A684195E54E /* SettingsRootView.swift */; };
@@ -140,6 +141,7 @@
 		70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassFilesPanel.swift; sourceTree = "<group>"; };
 		FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassInfoEditorSheet.swift; sourceTree = "<group>"; };
 		D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassEventCreatorSheet.swift; sourceTree = "<group>"; };
+		A7ED284E550CCD1658EA705B /* ClassMiniCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassMiniCalendar.swift; sourceTree = "<group>"; };
 		72DD423EA0F9EFF2F520B170 /* TasksNotesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksNotesPanel.swift; sourceTree = "<group>"; };
 		8391FCFB24F0E7328A38C582 /* GradeDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradeDashboardView.swift; sourceTree = "<group>"; };
 		84A892CCF3499ED25646D0B2 /* AssistantService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantService.swift; sourceTree = "<group>"; };
@@ -244,6 +246,7 @@
 				70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */,
 				FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */,
 			D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */,
+				A7ED284E550CCD1658EA705B /* ClassMiniCalendar.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -608,6 +611,7 @@
 				3B33926C99E744318F352A22 /* ClassFilesPanel.swift in Sources */,
 				CB7D4A6E2F830B95E1A47C83 /* ClassInfoEditorSheet.swift in Sources */,
 				755613F89B6BAF1A3FB83F09 /* ClassEventCreatorSheet.swift in Sources */,
+				909C0568D4ECBE4EAB17DAB8 /* ClassMiniCalendar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
