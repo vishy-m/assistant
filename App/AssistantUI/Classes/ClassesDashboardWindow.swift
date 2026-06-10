@@ -21,7 +21,7 @@ final class ClassesDashboardWindow {
         }
         let host = NSHostingController(rootView: ClassesDashboardView(store: store))
         let w = NSWindow(contentViewController: host)
-        w.setContentSize(NSSize(width: 820, height: 600))
+        w.setContentSize(NSSize(width: 1000, height: 680))
         w.title = "Classes"
         w.titlebarAppearsTransparent = true
         w.isReleasedWhenClosed = false
