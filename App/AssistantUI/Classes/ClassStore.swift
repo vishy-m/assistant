@@ -16,6 +16,8 @@ final class ClassStore: ObservableObject {
     @Published var filesById: [String: ClassFileDTO] = [:]
     /// The viewed class's canvas pins, held locally as the live source of truth.
     @Published var pins: [ClassPinDTO] = []
+    /// Open file tabs + active tab for this class's canvas (persisted per course).
+    @Published var tabs: CanvasTabs = CanvasTabs()
 
     private var currentCourseId: String?
     /// Resolves on-disk file URLs for previews. nil only if Application Support is unreachable.
@@ -60,6 +62,7 @@ final class ClassStore: ObservableObject {
 
     func loadDetail(courseId: String) {
         currentCourseId = courseId
+        restoreTabs(courseId: courseId)
         detail = nil
         XPCClient.shared.getClassDetail(courseId: courseId) { [weak self] detail in
             self?.detail = detail
@@ -77,9 +80,14 @@ final class ClassStore: ObservableObject {
 
     private func loadFiles(courseId: String) {
         XPCClient.shared.listClassFolders(courseId: courseId) { [weak self] folders in
-            XPCClient.shared.listClassFiles(courseId: courseId) { files in
-                self?.fileTree = FileTreeBuilder.build(folders: folders, files: files)
-                self?.filesById = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0) })
+            XPCClient.shared.listClassFiles(courseId: courseId) { [weak self] files in
+                // Ignore a stale reply if the user has since switched classes —
+                // otherwise we'd prune/persist this class's tabs under another.
+                guard let self, self.currentCourseId == courseId else { return }
+                self.fileTree = FileTreeBuilder.build(folders: folders, files: files)
+                self.filesById = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0) })
+                self.tabs.prune(toExisting: Set(files.map(\.id)))
+                self.saveTabs()
             }
         }
     }
@@ -261,6 +269,39 @@ final class ClassStore: ObservableObject {
               let courseId = currentCourseId,
               note.userInfo?["courseId"] as? String == courseId else { return }
         loadPins(courseId: courseId)
+    }
+
+    // MARK: - Canvas tabs (per-course, persisted in UserDefaults)
+
+    func openFileTab(id: String) { tabs.open(id); saveTabs() }
+    func closeFileTab(id: String) { tabs.close(id); saveTabs() }
+    func selectFileTab(id: String) { tabs.selectFile(id); saveTabs() }
+    func selectBoardTab() { tabs.selectBoard(); saveTabs() }
+
+    private func tabsKey(_ courseId: String) -> String { "cf.\(courseId).tabs" }
+
+    private func saveTabs() {
+        guard let courseId = currentCourseId,
+              let data = try? JSONEncoder().encode(tabs) else { return }
+        UserDefaults.standard.set(data, forKey: tabsKey(courseId))
+    }
+
+    private func restoreTabs(courseId: String) {
+        if let data = UserDefaults.standard.data(forKey: tabsKey(courseId)),
+           let saved = try? JSONDecoder().decode(CanvasTabs.self, from: data) {
+            tabs = saved
+        } else {
+            tabs = CanvasTabs()
+        }
+    }
+
+    /// The viewed class's file by id (for tab titles / content type).
+    func file(id: String) -> ClassFileDTO? { filesById[id] }
+
+    /// On-disk URL of a file by id, or nil if the file/storage is gone.
+    func fileURL(forFileId id: String) -> URL? {
+        guard let file = filesById[id], let storage else { return nil }
+        return storage.fileURL(courseId: file.courseId, storedName: file.storedName)
     }
 }
 

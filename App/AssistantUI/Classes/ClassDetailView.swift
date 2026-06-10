@@ -82,7 +82,7 @@ struct ClassDetailView: View {
                                range: 150...360) {
                     ResizableSplit(edge: .trailing, size: $tasksWidth, collapsed: $tasksCollapsed,
                                    range: 150...360) {
-                        ClassCanvasView(store: store)
+                        ClassCanvasContainer(store: store)
                     } panel: {
                         tasksPanel()
                     }
