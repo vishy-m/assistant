@@ -80,11 +80,14 @@ final class ClassStore: ObservableObject {
 
     private func loadFiles(courseId: String) {
         XPCClient.shared.listClassFolders(courseId: courseId) { [weak self] folders in
-            XPCClient.shared.listClassFiles(courseId: courseId) { files in
-                self?.fileTree = FileTreeBuilder.build(folders: folders, files: files)
-                self?.filesById = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0) })
-                self?.tabs.prune(toExisting: Set(files.map(\.id)))
-                self?.saveTabs()
+            XPCClient.shared.listClassFiles(courseId: courseId) { [weak self] files in
+                // Ignore a stale reply if the user has since switched classes —
+                // otherwise we'd prune/persist this class's tabs under another.
+                guard let self, self.currentCourseId == courseId else { return }
+                self.fileTree = FileTreeBuilder.build(folders: folders, files: files)
+                self.filesById = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0) })
+                self.tabs.prune(toExisting: Set(files.map(\.id)))
+                self.saveTabs()
             }
         }
     }

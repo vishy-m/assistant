@@ -11,7 +11,11 @@ struct ClassCanvasContainer: View {
             ClassCanvasTabBar(store: store)
             Divider()
             if let fileId = store.tabs.activeFileId {
+                // .id(fileId) forces a fresh preview per file so switching between
+                // a PDF and a non-PDF tab rebuilds the NSView instead of showing
+                // stale content (FilePreviewView can't swap engines in updateNSView).
                 FileDocumentView(store: store, fileId: fileId)
+                    .id(fileId)
             } else {
                 ClassCanvasView(store: store)
             }
