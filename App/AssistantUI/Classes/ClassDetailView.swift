@@ -12,6 +12,33 @@ struct ClassDetailView: View {
     @State private var showEditTask = false
     @State private var taskToEdit: AssistantStore.Task?
 
+    // Panel sizes/collapse persist per course in UserDefaults.
+    @State private var filesWidth: CGFloat = 200
+    @State private var tasksWidth: CGFloat = 200
+    @State private var calHeight: CGFloat = 110
+    @State private var filesCollapsed = false
+    @State private var tasksCollapsed = false
+    @State private var calCollapsed = false
+
+    private func loadPanelPrefs() {
+        let d = UserDefaults.standard
+        filesWidth = CGFloat(d.double(forKey: "cf.\(courseId).filesW").nonzero ?? 200)
+        tasksWidth = CGFloat(d.double(forKey: "cf.\(courseId).tasksW").nonzero ?? 200)
+        calHeight = CGFloat(d.double(forKey: "cf.\(courseId).calH").nonzero ?? 110)
+        filesCollapsed = d.bool(forKey: "cf.\(courseId).filesC")
+        tasksCollapsed = d.bool(forKey: "cf.\(courseId).tasksC")
+        calCollapsed = d.bool(forKey: "cf.\(courseId).calC")
+    }
+    private func savePanelPrefs() {
+        let d = UserDefaults.standard
+        d.set(Double(filesWidth), forKey: "cf.\(courseId).filesW")
+        d.set(Double(tasksWidth), forKey: "cf.\(courseId).tasksW")
+        d.set(Double(calHeight), forKey: "cf.\(courseId).calH")
+        d.set(filesCollapsed, forKey: "cf.\(courseId).filesC")
+        d.set(tasksCollapsed, forKey: "cf.\(courseId).tasksC")
+        d.set(calCollapsed, forKey: "cf.\(courseId).calC")
+    }
+
     var body: some View {
         Group {
             if let detail = store.detail, detail.id == courseId {
@@ -21,7 +48,7 @@ struct ClassDetailView: View {
             }
         }
         .background(GradeTheme.windowBg)
-        .onAppear { store.loadDetail(courseId: courseId) }
+        .onAppear { store.loadDetail(courseId: courseId); loadPanelPrefs() }
         .sheet(isPresented: $showEditor) {
             if let detail = store.detail {
                 ClassInfoEditorSheet(detail: detail) { store.loadDetail(courseId: courseId) }
@@ -46,30 +73,28 @@ struct ClassDetailView: View {
     }
 
     private func content(_ detail: ClassDetail) -> some View {
-        let schedule = scheduleEvents(detail)
-        let examList = exams(detail)
-        return HStack(alignment: .top, spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    header(detail)
-                    if !schedule.isEmpty {
-                        section("Schedule") {
-                            ForEach(schedule) { eventRow($0) }
-                        }
-                    }
-                    if !examList.isEmpty {
-                        section("Exams") {
-                            ForEach(examList) { eventRow($0) }
-                        }
-                    }
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+        VStack(spacing: 0) {
+            header(detail).padding(16)
             Divider()
-            tasksPanel()
+            ResizableSplit(edge: .bottom, size: $calHeight, collapsed: $calCollapsed,
+                           range: 70...260) {
+                ResizableSplit(edge: .leading, size: $filesWidth, collapsed: $filesCollapsed,
+                               range: 150...360) {
+                    ResizableSplit(edge: .trailing, size: $tasksWidth, collapsed: $tasksCollapsed,
+                                   range: 150...360) {
+                        ClassCanvasPlaceholder()
+                    } panel: {
+                        tasksPanel()
+                    }
+                } panel: {
+                    ClassFilesPanel(store: store)
+                }
+            } panel: {
+                ClassMiniCalendar(store: store, events: detail.events)
+            }
         }
         .navigationTitle(detail.name)
+        .onDisappear { savePanelPrefs() }
         .toolbar {
             ToolbarItemGroup {
                 Button("Add Event") { showAddEvent = true }
@@ -107,14 +132,6 @@ struct ClassDetailView: View {
         .background(Color.primary.opacity(0.035))
     }
 
-    // Schedule = recurring class-type sessions; exams shown separately.
-    private func scheduleEvents(_ d: ClassDetail) -> [ClassEventItem] {
-        d.events.filter { $0.eventType != "exam" }
-    }
-    private func exams(_ d: ClassDetail) -> [ClassEventItem] {
-        d.events.filter { $0.eventType == "exam" }
-    }
-
     private func header(_ d: ClassDetail) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
@@ -141,24 +158,6 @@ struct ClassDetailView: View {
         }
     }
 
-    private func section<Content: View>(_ title: String,
-                                        @ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            EyebrowLabel(title)
-            content()
-        }
-    }
-
-    private func eventRow(_ e: ClassEventItem) -> some View {
-        HStack {
-            Text(e.title).font(GradeTheme.mono(11))
-            Spacer()
-            Text(Self.dateFormatter.string(from: e.startAt))
-                .font(GradeTheme.mono(10)).foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 2)
-    }
-
     private func taskRow(_ t: AssistantStore.Task) -> some View {
         let done = t.completedAt != nil
         return HStack {
@@ -183,3 +182,5 @@ struct ClassDetailView: View {
         let f = DateFormatter(); f.dateFormat = "EEE MMM d, h:mm a"; return f
     }()
 }
+
+private extension Double { var nonzero: Double? { self == 0 ? nil : self } }
