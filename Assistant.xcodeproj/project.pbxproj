@@ -42,6 +42,8 @@
 		39FA3BF9CCCC4BE3A1F47719 /* ClassesDashboardWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 884E2CF516A54A7BBEFBC1FA /* ClassesDashboardWindow.swift */; };
 		A7C3F921D84B5E60F2819034 /* ClassDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2E4A871F93D6B50A7180245 /* ClassDetailView.swift */; };
 		3B33926C99E744318F352A22 /* ClassFilesPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */; };
+		96A9030625AE4F02B0D72373 /* ClassEventEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BFF7AD4B144E48AC9CA7FB /* ClassEventEditorSheet.swift */; };
+		9F9059DBD787475EAA8CF274 /* ClassWeekCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAAE70F2C13E4D1EBCC34999 /* ClassWeekCalendar.swift */; };
 		A305066904CC3F70745CA0EB /* ClassCanvasContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18903A735D56DE3DB880DB19 /* ClassCanvasContainer.swift */; };
 		E532E074B408414ABD11238B /* FileDocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A17B57B7F4D4F7E9C913C84 /* FileDocumentView.swift */; };
 		8FFE17DDDB044C72AAF4E303 /* ClassCanvasTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A2DC2CA010425FAF459149 /* ClassCanvasTabBar.swift */; };
@@ -146,6 +148,8 @@
 		884E2CF516A54A7BBEFBC1FA /* ClassesDashboardWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassesDashboardWindow.swift; sourceTree = "<group>"; };
 		C2E4A871F93D6B50A7180245 /* ClassDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassDetailView.swift; sourceTree = "<group>"; };
 		70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassFilesPanel.swift; sourceTree = "<group>"; };
+		D8BFF7AD4B144E48AC9CA7FB /* ClassEventEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassEventEditorSheet.swift; sourceTree = "<group>"; };
+		CAAE70F2C13E4D1EBCC34999 /* ClassWeekCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassWeekCalendar.swift; sourceTree = "<group>"; };
 		18903A735D56DE3DB880DB19 /* ClassCanvasContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassCanvasContainer.swift; sourceTree = "<group>"; };
 		7A17B57B7F4D4F7E9C913C84 /* FileDocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDocumentView.swift; sourceTree = "<group>"; };
 		26A2DC2CA010425FAF459149 /* ClassCanvasTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassCanvasTabBar.swift; sourceTree = "<group>"; };
@@ -258,6 +262,8 @@
 				D595A893BFF14DB48EA7DBCC /* ClassStore.swift */,
 				C2E4A871F93D6B50A7180245 /* ClassDetailView.swift */,
 				70BF2EC64F854D3CA4016300 /* ClassFilesPanel.swift */,
+				D8BFF7AD4B144E48AC9CA7FB /* ClassEventEditorSheet.swift */,
+				CAAE70F2C13E4D1EBCC34999 /* ClassWeekCalendar.swift */,
 				18903A735D56DE3DB880DB19 /* ClassCanvasContainer.swift */,
 				7A17B57B7F4D4F7E9C913C84 /* FileDocumentView.swift */,
 				26A2DC2CA010425FAF459149 /* ClassCanvasTabBar.swift */,
@@ -630,6 +636,8 @@
 				39FA3BF9CCCC4BE3A1F47719 /* ClassesDashboardWindow.swift in Sources */,
 				A7C3F921D84B5E60F2819034 /* ClassDetailView.swift in Sources */,
 				3B33926C99E744318F352A22 /* ClassFilesPanel.swift in Sources */,
+				96A9030625AE4F02B0D72373 /* ClassEventEditorSheet.swift in Sources */,
+				9F9059DBD787475EAA8CF274 /* ClassWeekCalendar.swift in Sources */,
 				A305066904CC3F70745CA0EB /* ClassCanvasContainer.swift in Sources */,
 				E532E074B408414ABD11238B /* FileDocumentView.swift in Sources */,
 				8FFE17DDDB044C72AAF4E303 /* ClassCanvasTabBar.swift in Sources */,
