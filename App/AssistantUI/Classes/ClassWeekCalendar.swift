@@ -1,8 +1,10 @@
 import SwiftUI
 import AssistantShared
 
-/// A scrollable week time-grid of this class's events, colored by event type.
-/// Reuses WeekGridLayout for geometry. Tapping an event calls `onSelectEvent`.
+/// A week time-grid of this class's events, colored by event type. Reuses
+/// WeekGridLayout for geometry. Renders only the hour window that contains the
+/// week's events (plus an hour of padding) so events are laid out visible
+/// without any scroll-position juggling. Tapping an event calls `onSelectEvent`.
 struct ClassWeekCalendar: View {
     @ObservedObject var store: ClassStore
     let events: [ClassEventItem]
@@ -15,7 +17,28 @@ struct ClassWeekCalendar: View {
     private let gutter: CGFloat = 34
 
     private var layout: WeekGridLayout {
-        WeekGridLayout(hourHeight: hourHeight, dayStartHour: 0)
+        WeekGridLayout(hourHeight: hourHeight, dayStartHour: displayRange.start)
+    }
+
+    /// The hour window [start, end) to render: tight around the week's events
+    /// (with an hour of padding above and below), defaulting to 8am–8pm when
+    /// there are none. Because the grid *starts* at `start`, events are visible
+    /// immediately — no auto-scroll, which the shared store's frequent
+    /// re-publishes during load would otherwise clobber.
+    private var displayRange: (start: Int, end: Int) {
+        let weekEnd = cal.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+        let weekEvents = events.filter { $0.startAt >= weekStart && $0.startAt < weekEnd }
+        guard !weekEvents.isEmpty else { return (8, 20) }
+        let startHour = weekEvents.map { ev in
+            Int(floor(ev.startAt.timeIntervalSince(cal.startOfDay(for: ev.startAt)) / 3600))
+        }.min() ?? 8
+        let endHour = weekEvents.map { ev -> Int in
+            let secs = min(ev.endAt.timeIntervalSince(cal.startOfDay(for: ev.startAt)), 24 * 3600)
+            return Int(ceil(secs / 3600))
+        }.max() ?? 20
+        let start = max(0, startHour - 1)
+        let end = min(24, max(endHour + 1, start + 4))
+        return (start, end)
     }
 
     var body: some View {
@@ -28,10 +51,9 @@ struct ClassWeekCalendar: View {
                     Divider()
                     ScrollView(.vertical) {
                         ZStack(alignment: .topLeading) {
-                            gridLines(colW: colW)
+                            hourRows(colW: colW)
                             blocks(colW: colW)
                         }
-                        .frame(height: CGFloat(24) * CGFloat(hourHeight))
                         .clipped()
                     }
                 }
@@ -67,21 +89,34 @@ struct ClassWeekCalendar: View {
                     .frame(width: colW, alignment: .center)
             }
         }
+        // Constrain the row height — `Color.clear` and the day Texts have no
+        // intrinsic height and would otherwise expand to fill the panel,
+        // pushing the grid far down with a big empty band above it.
+        .frame(height: 16)
         .padding(.vertical, 2)
     }
 
     // MARK: Grid + blocks
 
-    private func gridLines(colW: CGFloat) -> some View {
-        ForEach(0..<24, id: \.self) { hour in
-            let y = CGFloat(hour) * CGFloat(hourHeight)
-            Group {
-                Text(String(format: "%02d", hour))
-                    .font(GradeTheme.mono(8)).foregroundStyle(.tertiary)
-                    .frame(width: gutter - 4, alignment: .trailing)
-                    .offset(x: 0, y: y - 4)
-                Rectangle().fill(Color.primary.opacity(0.06)).frame(width: colW * 7, height: 1)
-                    .offset(x: gutter, y: y)
+    /// Laid-out hour rows for the display window (each `hourHeight` tall). The
+    /// separator sits at each row's top, matching block yOffsets, and the
+    /// stack's height defines the scroll content.
+    private func hourRows(colW: CGFloat) -> some View {
+        let range = displayRange
+        return VStack(spacing: 0) {
+            ForEach(range.start..<range.end, id: \.self) { hour in
+                ZStack(alignment: .topLeading) {
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.12))
+                        .frame(height: 1)
+                        .padding(.leading, gutter)
+                    Text(String(format: "%02d:00", hour))
+                        .font(GradeTheme.mono(8)).foregroundStyle(.secondary)
+                        .frame(width: gutter - 4, alignment: .trailing)
+                        .offset(y: -5)
+                }
+                .frame(maxWidth: .infinity, minHeight: CGFloat(hourHeight),
+                       maxHeight: CGFloat(hourHeight), alignment: .topLeading)
             }
         }
     }
@@ -130,9 +165,11 @@ struct ClassWeekCalendar: View {
                 let p = placements[ev.id] ?? .init(columnIndex: 0, columnCount: 1)
                 let slot = colW / CGFloat(p.columnCount)
                 let x = gutter + colW * CGFloat(i) + slot * CGFloat(p.columnIndex)
+                // layout's dayStartHour is the display window's start, so this is
+                // already relative to the top of the rendered grid.
                 let y = max(0, CGFloat(layout.yOffset(for: ev.startAt, dayStart: dayStart)))
                 // Clamp the block to the day boundary so late-night or multi-day
-                // events don't draw past the bottom of the 24h grid.
+                // events don't draw past the bottom of the grid.
                 let visibleEnd = min(ev.endAt, dayEnd)
                 let h = CGFloat(layout.height(
                     forDurationSeconds: visibleEnd.timeIntervalSince(ev.startAt)))
