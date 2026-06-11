@@ -118,6 +118,24 @@ final class DashboardDTOsTests: XCTestCase {
         XCTAssertEqual(decoded.eventType, "exam")
     }
 
+    func testUpdateEventRequestCarriesTitle() throws {
+        let req = UpdateEventRequest(eventId: "e1",
+                                     startAt: Date(timeIntervalSince1970: 1),
+                                     endAt: Date(timeIntervalSince1970: 2),
+                                     title: "New Name")
+        let decoded = try JSONDecoder().decode(
+            UpdateEventRequest.self, from: JSONEncoder().encode(req))
+        XCTAssertEqual(decoded.title, "New Name")
+
+        // Legacy payload without `title` decodes to nil, not a throw.
+        let legacy = #"{"eventId":"e1","startAt":1,"endAt":2}"#.data(using: .utf8)!
+        XCTAssertNil(try JSONDecoder().decode(UpdateEventRequest.self, from: legacy).title)
+
+        // Default stays nil.
+        XCTAssertNil(UpdateEventRequest(eventId: "e",
+                                        startAt: Date(), endAt: Date()).title)
+    }
+
     func testClassDetailRoundTrips() throws {
         let detail = ClassDetail(
             id: "c1", name: "OS", term: "Fall", colorHex: "4F6B7A", iconName: "book.closed",

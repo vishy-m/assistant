@@ -185,6 +185,32 @@ final class EventClassificationTests: XCTestCase {
         XCTAssertEqual(priv?["assistant_event_type"], "exam")
     }
 
+    func testUpdateWithTitlePatchesSummaryAndCache() async throws {
+        let http = MockHTTPClient()
+        http.enqueueJSON("""
+        {"id":"e1","summary":"Renamed",
+         "start":{"dateTime":"2026-05-14T10:00:00-04:00"},
+         "end":{"dateTime":"2026-05-14T11:00:00-04:00"}}
+        """)
+        let db = try InMemoryDB.make()
+        let repo = GCalRepository(db: db)
+        try repo.upsert(GCalEventCache(
+            gcalEventId: "e1", calendarId: "cal1", title: "Old",
+            startAt: Date(), endAt: Date(), location: nil, category: "Misc",
+            lastSyncedAt: Date(), rawJson: "{}"))
+        let writer = makeWriter(http: http, db: db)
+
+        try await writer.update(eventId: "e1",
+                                start: Date(timeIntervalSince1970: 1000),
+                                end: Date(timeIntervalSince1970: 4600),
+                                title: "Renamed")
+
+        let body = http.sentRequests.last?.httpBody
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        XCTAssertEqual(body?["summary"] as? String, "Renamed")
+        XCTAssertEqual(try repo.find(id: "e1")?.title, "Renamed")
+    }
+
     func testGCalEventDecodesExtendedProperties() throws {
         let json = """
         {

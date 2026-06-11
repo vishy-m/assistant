@@ -47,6 +47,10 @@ public struct WeekGridLayout {
     public struct Placement: Equatable {
         public let columnIndex: Int
         public let columnCount: Int
+        public init(columnIndex: Int, columnCount: Int) {
+            self.columnIndex = columnIndex
+            self.columnCount = columnCount
+        }
     }
 
     /// Assigns each interval a column index and the column count of its

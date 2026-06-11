@@ -97,16 +97,17 @@ public final class CalendarWriter: Sendable {
         throw WriteError.offlineNoCalendar
     }
 
-    public func update(eventId: String, start: Date, end: Date) async throws {
+    public func update(eventId: String, start: Date, end: Date,
+                       title: String? = nil) async throws {
         let repo = GCalRepository(db: db)
         guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
         let ev = try await client.updateEvent(
             calendarId: cached.calendarId, eventId: eventId,
-            summary: nil, start: start, end: end, location: nil, description: nil)
+            summary: title, start: start, end: end, location: nil, description: nil)
         var updated = cached
         updated.startAt = start
         updated.endAt = end
-        updated.title = ev.summary ?? cached.title
+        updated.title = ev.summary ?? title ?? cached.title
         updated.lastSyncedAt = Date()
         try repo.upsert(updated)
     }
