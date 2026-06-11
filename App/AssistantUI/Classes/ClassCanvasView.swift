@@ -29,7 +29,8 @@ struct ClassCanvasView: View {
                     onRemove: { store.deletePin(id: pin.id) },
                     onOpenExternally: {
                         if let url = store.fileURL(for: pin) { NSWorkspace.shared.open(url) }
-                    }
+                    },
+                    onOpenInTab: { store.openFileTab(id: pin.fileId) }
                 )
             }
         }

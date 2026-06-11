@@ -13,6 +13,7 @@ struct PinView: View {
     let onBringToFront: () -> Void
     let onRemove: () -> Void
     let onOpenExternally: () -> Void
+    let onOpenInTab: () -> Void
 
     @State private var dragOffset: CGSize = .zero
     @State private var liveSize: CGSize?
@@ -26,17 +27,32 @@ struct PinView: View {
             titleBar
             FilePreviewView(url: fileURL, contentType: contentType)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The preview is a static reference so the entire pin is one
+                // uniform drag surface — an interactive PDFView would swallow the
+                // drag and you couldn't move the pin by grabbing the document.
+                // Use the right-click menu ("Open in Tab") to read/scroll it.
+                .allowsHitTesting(false)
         }
         .frame(width: size.width, height: size.height)
         .background(Color(nsColor: .windowBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black.opacity(0.18)))
         .shadow(radius: 4, y: 2)
+        // Drag anywhere on the card to move it; the handles (overlays, drawn on
+        // top) keep their own resize/rotate gestures.
+        .contentShape(Rectangle())
+        .gesture(moveGesture)
         .overlay(alignment: .top) { rotateHandle }
         .overlay(alignment: .bottomTrailing) { resizeHandle }
         .rotationEffect(.radians(rotation))
         .position(x: pin.x + dragOffset.width, y: pin.y + dragOffset.height)
         .onTapGesture { onBringToFront() }
+        .contextMenu {
+            Button("Open in Tab") { onOpenInTab() }
+            Button("Open Externally") { onOpenExternally() }
+            Divider()
+            Button("Remove Pin", role: .destructive) { onRemove() }
+        }
     }
 
     private var titleBar: some View {
@@ -44,22 +60,13 @@ struct PinView: View {
             Image(systemName: "doc").font(.system(size: 10)).foregroundStyle(.secondary)
             Text(fileName).font(GradeTheme.mono(10)).lineLimit(1)
             Spacer(minLength: 4)
-            Menu {
-                Button("Open Externally") { onOpenExternally() }
-                Button("Remove Pin", role: .destructive) { onRemove() }
-            } label: {
-                Image(systemName: "ellipsis").font(.system(size: 11))
-            }
-            .menuStyle(.borderlessButton).fixedSize()
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .background(Color(nsColor: .controlBackgroundColor))
-        .contentShape(Rectangle())
-        .gesture(moveGesture)
     }
 
-    // Drag the title bar to move. Canvas-space translation stays correct under rotation.
+    // Drag the card to move. Canvas-space translation stays correct under rotation.
     private var moveGesture: some Gesture {
         DragGesture(coordinateSpace: .named("canvas"))
             .onChanged { value in
