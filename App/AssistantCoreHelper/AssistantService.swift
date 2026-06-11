@@ -564,7 +564,8 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         _Concurrency.Task {
             do {
                 try await writer.update(eventId: req.eventId,
-                                        start: req.startAt, end: req.endAt)
+                                        start: req.startAt, end: req.endAt,
+                                        title: req.title)
                 reply(true)
             } catch {
                 NSLog("[AssistantService] updateCalendarEvent error: \(error)")
