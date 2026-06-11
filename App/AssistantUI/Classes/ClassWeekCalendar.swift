@@ -32,6 +32,7 @@ struct ClassWeekCalendar: View {
                             blocks(colW: colW)
                         }
                         .frame(height: CGFloat(24) * CGFloat(hourHeight))
+                        .clipped()
                     }
                 }
             }
@@ -130,8 +131,11 @@ struct ClassWeekCalendar: View {
                 let slot = colW / CGFloat(p.columnCount)
                 let x = gutter + colW * CGFloat(i) + slot * CGFloat(p.columnIndex)
                 let y = max(0, CGFloat(layout.yOffset(for: ev.startAt, dayStart: dayStart)))
+                // Clamp the block to the day boundary so late-night or multi-day
+                // events don't draw past the bottom of the 24h grid.
+                let visibleEnd = min(ev.endAt, dayEnd)
                 let h = CGFloat(layout.height(
-                    forDurationSeconds: ev.endAt.timeIntervalSince(ev.startAt)))
+                    forDurationSeconds: visibleEnd.timeIntervalSince(ev.startAt)))
                 out.append(PlacedBlock(
                     id: ev.id, x: x, y: y, width: max(slot - 2, 1), height: h,
                     color: typeColor(ev.eventType), title: ev.title,
