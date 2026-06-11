@@ -11,11 +11,12 @@ struct ClassDetailView: View {
     @State private var showAddTask = false
     @State private var showEditTask = false
     @State private var taskToEdit: AssistantStore.Task?
+    @State private var selectedEvent: ClassEventItem?
 
     // Panel sizes/collapse persist per course in UserDefaults.
     @State private var filesWidth: CGFloat = 200
     @State private var tasksWidth: CGFloat = 200
-    @State private var calHeight: CGFloat = 110
+    @State private var calHeight: CGFloat = 280
     @State private var filesCollapsed = false
     @State private var tasksCollapsed = false
     @State private var calCollapsed = false
@@ -24,7 +25,7 @@ struct ClassDetailView: View {
         let d = UserDefaults.standard
         filesWidth = CGFloat(d.double(forKey: "cf.\(courseId).filesW").nonzero ?? 200)
         tasksWidth = CGFloat(d.double(forKey: "cf.\(courseId).tasksW").nonzero ?? 200)
-        calHeight = CGFloat(d.double(forKey: "cf.\(courseId).calH").nonzero ?? 110)
+        calHeight = CGFloat(d.double(forKey: "cf.\(courseId).calH").nonzero ?? 280)
         filesCollapsed = d.bool(forKey: "cf.\(courseId).filesC")
         tasksCollapsed = d.bool(forKey: "cf.\(courseId).tasksC")
         calCollapsed = d.bool(forKey: "cf.\(courseId).calC")
@@ -70,6 +71,11 @@ struct ClassDetailView: View {
                                 onDelete: { store.deleteTask($0) })
             }
         }
+        .sheet(item: $selectedEvent) { ev in
+            ClassEventEditorSheet(courseId: courseId, event: ev, store: store) {
+                store.loadDetail(courseId: courseId)
+            }
+        }
     }
 
     private func content(_ detail: ClassDetail) -> some View {
@@ -77,7 +83,7 @@ struct ClassDetailView: View {
             header(detail).padding(16)
             Divider()
             ResizableSplit(edge: .bottom, size: $calHeight, collapsed: $calCollapsed,
-                           range: 70...260) {
+                           range: 70...520) {
                 ResizableSplit(edge: .leading, size: $filesWidth, collapsed: $filesCollapsed,
                                range: 150...360) {
                     ResizableSplit(edge: .trailing, size: $tasksWidth, collapsed: $tasksCollapsed,
@@ -90,7 +96,8 @@ struct ClassDetailView: View {
                     ClassFilesPanel(store: store)
                 }
             } panel: {
-                ClassMiniCalendar(store: store, events: detail.events)
+                ClassWeekCalendar(store: store, events: detail.events,
+                                  onSelectEvent: { selectedEvent = $0 })
             }
         }
         .navigationTitle(detail.name)
