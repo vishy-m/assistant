@@ -18,6 +18,8 @@ final class ClassStore: ObservableObject {
     @Published var pins: [ClassPinDTO] = []
     /// Open file tabs + active tab for this class's canvas (persisted per course).
     @Published var tabs: CanvasTabs = CanvasTabs()
+    /// The board's pan/zoom viewport for the viewed class (persisted per course).
+    @Published var viewport = CanvasViewport()
 
     private var currentCourseId: String?
     /// Resolves on-disk file URLs for previews. nil only if Application Support is unreachable.
@@ -63,6 +65,7 @@ final class ClassStore: ObservableObject {
     func loadDetail(courseId: String) {
         currentCourseId = courseId
         restoreTabs(courseId: courseId)
+        restoreViewport(courseId: courseId)
         detail = nil
         XPCClient.shared.getClassDetail(courseId: courseId) { [weak self] detail in
             self?.detail = detail
@@ -293,6 +296,37 @@ final class ClassStore: ObservableObject {
         } else {
             tabs = CanvasTabs()
         }
+    }
+
+    // MARK: - Canvas viewport (per-course, persisted in UserDefaults)
+
+    private func viewportKey(_ courseId: String) -> String { "cf.\(courseId).viewport" }
+
+    /// Called by the board on gesture end (not per-frame) to avoid write spam.
+    func saveViewport() {
+        guard let courseId = currentCourseId,
+              let data = try? JSONEncoder().encode(viewport) else { return }
+        UserDefaults.standard.set(data, forKey: viewportKey(courseId))
+    }
+
+    private func restoreViewport(courseId: String) {
+        if let data = UserDefaults.standard.data(forKey: viewportKey(courseId)),
+           let saved = try? JSONDecoder().decode(CanvasViewport.self, from: data) {
+            viewport = saved
+        } else {
+            viewport = CanvasViewport()
+        }
+    }
+
+    /// ⌘0: back to 100% zoom, centered on the pins (or the origin when the
+    /// board is empty).
+    func resetViewport(canvasSize: CGSize) {
+        if let center = PinLayout.boundingCenter(of: pins) {
+            viewport = .centered(onWorldX: center.x, worldY: center.y, canvasSize: canvasSize)
+        } else {
+            viewport = CanvasViewport()
+        }
+        saveViewport()
     }
 
     /// The viewed class's file by id (for tab titles / content type).
