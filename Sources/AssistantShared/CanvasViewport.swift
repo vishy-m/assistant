@@ -46,7 +46,7 @@ public struct CanvasViewport: Codable, Equatable {
     /// Multiplies zoom by `factor`, keeping the world point under the screen
     /// `anchor` stationary (zoom-at-cursor).
     public func zoomed(by factor: Double, at anchor: CGPoint) -> CanvasViewport {
-        guard factor.isFinite, factor > 0 else { return self }
+        guard factor.isFinite, factor > 0, anchor.x.isFinite, anchor.y.isFinite else { return self }
         let newZoom = min(max(zoom * factor, Self.minZoom), Self.maxZoom)
         let ratio = newZoom / zoom
         return CanvasViewport(offsetX: anchor.x - (anchor.x - offsetX) * ratio,

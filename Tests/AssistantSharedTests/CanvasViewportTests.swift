@@ -53,6 +53,8 @@ final class CanvasViewportTests: XCTestCase {
         XCTAssertEqual(v.zoomed(by: 0, at: .zero), v)
         XCTAssertEqual(v.zoomed(by: -1, at: .zero), v)
         XCTAssertEqual(v.panned(byScreenDeltaX: .nan, deltaY: 1), v)
+        XCTAssertEqual(v.zoomed(by: 1.5, at: CGPoint(x: CGFloat.nan, y: 0)), v)
+        XCTAssertEqual(v.zoomed(by: 1.5, at: CGPoint(x: 0, y: CGFloat.infinity)), v)
         let bad = CanvasViewport(offsetX: .infinity, offsetY: .nan, zoom: .nan)
         XCTAssertEqual(bad, CanvasViewport())
     }
