@@ -102,6 +102,7 @@
 		FAB36582ADC726E44F5B082D /* CropSelectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A099E467B25AEDA53B172D72 /* CropSelectionController.swift */; };
 		FC56250649F3AE264A205171 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0743AB9BC15CA0A06C9025D /* SettingsStore.swift */; };
 		FF6EE4551C4469C7BEB7D2D1 /* ScreenCapturePermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B1BB87ECDD26D07A4E36D69 /* ScreenCapturePermissions.swift */; };
+		EBE4DB344402549022406FF4 /* PDFViewRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A6297F07BC63F17D4501E1 /* PDFViewRegistry.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -155,6 +156,7 @@
 		9CD4E986F58743C7B8DBFA7E /* ClassCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassCanvasView.swift; sourceTree = "<group>"; };
 		0F8CCAFE51B04362B408BA32 /* PinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinView.swift; sourceTree = "<group>"; };
 		5C840DA4E8C24ABF8A89775A /* FilePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewView.swift; sourceTree = "<group>"; };
+		91A6297F07BC63F17D4501E1 /* PDFViewRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFViewRegistry.swift; sourceTree = "<group>"; };
 		FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassInfoEditorSheet.swift; sourceTree = "<group>"; };
 		D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassEventCreatorSheet.swift; sourceTree = "<group>"; };
 		D23BA5A515EEC13D32FCBC41 /* ResizableSplit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResizableSplit.swift; sourceTree = "<group>"; };
@@ -268,6 +270,7 @@
 				9CD4E986F58743C7B8DBFA7E /* ClassCanvasView.swift */,
 				0F8CCAFE51B04362B408BA32 /* PinView.swift */,
 				5C840DA4E8C24ABF8A89775A /* FilePreviewView.swift */,
+				91A6297F07BC63F17D4501E1 /* PDFViewRegistry.swift */,
 				FA2B8C3E91D047A6B5C82F10 /* ClassInfoEditorSheet.swift */,
 			D7D4B27BF1D49C9B6198AE6D /* ClassEventCreatorSheet.swift */,
 				D23BA5A515EEC13D32FCBC41 /* ResizableSplit.swift */,
@@ -644,6 +647,7 @@
 				CB7D4A6E2F830B95E1A47C83 /* ClassInfoEditorSheet.swift in Sources */,
 				755613F89B6BAF1A3FB83F09 /* ClassEventCreatorSheet.swift in Sources */,
 				0A0298CC91A91380EAE98C23 /* ResizableSplit.swift in Sources */,
+				EBE4DB344402549022406FF4 /* PDFViewRegistry.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

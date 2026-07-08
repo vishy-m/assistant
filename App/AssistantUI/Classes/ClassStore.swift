@@ -20,6 +20,8 @@ final class ClassStore: ObservableObject {
     @Published var tabs: CanvasTabs = CanvasTabs()
     /// The board's pan/zoom viewport for the viewed class (persisted per course).
     @Published var viewport = CanvasViewport()
+    /// Live PDF previews on the board, for canvas-level scroll forwarding.
+    let pdfViews = PDFViewRegistry()
 
     private var currentCourseId: String?
     /// Resolves on-disk file URLs for previews. nil only if Application Support is unreachable.

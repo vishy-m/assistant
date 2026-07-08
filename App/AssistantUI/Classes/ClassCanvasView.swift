@@ -24,6 +24,7 @@ struct ClassCanvasView: View {
                     fileName: store.filesById[pin.fileId]?.name ?? "File",
                     fileURL: store.fileURL(for: pin),
                     contentType: store.filesById[pin.fileId]?.contentType ?? "public.data",
+                    pdfRegistry: store.pdfViews,
                     onCommit: { store.updatePin($0) },
                     onBringToFront: { store.bringPinToFront(id: pin.id) },
                     onRemove: { store.deletePin(id: pin.id) },

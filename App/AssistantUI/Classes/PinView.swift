@@ -9,6 +9,7 @@ struct PinView: View {
     let fileName: String
     let fileURL: URL?
     let contentType: String
+    let pdfRegistry: PDFViewRegistry?
     let onCommit: (ClassPinDTO) -> Void
     let onBringToFront: () -> Void
     let onRemove: () -> Void
@@ -25,7 +26,8 @@ struct PinView: View {
     var body: some View {
         VStack(spacing: 0) {
             titleBar
-            FilePreviewView(url: fileURL, contentType: contentType)
+            FilePreviewView(url: fileURL, contentType: contentType,
+                            pinId: pin.id, registry: pdfRegistry)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 // The preview is a static reference so the entire pin is one
                 // uniform drag surface — an interactive PDFView would swallow the
