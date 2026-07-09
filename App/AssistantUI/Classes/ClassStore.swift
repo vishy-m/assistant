@@ -30,6 +30,7 @@ final class ClassStore: ObservableObject {
     private var changeObserver: NSObjectProtocol?
     private var pinObserver: NSObjectProtocol?
     private var filesObserver: NSObjectProtocol?
+    private var terminateObserver: NSObjectProtocol?
 
     init() {
         // Re-pull this class's tasks whenever any task changes anywhere.
@@ -47,12 +48,19 @@ final class ClassStore: ObservableObject {
             forName: .assistantFilesDidChange, object: nil, queue: .main) { [weak self] note in
             _Concurrency.Task { @MainActor in self?.reloadFilesFromBroadcast(note) }
         }
+        // Persist the board viewport on quit — gesture-end saves can miss the
+        // final state (e.g. momentum still coasting when the app closes).
+        terminateObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.saveViewport() }
+        }
     }
 
     deinit {
         if let changeObserver { NotificationCenter.default.removeObserver(changeObserver) }
         if let pinObserver { NotificationCenter.default.removeObserver(pinObserver) }
         if let filesObserver { NotificationCenter.default.removeObserver(filesObserver) }
+        if let terminateObserver { NotificationCenter.default.removeObserver(terminateObserver) }
     }
 
     func refresh() {

@@ -82,7 +82,7 @@ final class CanvasEventCatcherView: NSView {
         if event.modifierFlags.contains(.command) {
             // ~100pt of scroll doubles/halves the zoom.
             onZoom?(pow(2, event.scrollingDeltaY / 100), point)
-            if event.phase == .ended { onGestureEnd?() }
+            if scrollGestureSettled(event) { onGestureEnd?() }
             return nil
         }
         if let pdf = pdfTarget?(point), let scroll = Self.firstScrollView(in: pdf) {
@@ -90,14 +90,23 @@ final class CanvasEventCatcherView: NSView {
             return nil
         }
         onPan?(event.scrollingDeltaX, event.scrollingDeltaY)
-        if event.phase == .ended || event.momentumPhase == .ended { onGestureEnd?() }
+        if scrollGestureSettled(event) { onGestureEnd?() }
         return nil
+    }
+
+    /// A scroll event that completes a gesture: trackpad phase ended/cancelled,
+    /// momentum tail ended/cancelled, or a phase-less legacy mouse-wheel notch
+    /// (each notch is a complete gesture of its own).
+    private func scrollGestureSettled(_ event: NSEvent) -> Bool {
+        if event.phase == .ended || event.phase == .cancelled { return true }
+        if event.momentumPhase == .ended || event.momentumPhase == .cancelled { return true }
+        return event.phase == [] && event.momentumPhase == []
     }
 
     private func handleMagnify(_ event: NSEvent) -> NSEvent? {
         guard let point = boardLocation(of: event) else { return event }
         onZoom?(1 + event.magnification, point)
-        if event.phase == .ended { onGestureEnd?() }
+        if event.phase == .ended || event.phase == .cancelled { onGestureEnd?() }
         return nil
     }
 
