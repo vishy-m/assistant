@@ -800,6 +800,35 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         catch { NSLog("[AssistantService] deleteClassPin error: \(error)"); reply(false) }
     }
 
+    func listClassAnnotations(courseId: String, reply: @escaping (Data) -> Void) {
+        do {
+            let dtos = try ClassAnnotationRepository(db: db).all(courseId: courseId).map {
+                ClassAnnotationDTO(id: $0.id, courseId: $0.courseId, kind: $0.kind,
+                                   x: $0.x, y: $0.y, width: $0.width, height: $0.height,
+                                   zOrder: $0.zOrder, payload: $0.payload)
+            }
+            reply(try JSONEncoder().encode(dtos))
+        } catch { NSLog("[AssistantService] listClassAnnotations error: \(error)"); reply(Data()) }
+    }
+
+    func upsertClassAnnotation(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard let dto = try? JSONDecoder().decode(ClassAnnotationDTO.self, from: data) else {
+            reply(false); return
+        }
+        do {
+            try ClassAnnotationRepository(db: db).upsert(ClassAnnotation(
+                id: dto.id, courseId: dto.courseId, kind: dto.kind, x: dto.x, y: dto.y,
+                width: dto.width, height: dto.height, zOrder: dto.zOrder,
+                payload: dto.payload))
+            reply(true)
+        } catch { NSLog("[AssistantService] upsertClassAnnotation error: \(error)"); reply(false) }
+    }
+
+    func deleteClassAnnotation(id: String, reply: @escaping (Bool) -> Void) {
+        do { try ClassAnnotationRepository(db: db).delete(id: id); reply(true) }
+        catch { NSLog("[AssistantService] deleteClassAnnotation error: \(error)"); reply(false) }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         let repo = CategoryRepository(db: db)

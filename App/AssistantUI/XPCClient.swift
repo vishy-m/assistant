@@ -588,6 +588,31 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
+    func listClassAnnotations(courseId: String, reply: @escaping ([ClassAnnotationDTO]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listClassAnnotations(courseId: courseId) { data in
+                let v = (try? JSONDecoder().decode([ClassAnnotationDTO].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(v) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
+    func upsertClassAnnotation(_ annotation: ClassAnnotationDTO, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(annotation)
+            let proxy = try makeProxy()
+            proxy.upsertClassAnnotation(data) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func deleteClassAnnotation(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.deleteClassAnnotation(id: id) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         do {
