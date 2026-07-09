@@ -50,7 +50,9 @@ struct PinView: View {
         // top) keep their own resize/rotate gestures.
         .contentShape(Rectangle())
         .gesture(moveGesture)
-        .overlay(alignment: .top) { rotateHandle }
+        // PDFs don't rotate: a tilted scroll surface reads badly, so the
+        // handle is hidden for them (existing stored rotations still render).
+        .overlay(alignment: .top) { if previewKind != .pdf { rotateHandle } }
         .overlay(alignment: .bottomTrailing) { resizeHandle }
         .rotationEffect(.radians(rotation))
         .position(x: pin.x + dragOffset.width, y: pin.y + dragOffset.height)
