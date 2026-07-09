@@ -1,0 +1,26 @@
+import Foundation
+import CoreGraphics
+
+/// Pure world-space geometry for routing canvas events to pins (e.g. "is the
+/// cursor over a PDF pin?"). Rotation-aware because pins can be rotated.
+public enum CanvasHitTesting {
+    /// Whether a world-space point falls inside a pin's (possibly rotated)
+    /// card. Works by rotating the point into the pin's local frame.
+    public static func point(_ p: CGPoint, inside pin: ClassPinDTO) -> Bool {
+        let dx = Double(p.x) - pin.x
+        let dy = Double(p.y) - pin.y
+        let cosR = cos(-pin.rotation)
+        let sinR = sin(-pin.rotation)
+        let localX = dx * cosR - dy * sinR
+        let localY = dx * sinR + dy * cosR
+        return abs(localX) <= pin.width / 2 && abs(localY) <= pin.height / 2
+    }
+
+    /// The frontmost pin under a world-space point that satisfies `matching`,
+    /// or nil. Frontmost = highest zOrder, same as the render stacking.
+    public static func topmostPin(at p: CGPoint, in pins: [ClassPinDTO],
+                                  matching: (ClassPinDTO) -> Bool) -> ClassPinDTO? {
+        pins.sorted { $0.zOrder > $1.zOrder }
+            .first { matching($0) && point(p, inside: $0) }
+    }
+}

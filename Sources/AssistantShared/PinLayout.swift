@@ -19,4 +19,16 @@ public enum PinLayout {
                     x: x, y: y, width: defaultWidth, height: defaultHeight,
                     rotation: 0, zOrder: zOrder)
     }
+
+    /// Center of the axis-aligned bounding box around all pins, or nil when
+    /// the board is empty. Rotation is ignored — close enough for the ⌘0
+    /// "reset view" centering target.
+    public static func boundingCenter(of pins: [ClassPinDTO]) -> (x: Double, y: Double)? {
+        guard !pins.isEmpty else { return nil }
+        let minX = pins.map { $0.x - $0.width / 2 }.min()!
+        let maxX = pins.map { $0.x + $0.width / 2 }.max()!
+        let minY = pins.map { $0.y - $0.height / 2 }.min()!
+        let maxY = pins.map { $0.y + $0.height / 2 }.max()!
+        return ((minX + maxX) / 2, (minY + maxY) / 2)
+    }
 }
