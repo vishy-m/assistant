@@ -51,6 +51,7 @@ struct ClassCanvasView: View {
             .clipped()
             .contentShape(Rectangle())
             .background(eventMonitor)
+            .background(resetShortcut(canvasSize: geo.size))
             .onDrop(of: [UTType.text.identifier], isTargeted: nil) { providers, location in
                 handleDrop(providers, at: store.viewport.screenToWorld(location))
             }
@@ -67,6 +68,17 @@ struct ClassCanvasView: View {
             }
         }
         return true
+    }
+
+    /// ⌘0 → reset to 100% zoom centered on the pins. A zero-size hidden
+    /// button is the lightest way to scope a keyboard shortcut to this view.
+    private func resetShortcut(canvasSize: CGSize) -> some View {
+        Button("") { store.resetViewport(canvasSize: canvasSize) }
+            .keyboardShortcut("0", modifiers: .command)
+            .buttonStyle(.plain)
+            .frame(width: 0, height: 0)
+            .opacity(0)
+            .accessibilityHidden(true)
     }
 
     /// AppKit gesture layer: pan/zoom the viewport, forward scrolls over PDF
