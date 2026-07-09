@@ -38,6 +38,9 @@ final class CanvasEventCatcherView: NSView {
     var onGestureEnd: (() -> Void)?
 
     private var monitors: [Any] = []
+    /// True while a middle-mouse pan is latched: the pointer is locked
+    /// (frozen + hidden) and every drag delta pans, ignoring board bounds.
+    private var isMiddlePanning = false
 
     /// Flipped so converted event locations use a top-left origin, matching
     /// SwiftUI's coordinate space (and CanvasViewport's math).
@@ -57,16 +60,24 @@ final class CanvasEventCatcherView: NSView {
             [weak self] event in self?.handleMagnify(event) ?? event
         } as Any)
         monitors.append(NSEvent.addLocalMonitorForEvents(
-            matching: [.otherMouseDragged, .otherMouseUp]) {
+            matching: [.otherMouseDown, .otherMouseDragged, .otherMouseUp]) {
             [weak self] event in self?.handleMiddleMouse(event) ?? event
         } as Any)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appResignedActive),
+            name: NSApplication.didResignActiveNotification, object: nil)
     }
 
     deinit { removeMonitors() }
 
+    @objc private func appResignedActive() { endMiddlePan() }
+
     private func removeMonitors() {
         monitors.forEach { NSEvent.removeMonitor($0) }
         monitors = []
+        NotificationCenter.default.removeObserver(
+            self, name: NSApplication.didResignActiveNotification, object: nil)
+        endMiddlePan()
     }
 
     /// The event's location in this view's flipped coordinates, or nil when
@@ -111,13 +122,44 @@ final class CanvasEventCatcherView: NSView {
     }
 
     private func handleMiddleMouse(_ event: NSEvent) -> NSEvent? {
-        guard event.buttonNumber == 2, boardLocation(of: event) != nil else { return event }
-        if event.type == .otherMouseDragged {
+        guard event.buttonNumber == 2 else { return event }
+        switch event.type {
+        case .otherMouseDown:
+            // Latch only if the press starts on the board; after that,
+            // bounds no longer matter — the pointer is locked anyway.
+            guard boardLocation(of: event) != nil else { return event }
+            beginMiddlePan()
+            return nil
+        case .otherMouseDragged:
+            guard isMiddlePanning else { return event }
             onPan?(event.deltaX, event.deltaY)
             return nil
+        case .otherMouseUp:
+            guard isMiddlePanning else { return event }
+            endMiddlePan()
+            onGestureEnd?()
+            return nil
+        default:
+            return event
         }
-        onGestureEnd?() // otherMouseUp: gesture settled — persist.
-        return nil
+    }
+
+    /// Pointer lock for the duration of the drag: the cursor freezes and
+    /// hides while raw deltas keep flowing, so the pan can't fall off the
+    /// board edge. hide/unhide and associate/disassociate are balanced by
+    /// the isMiddlePanning guard.
+    private func beginMiddlePan() {
+        guard !isMiddlePanning else { return }
+        isMiddlePanning = true
+        NSCursor.hide()
+        _ = CGAssociateMouseAndMouseCursorPosition(0)
+    }
+
+    private func endMiddlePan() {
+        guard isMiddlePanning else { return }
+        isMiddlePanning = false
+        _ = CGAssociateMouseAndMouseCursorPosition(1)
+        NSCursor.unhide()
     }
 
     /// PDFView scrolls via an internal NSScrollView; find it so forwarded

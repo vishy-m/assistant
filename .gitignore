@@ -24,3 +24,5 @@ Package.resolved
 /docs/
 /taste-skill/
 /superpowers/
+# Superpowers session scratch (briefs, ledgers, review packages)
+.superpowers/
