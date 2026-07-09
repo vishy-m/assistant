@@ -13,6 +13,8 @@ struct ClassCanvasView: View {
         GeometryReader { geo in
             ZStack {
                 Color.primary.opacity(0.02)
+                    .contentShape(Rectangle())
+                    .onTapGesture { store.focusedPinId = nil }
 
                 if store.pins.isEmpty {
                     Text("Drag files from the left to pin previews here")
@@ -32,8 +34,10 @@ struct ClassCanvasView: View {
                             fileURL: store.fileURL(for: pin),
                             contentType: store.filesById[pin.fileId]?.contentType ?? "public.data",
                             pdfRegistry: store.pdfViews,
+                            isFocused: store.focusedPinId == pin.id,
                             onCommit: { store.updatePin($0) },
                             onBringToFront: { store.bringPinToFront(id: pin.id) },
+                            onFocus: { store.focusedPinId = pin.id },
                             onRemove: { store.deletePin(id: pin.id) },
                             onOpenExternally: {
                                 if let url = store.fileURL(for: pin) { NSWorkspace.shared.open(url) }
@@ -92,9 +96,13 @@ struct ClassCanvasView: View {
                 store.viewport = store.viewport.zoomed(by: factor, at: anchor)
             },
             pdfTarget: { screenPoint in
+                // Only a clicked-to-focus PDF pin captures scroll; otherwise
+                // the board pans. Click empty canvas to release focus.
+                guard let focusedId = store.focusedPinId else { return nil }
                 let world = store.viewport.screenToWorld(screenPoint)
                 let hit = CanvasHitTesting.topmostPin(at: world, in: store.pins) { pin in
-                    guard let file = store.filesById[pin.fileId] else { return false }
+                    guard pin.id == focusedId,
+                          let file = store.filesById[pin.fileId] else { return false }
                     return FilePreviewKind.from(contentType: file.contentType) == .pdf
                 }
                 guard let hit else { return nil }

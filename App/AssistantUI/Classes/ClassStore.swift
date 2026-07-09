@@ -22,6 +22,10 @@ final class ClassStore: ObservableObject {
     @Published var viewport = CanvasViewport()
     /// Live PDF previews on the board, for canvas-level scroll forwarding.
     let pdfViews = PDFViewRegistry()
+    /// The pin the user last clicked, if any. A focused PDF pin captures
+    /// two-finger scroll for reading; everything else pans the board.
+    /// Session-only — never persisted.
+    @Published var focusedPinId: String?
 
     private var currentCourseId: String?
     /// Resolves on-disk file URLs for previews. nil only if Application Support is unreachable.
@@ -76,6 +80,7 @@ final class ClassStore: ObservableObject {
         currentCourseId = courseId
         restoreTabs(courseId: courseId)
         restoreViewport(courseId: courseId)
+        focusedPinId = nil
         detail = nil
         XPCClient.shared.getClassDetail(courseId: courseId) { [weak self] detail in
             self?.detail = detail

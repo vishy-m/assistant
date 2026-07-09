@@ -10,8 +10,10 @@ struct PinView: View {
     let fileURL: URL?
     let contentType: String
     let pdfRegistry: PDFViewRegistry?
+    let isFocused: Bool
     let onCommit: (ClassPinDTO) -> Void
     let onBringToFront: () -> Void
+    let onFocus: () -> Void
     let onRemove: () -> Void
     let onOpenExternally: () -> Void
     let onOpenInTab: () -> Void
@@ -23,6 +25,9 @@ struct PinView: View {
     private var size: CGSize { liveSize ?? CGSize(width: pin.width, height: pin.height) }
     private var rotation: Double { liveRotation ?? pin.rotation }
     private var previewKind: FilePreviewKind { FilePreviewKind.from(contentType: contentType) }
+    /// Focus is only meaningful on PDF pins (it captures scroll for reading),
+    /// so only they show the ring.
+    private var showsFocusRing: Bool { isFocused && previewKind == .pdf }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,7 +42,9 @@ struct PinView: View {
         .frame(width: size.width, height: size.height)
         .background(Color(nsColor: .windowBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black.opacity(0.18)))
+        .overlay(RoundedRectangle(cornerRadius: 8)
+            .stroke(showsFocusRing ? Color.accentColor : Color.black.opacity(0.18),
+                    lineWidth: showsFocusRing ? 2 : 1))
         .shadow(radius: 4, y: 2)
         // Drag anywhere on the card to move it; the handles (overlays, drawn on
         // top) keep their own resize/rotate gestures.
@@ -47,7 +54,7 @@ struct PinView: View {
         .overlay(alignment: .bottomTrailing) { resizeHandle }
         .rotationEffect(.radians(rotation))
         .position(x: pin.x + dragOffset.width, y: pin.y + dragOffset.height)
-        .onTapGesture { onBringToFront() }
+        .onTapGesture { onBringToFront(); onFocus() }
         .contextMenu {
             Button("Open in Tab") { onOpenInTab() }
             Button("Open Externally") { onOpenExternally() }
