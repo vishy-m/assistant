@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import PDFKit
 import UniformTypeIdentifiers
 import AssistantShared
 
@@ -49,6 +50,7 @@ struct ClassCanvasView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             .contentShape(Rectangle())
+            .background(eventMonitor)
             .onDrop(of: [UTType.text.identifier], isTargeted: nil) { providers, location in
                 handleDrop(providers, at: store.viewport.screenToWorld(location))
             }
@@ -65,5 +67,28 @@ struct ClassCanvasView: View {
             }
         }
         return true
+    }
+
+    /// AppKit gesture layer: pan/zoom the viewport, forward scrolls over PDF
+    /// pins into their PDFView, persist on gesture end.
+    private var eventMonitor: some View {
+        CanvasEventMonitorView(
+            onPan: { dx, dy in
+                store.viewport = store.viewport.panned(byScreenDeltaX: dx, deltaY: dy)
+            },
+            onZoom: { factor, anchor in
+                store.viewport = store.viewport.zoomed(by: factor, at: anchor)
+            },
+            pdfTarget: { screenPoint in
+                let world = store.viewport.screenToWorld(screenPoint)
+                let hit = CanvasHitTesting.topmostPin(at: world, in: store.pins) { pin in
+                    guard let file = store.filesById[pin.fileId] else { return false }
+                    return FilePreviewKind.from(contentType: file.contentType) == .pdf
+                }
+                guard let hit else { return nil }
+                return store.pdfViews.view(forPin: hit.id)
+            },
+            onGestureEnd: { store.saveViewport() }
+        )
     }
 }
