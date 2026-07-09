@@ -85,6 +85,10 @@ struct PinView: View {
         } else {
             FilePreviewView(url: fileURL, contentType: contentType,
                             pinId: pin.id, registry: pdfRegistry)
+                // Rebuild when the URL resolves: on app relaunch pins render
+                // before the class's file list arrives, and FilePreviewView
+                // can't swap engines (label -> PDFView) in updateNSView.
+                .id(fileURL)
         }
     }
 
