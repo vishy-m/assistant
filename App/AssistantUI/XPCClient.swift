@@ -17,6 +17,11 @@ extension Notification.Name {
     /// window never reloads — and risks a mid-drag flicker — from its own edits.
     static let assistantPinsDidChange = Notification.Name("assistantPinsDidChange")
 
+    /// Posted in-process after a successful class-annotation write. Same shape
+    /// as `.assistantPinsDidChange`: the originating `ClassStore` is the
+    /// `object` and the changed class's id rides in `userInfo["courseId"]`.
+    static let assistantAnnotationsDidChange = Notification.Name("assistantAnnotationsDidChange")
+
     /// Posted in-process after a successful class file/folder write (create,
     /// rename, move, delete, import). Same shape as `.assistantPinsDidChange`:
     /// the originating `ClassStore` is the `object` and the class id rides in
