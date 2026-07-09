@@ -22,17 +22,16 @@ struct PinView: View {
 
     private var size: CGSize { liveSize ?? CGSize(width: pin.width, height: pin.height) }
     private var rotation: Double { liveRotation ?? pin.rotation }
+    private var previewKind: FilePreviewKind { FilePreviewKind.from(contentType: contentType) }
 
     var body: some View {
         VStack(spacing: 0) {
             titleBar
-            FilePreviewView(url: fileURL, contentType: contentType,
-                            pinId: pin.id, registry: pdfRegistry)
+            pinPreview
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                // The preview is a static reference so the entire pin is one
-                // uniform drag surface — an interactive PDFView would swallow the
-                // drag and you couldn't move the pin by grabbing the document.
-                // Use the right-click menu ("Open in Tab") to read/scroll it.
+                // The preview is click-transparent so the entire pin is one
+                // uniform drag surface. Click a PDF pin to focus it, then
+                // scroll to read; "Open in Tab" remains the full reader.
                 .allowsHitTesting(false)
         }
         .frame(width: size.width, height: size.height)
@@ -66,6 +65,18 @@ struct PinView: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    /// Images render as pure SwiftUI so they scale exactly with the pin chrome
+    /// under the canvas zoom transform — QLPreviewView (an opaque AppKit view)
+    /// lays out its content by its own rules and drifts under scaleEffect.
+    @ViewBuilder private var pinPreview: some View {
+        if previewKind == .image {
+            ImagePinPreview(url: fileURL)
+        } else {
+            FilePreviewView(url: fileURL, contentType: contentType,
+                            pinId: pin.id, registry: pdfRegistry)
+        }
     }
 
     // Drag the card to move. Canvas-space translation stays correct under rotation.
@@ -124,5 +135,39 @@ struct PinView: View {
                         liveRotation = nil
                     }
             )
+    }
+}
+
+/// Pure-SwiftUI image preview for board pins. Loaded once per URL; missing
+/// bytes degrade to the same "File unavailable" label as FilePreviewView.
+struct ImagePinPreview: View {
+    let url: URL?
+
+    @State private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                Text("File unavailable")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .onAppear(perform: load)
+        .onChange(of: url) { _ in load() }
+    }
+
+    private func load() {
+        guard let url, let loaded = NSImage(contentsOf: url) else {
+            image = nil
+            return
+        }
+        image = loaded
     }
 }

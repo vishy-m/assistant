@@ -6,9 +6,10 @@ final class FilePreviewKindTests: XCTestCase {
         XCTAssertEqual(FilePreviewKind.from(contentType: "com.adobe.pdf"), .pdf)
     }
 
-    func testImageUTIMapsToQuickLook() {
-        XCTAssertEqual(FilePreviewKind.from(contentType: "public.png"), .quickLook)
-        XCTAssertEqual(FilePreviewKind.from(contentType: "public.jpeg"), .quickLook)
+    func testImageUTIMapsToImage() {
+        XCTAssertEqual(FilePreviewKind.from(contentType: "public.png"), .image)
+        XCTAssertEqual(FilePreviewKind.from(contentType: "public.jpeg"), .image)
+        XCTAssertEqual(FilePreviewKind.from(contentType: "public.heic"), .image)
     }
 
     func testUnknownOrEmptyMapsToQuickLook() {

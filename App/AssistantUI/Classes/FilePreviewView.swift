@@ -37,7 +37,7 @@ struct FilePreviewView: NSViewRepresentable {
                 context.coordinator.pinId = pinId
             }
             return view
-        case .quickLook:
+        case .quickLook, .image:
             guard let preview = QLPreviewView(frame: .zero, style: .normal) else {
                 return Self.unavailableView()
             }
