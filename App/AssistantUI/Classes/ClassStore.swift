@@ -20,6 +20,8 @@ final class ClassStore: ObservableObject {
     @Published var annotations: [ClassAnnotationDTO] = []
     /// Unified board undo/redo (annotations + pins). Session-only, per class.
     @Published var boardHistory = BoardHistory()
+    /// Board tool/session state (survives tab switches; reset on class switch).
+    let board = BoardEditor()
     /// Open file tabs + active tab for this class's canvas (persisted per course).
     @Published var tabs: CanvasTabs = CanvasTabs()
     /// The board's pan/zoom viewport for the viewed class (persisted per course).
@@ -100,6 +102,7 @@ final class ClassStore: ObservableObject {
         loadFiles(courseId: courseId)
         loadPins(courseId: courseId)
         boardHistory = BoardHistory()
+        board.reset()
         loadAnnotations(courseId: courseId)
     }
 
