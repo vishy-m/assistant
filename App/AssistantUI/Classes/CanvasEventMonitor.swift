@@ -70,7 +70,13 @@ final class CanvasEventCatcherView: NSView {
 
     deinit { removeMonitors() }
 
-    @objc private func appResignedActive() { endMiddlePan() }
+    /// App switch mid-pan: restore the pointer AND persist the viewport —
+    /// the interrupted drag never gets its otherMouseUp save.
+    @objc private func appResignedActive() {
+        guard isMiddlePanning else { return }
+        endMiddlePan()
+        onGestureEnd?()
+    }
 
     private func removeMonitors() {
         monitors.forEach { NSEvent.removeMonitor($0) }
