@@ -12,7 +12,7 @@ struct ClassCanvasView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Color.primary.opacity(0.02)
+                BoardGridLayer(viewport: store.viewport)
                     .contentShape(Rectangle())
                     .onTapGesture { store.focusedPinId = nil }
 
@@ -56,6 +56,7 @@ struct ClassCanvasView: View {
             .contentShape(Rectangle())
             .background(eventMonitor)
             .background(resetShortcut(canvasSize: geo.size))
+            .overlay(alignment: .bottomTrailing) { BoardZoomPill(store: store, canvasSize: geo.size) }
             .onDrop(of: [UTType.text.identifier], isTargeted: nil) { providers, location in
                 handleDrop(providers, at: store.viewport.screenToWorld(location))
             }
