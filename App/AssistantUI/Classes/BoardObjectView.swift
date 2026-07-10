@@ -28,7 +28,11 @@ struct BoardObjectView: View {
             .contentShape(Rectangle())
             .gesture(moveGesture)
             .onTapGesture(count: 2) { beginEditing() }
-            .onTapGesture { editor.selectedAnnotationId = dto.id }
+            .onTapGesture {
+                editor.selectedAnnotationId = dto.id
+                // Tapping one object ends any other object's edit session.
+                if editor.editingAnnotationId != dto.id { editor.editingAnnotationId = nil }
+            }
             .contextMenu {
                 Button("Edit Text") { beginEditing() }
                 Button("Remove", role: .destructive) { store.deleteAnnotation(id: dto.id) }
@@ -68,6 +72,12 @@ struct BoardObjectView: View {
                 .background(Color.clear)
                 .focused($textFocused)
                 .onAppear { draft = text; textFocused = true }
+                .onChange(of: textFocused) { _ in
+                    // Focus steal (clicking a pin, another window, any other
+                    // text field) ends editing; onChange(of: isEditing) then
+                    // commits or self-deletes via endEditing().
+                    if !textFocused && isEditing { editor.editingAnnotationId = nil }
+                }
         } else {
             Text(text)
                 .font(font)
