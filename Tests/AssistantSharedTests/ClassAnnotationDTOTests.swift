@@ -11,7 +11,7 @@ final class ClassAnnotationDTOTests: XCTestCase {
     func testAllPayloadKindsRoundTrip() {
         let stroke = StrokePayload(points: [[0, 0], [10, 5.5]], color: "#1D1D1F", lineWidth: 4)
         let shape = ShapePayload(shape: .arrow, strokeColor: "#E5484D",
-                                 fillColor: nil, lineWidth: 2, flipped: true)
+                                 fillColor: nil, lineWidth: 2, flipped: true, reversed: true)
         let sticky = StickyPayload(text: "hi", color: "yellow")
         let text = TextPayload(text: "note", fontSize: 20, color: "#2E90FA")
 
@@ -51,6 +51,13 @@ final class ClassAnnotationDTOTests: XCTestCase {
         let repayloaded = d.withPayload("{\"a\":1}")
         XCTAssertEqual(repayloaded.payload, "{\"a\":1}")
         XCTAssertEqual(repayloaded.id, d.id)
+    }
+
+    func testShapePayloadMissingReversedDecodesFalse() throws {
+        let legacy = "{\"shape\":\"arrow\",\"strokeColor\":\"#E5484D\",\"lineWidth\":2,\"flipped\":false}"
+        let decoded = try JSONDecoder().decode(ShapePayload.self, from: Data(legacy.utf8))
+        XCTAssertFalse(decoded.reversed)
+        XCTAssertNil(decoded.fillColor)
     }
 
     func testDTOJSONRoundTrip() throws {

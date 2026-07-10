@@ -53,17 +53,36 @@ public struct StrokePayload: Codable, Equatable {
 }
 
 /// Shape in the DTO's box. Line/arrow run corner-to-corner: leading-top →
-/// trailing-bottom, or the other diagonal when `flipped`.
+/// trailing-bottom, or the other diagonal when `flipped`. For arrows,
+/// `reversed` puts the head at endpoint `a` instead of `b` (the head always
+/// tracks the drag end; box+flipped alone can't encode direction).
 public struct ShapePayload: Codable, Equatable {
     public var shape: AnnotationShape
     public var strokeColor: String
     public var fillColor: String?
     public var lineWidth: Double
     public var flipped: Bool
+    public var reversed: Bool
+
     public init(shape: AnnotationShape, strokeColor: String, fillColor: String?,
-                lineWidth: Double, flipped: Bool) {
+                lineWidth: Double, flipped: Bool, reversed: Bool = false) {
         self.shape = shape; self.strokeColor = strokeColor
-        self.fillColor = fillColor; self.lineWidth = lineWidth; self.flipped = flipped
+        self.fillColor = fillColor; self.lineWidth = lineWidth
+        self.flipped = flipped; self.reversed = reversed
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case shape, strokeColor, fillColor, lineWidth, flipped, reversed
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        shape = try c.decode(AnnotationShape.self, forKey: .shape)
+        strokeColor = try c.decode(String.self, forKey: .strokeColor)
+        fillColor = try c.decodeIfPresent(String.self, forKey: .fillColor)
+        lineWidth = try c.decode(Double.self, forKey: .lineWidth)
+        flipped = try c.decode(Bool.self, forKey: .flipped)
+        reversed = try c.decodeIfPresent(Bool.self, forKey: .reversed) ?? false
     }
 }
 

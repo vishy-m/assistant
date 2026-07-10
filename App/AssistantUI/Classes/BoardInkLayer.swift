@@ -58,7 +58,9 @@ struct BoardInkLayer: View {
                 p.move(to: a); p.addLine(to: b)
                 context.stroke(p, with: .color(stroke), style: style)
                 if sh.shape == .arrow {
-                    context.fill(arrowhead(from: a, to: b,
+                    let head = sh.reversed ? a : b
+                    let tail = sh.reversed ? b : a
+                    context.fill(arrowhead(from: tail, to: head,
                                            size: max(8, sh.lineWidth * 3) * viewport.zoom),
                                  with: .color(stroke))
                 }
@@ -81,10 +83,14 @@ struct BoardInkLayer: View {
             let box = CGRect(x: min(start.x, current.x), y: min(start.y, current.y),
                              width: abs(start.x - current.x), height: abs(start.y - current.y))
             let flipped = (current.x - start.x) * (current.y - start.y) < 0
+            let ends = AnnotationGeometry.lineEndpoints(in: box, flipped: flipped)
+            let reversed = hypot(current.x - ends.a.x, current.y - ends.a.y)
+                < hypot(current.x - ends.b.x, current.y - ends.b.y)
             let payload = ShapePayload(shape: editor.shapeKind,
                                        strokeColor: editor.shapeStrokeColor,
                                        fillColor: editor.shapeFilled ? editor.shapeStrokeColor : nil,
-                                       lineWidth: editor.penWidth, flipped: flipped)
+                                       lineWidth: editor.penWidth, flipped: flipped,
+                                       reversed: reversed)
             let ghost = ClassAnnotationDTO(id: "live", courseId: "live",
                                            kind: AnnotationKind.shape.rawValue,
                                            x: box.midX, y: box.midY,
