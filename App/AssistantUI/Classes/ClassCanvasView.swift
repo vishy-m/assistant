@@ -16,7 +16,9 @@ struct ClassCanvasView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { store.focusedPinId = nil }
 
-                if store.pins.isEmpty {
+                BoardInkLayer(store: store, editor: store.board)
+
+                if store.pins.isEmpty && store.annotations.isEmpty {
                     Text("Drag files from the left to pin previews here")
                         .font(.callout)
                         .foregroundStyle(.tertiary)

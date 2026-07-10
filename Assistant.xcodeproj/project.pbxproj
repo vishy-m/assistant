@@ -17,6 +17,7 @@
 		1087B0F0E5D60F69A1AA79AA /* WeekCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE2AAC2FA51E4098A517992A /* WeekCalendarView.swift */; };
 		17354DE20B692163AEDE0C8C /* EventTypeManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E4FDA0F2F132A25A87F8021 /* EventTypeManagerView.swift */; };
 		17F669152BB9F02A7090A066 /* ClassInfoEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D4D90689C3CA99AF6293D1 /* ClassInfoEditorSheet.swift */; };
+		19CA4272E9A495972E0162F7 /* BoardInkLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969A66882DE3B5B695A78543 /* BoardInkLayer.swift */; };
 		1BCC901B0C3E37889DDEDA97 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A29849DB92F0579660D1DB6 /* DashboardView.swift */; };
 		1EF860EF383CFD16B464CF24 /* DashboardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD1893116C1DFF0CB17FA696 /* DashboardStore.swift */; };
 		1FF1A253519DF3B946256D7F /* ShortcutNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44CCB152BA77F50F4965E0DE /* ShortcutNames.swift */; };
@@ -170,6 +171,7 @@
 		8A2BE9C75974D0D8CF27DD32 /* BoardStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardStyle.swift; sourceTree = "<group>"; };
 		8CBBE200414898B5CCFA0249 /* GradeTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradeTheme.swift; sourceTree = "<group>"; };
 		910155C008C24017BC20A032 /* AssistantUI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AssistantUI.entitlements; sourceTree = "<group>"; };
+		969A66882DE3B5B695A78543 /* BoardInkLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardInkLayer.swift; sourceTree = "<group>"; };
 		986FB7189C07D44F3F3F07DC /* BriefingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingClient.swift; sourceTree = "<group>"; };
 		9EA9AA7B744DD71C3A1FC863 /* CategoryEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryEditorSheet.swift; sourceTree = "<group>"; };
 		A099E467B25AEDA53B172D72 /* CropSelectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropSelectionController.swift; sourceTree = "<group>"; };
@@ -398,6 +400,7 @@
 			children = (
 				4ED8DB457D352CA77EC0A96C /* BoardEditor.swift */,
 				432515D178E3A336650B88AA /* BoardGridLayer.swift */,
+				969A66882DE3B5B695A78543 /* BoardInkLayer.swift */,
 				8A2BE9C75974D0D8CF27DD32 /* BoardStyle.swift */,
 				8230EE5CDA62FB40802E6DF0 /* BoardZoomPill.swift */,
 				30F4A7834821C087CE9CC823 /* CanvasEventMonitor.swift */,
@@ -588,6 +591,7 @@
 				51DD4FEFA8476535486F8A91 /* AssistantUIApp.swift in Sources */,
 				0CFC83EE4A2E4C660250F322 /* BoardEditor.swift in Sources */,
 				D2FEEB097D58095D659DADF4 /* BoardGridLayer.swift in Sources */,
+				19CA4272E9A495972E0162F7 /* BoardInkLayer.swift in Sources */,
 				FC18FEE71FF4B5A94FA809CC /* BoardStyle.swift in Sources */,
 				4E4603106AB21C703A58D40F /* BoardZoomPill.swift in Sources */,
 				708417B65D3A5B710DB9A8FB /* BreakdownPanel.swift in Sources */,
