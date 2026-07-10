@@ -67,7 +67,10 @@ struct ClassCanvasView: View {
                             onCommit: { store.updatePin($0) },
                             onBringToFront: { store.bringPinToFront(id: pin.id) },
                             onFocus: { store.focusedPinId = pin.id },
-                            onRemove: { store.deletePin(id: pin.id) },
+                            onRemove: {
+                                store.board.selectedPinIds.remove(pin.id)
+                                store.deletePin(id: pin.id)
+                            },
                             onOpenExternally: {
                                 if let url = store.fileURL(for: pin) { NSWorkspace.shared.open(url) }
                             },
@@ -104,6 +107,7 @@ struct ClassCanvasView: View {
                 } else if store.board.hasSelection {
                     store.board.selectedAnnotationIds = []
                     store.board.selectedPinIds = []
+                    store.board.selectionDrag = nil
                 } else {
                     store.board.tool = .select
                 }
@@ -299,6 +303,7 @@ struct ClassCanvasView: View {
         store.board.selectedPinIds = Set(
             store.pins.filter { CanvasHitTesting.boundingBox(of: $0).intersects(rect) }.map(\.id))
         store.board.editingAnnotationId = nil
+        if store.board.selectedPinIds.isEmpty { store.focusedPinId = nil }
     }
 
     private func moveInkAnnotation(id: String, dx: Double, dy: Double) {

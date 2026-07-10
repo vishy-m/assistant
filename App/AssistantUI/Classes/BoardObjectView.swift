@@ -146,17 +146,24 @@ struct BoardObjectView: View {
             }
             .onEnded { value in
                 guard !isEditing else { return }
-                if isSelected && editor.selectionCount > 1, editor.selectionDrag != nil {
-                    editor.selectionDrag = nil
+                // Cleanup is unconditional: the selection can change mid-drag
+                // (Esc, external edits), and a dangling live offset would
+                // ghost-shift the next multi-selection.
+                let wasGroupDragging = editor.selectionDrag != nil
+                editor.selectionDrag = nil
+                if isSelected && editor.selectionCount > 1, wasGroupDragging {
                     store.moveSelection(annotationIds: editor.selectedAnnotationIds,
                                         pinIds: editor.selectedPinIds,
                                         dx: value.translation.width,
                                         dy: value.translation.height)
                     return
                 }
+                let didLocalDrag = dragOffset != .zero
                 dragOffset = .zero
-                store.updateAnnotation(dto.moved(x: dto.x + value.translation.width,
-                                                 y: dto.y + value.translation.height))
+                if didLocalDrag {
+                    store.updateAnnotation(dto.moved(x: dto.x + value.translation.width,
+                                                     y: dto.y + value.translation.height))
+                }
             }
     }
 
