@@ -12,6 +12,8 @@ struct CanvasEventMonitorView: NSViewRepresentable {
     let onZoom: (Double, CGPoint) -> Void
     let pdfTarget: (CGPoint) -> PDFView?
     let onGestureEnd: () -> Void
+    /// Returns true when the delete was consumed (something was deleted).
+    let onDelete: () -> Bool
 
     func makeNSView(context: Context) -> CanvasEventCatcherView {
         let view = CanvasEventCatcherView()
@@ -28,6 +30,7 @@ struct CanvasEventMonitorView: NSViewRepresentable {
         view.onZoom = onZoom
         view.pdfTarget = pdfTarget
         view.onGestureEnd = onGestureEnd
+        view.onDelete = onDelete
     }
 }
 
@@ -36,6 +39,7 @@ final class CanvasEventCatcherView: NSView {
     var onZoom: ((Double, CGPoint) -> Void)?
     var pdfTarget: ((CGPoint) -> PDFView?)?
     var onGestureEnd: (() -> Void)?
+    var onDelete: (() -> Bool)?
 
     private var monitors: [Any] = []
     /// True while a middle-mouse pan is latched: the pointer is locked
@@ -62,6 +66,9 @@ final class CanvasEventCatcherView: NSView {
         monitors.append(NSEvent.addLocalMonitorForEvents(
             matching: [.otherMouseDown, .otherMouseDragged, .otherMouseUp]) {
             [weak self] event in self?.handleMiddleMouse(event) ?? event
+        } as Any)
+        monitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
+            [weak self] event in self?.handleKeyDown(event) ?? event
         } as Any)
         NotificationCenter.default.addObserver(
             self, selector: #selector(appResignedActive),
@@ -148,6 +155,16 @@ final class CanvasEventCatcherView: NSView {
         default:
             return event
         }
+    }
+
+    /// Delete/forward-delete removes the board selection — but never steals
+    /// keystrokes from text editing (field editors are NSTextViews).
+    private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+        guard event.keyCode == 51 || event.keyCode == 117,
+              let window, event.window === window else { return event }
+        if window.firstResponder is NSTextView { return event }
+        if onDelete?() == true { return nil }
+        return event
     }
 
     /// Pointer lock for the duration of the drag: the cursor freezes and

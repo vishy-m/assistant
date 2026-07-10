@@ -79,12 +79,6 @@ struct ClassCanvasView: View {
             .onDrop(of: [UTType.text.identifier], isTargeted: nil) { providers, location in
                 handleDrop(providers, at: store.viewport.screenToWorld(location))
             }
-            .onDeleteCommand {
-                guard store.board.editingAnnotationId == nil,
-                      let id = store.board.selectedAnnotationId else { return }
-                store.board.selectedAnnotationId = nil
-                store.deleteAnnotation(id: id)
-            }
             .onExitCommand {
                 if store.board.editingAnnotationId != nil {
                     store.board.editingAnnotationId = nil
@@ -160,7 +154,22 @@ struct ClassCanvasView: View {
                 guard let hit else { return nil }
                 return store.pdfViews.view(forPin: hit.id)
             },
-            onGestureEnd: { store.saveViewport() }
+            onGestureEnd: { store.saveViewport() },
+            onDelete: {
+                guard store.board.tool == .select,
+                      store.board.editingAnnotationId == nil else { return false }
+                if let id = store.board.selectedAnnotationId {
+                    store.board.selectedAnnotationId = nil
+                    store.deleteAnnotation(id: id)
+                    return true
+                }
+                if let pinId = store.focusedPinId {
+                    store.focusedPinId = nil
+                    store.deletePin(id: pinId)
+                    return true
+                }
+                return false
+            }
         )
     }
 

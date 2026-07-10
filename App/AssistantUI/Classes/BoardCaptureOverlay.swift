@@ -27,7 +27,7 @@ struct BoardCaptureOverlay: View {
                 case .pen:
                     editor.liveStrokePoints.append([Double(world.x), Double(world.y)])
                 case .eraser:
-                    eraseStrokes(at: world)
+                    erase(at: world)
                 case .shape:
                     if editor.liveShapeStart == nil {
                         editor.liveShapeStart = store.viewport.screenToWorld(value.startLocation)
@@ -67,18 +67,24 @@ struct BoardCaptureOverlay: View {
 
     // MARK: eraser
 
-    private func eraseStrokes(at world: CGPoint) {
-        let victims = store.annotations.filter { dto in
-            guard dto.annotationKind == .stroke,
-                  let s = dto.decodedPayload(StrokePayload.self) else { return false }
-            guard dto.box.insetBy(dx: -BoardStyle.eraserWorldRadius,
-                                  dy: -BoardStyle.eraserWorldRadius).contains(world)
-            else { return false }
-            return AnnotationGeometry.circle(center: world,
-                                             radius: BoardStyle.eraserWorldRadius,
-                                             intersectsPolyline: s.points)
+    /// Eraser sweep: removes ANY annotation under the point (kind-aware
+    /// containment with the eraser radius as tolerance — strokes keep their
+    /// polyline-intersection precision) and any pin under it. Everything is
+    /// undoable through the unified history.
+    private func erase(at world: CGPoint) {
+        let victims = store.annotations.filter {
+            AnnotationGeometry.point(world, inside: $0,
+                                     tolerance: BoardStyle.eraserWorldRadius)
         }
-        for dto in victims { store.deleteAnnotation(id: dto.id) }
+        for dto in victims {
+            if editor.selectedAnnotationId == dto.id { editor.selectedAnnotationId = nil }
+            if editor.editingAnnotationId == dto.id { editor.editingAnnotationId = nil }
+            store.deleteAnnotation(id: dto.id)
+        }
+        for pin in store.pins where CanvasHitTesting.point(world, inside: pin) {
+            if store.focusedPinId == pin.id { store.focusedPinId = nil }
+            store.deletePin(id: pin.id)
+        }
     }
 
     // MARK: shape / sticky / text
