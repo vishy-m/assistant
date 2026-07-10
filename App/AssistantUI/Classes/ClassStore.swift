@@ -366,6 +366,51 @@ final class ClassStore: ObservableObject {
         }
     }
 
+    /// Move a whole marquee selection as ONE undoable unit. Snapshots are
+    /// taken first; writes then flow through the normal write-through paths
+    /// with history recording disabled (the batch op carries the history).
+    func moveSelection(annotationIds: Set<String>, pinIds: Set<String>,
+                       dx: Double, dy: Double) {
+        var ops: [BoardOp] = []
+        for dto in annotations where annotationIds.contains(dto.id) {
+            ops.append(.annotation(before: dto, after: movedAnnotation(dto, dx: dx, dy: dy)))
+        }
+        for pin in pins where pinIds.contains(pin.id) {
+            ops.append(.pin(before: pin, after: pin.moved(x: pin.x + dx, y: pin.y + dy)))
+        }
+        guard !ops.isEmpty else { return }
+        boardHistory.record(.batch(ops))
+        for op in ops { apply(op, undo: false) }
+    }
+
+    /// Delete a whole marquee selection as ONE undoable unit.
+    func deleteSelection(annotationIds: Set<String>, pinIds: Set<String>) {
+        var ops: [BoardOp] = []
+        for dto in annotations where annotationIds.contains(dto.id) {
+            ops.append(.annotation(before: dto, after: nil))
+        }
+        for pin in pins where pinIds.contains(pin.id) {
+            ops.append(.pin(before: pin, after: nil))
+        }
+        guard !ops.isEmpty else { return }
+        boardHistory.record(.batch(ops))
+        for op in ops { apply(op, undo: false) }
+    }
+
+    /// Translate an annotation, keeping stroke payload points in sync with
+    /// the box (the stroke box/points contract).
+    private func movedAnnotation(_ dto: ClassAnnotationDTO,
+                                 dx: Double, dy: Double) -> ClassAnnotationDTO {
+        var moved = dto.moved(x: dto.x + dx, y: dto.y + dy)
+        if dto.annotationKind == .stroke,
+           var payload = dto.decodedPayload(StrokePayload.self) {
+            payload.points = AnnotationGeometry.translate(points: payload.points,
+                                                          dx: dx, dy: dy)
+            moved = moved.withPayload(ClassAnnotationDTO.encodePayload(payload))
+        }
+        return moved
+    }
+
     private func broadcastAnnotationsChanged() {
         guard let courseId = currentCourseId else { return }
         NotificationCenter.default.post(name: .assistantAnnotationsDidChange, object: self,
@@ -412,6 +457,11 @@ final class ClassStore: ObservableObject {
                 upsertPinForHistory(target)
             } else if let victim = undo ? after : before {
                 deletePin(id: victim.id, recordHistory: false)
+            }
+        case .batch(let ops):
+            // One history unit: undo replays members in reverse.
+            for member in (undo ? Array(ops.reversed()) : ops) {
+                apply(member, undo: undo)
             }
         }
     }

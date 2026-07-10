@@ -23,4 +23,15 @@ public enum CanvasHitTesting {
         pins.sorted { $0.zOrder > $1.zOrder }
             .first { matching($0) && point(p, inside: $0) }
     }
+
+    /// Axis-aligned bounding box of a (possibly rotated) pin — the marquee
+    /// intersection test runs against this.
+    public static func boundingBox(of pin: ClassPinDTO) -> CGRect {
+        let halfW = pin.width / 2, halfH = pin.height / 2
+        let cosR = abs(cos(pin.rotation)), sinR = abs(sin(pin.rotation))
+        let extentX = halfW * cosR + halfH * sinR
+        let extentY = halfW * sinR + halfH * cosR
+        return CGRect(x: pin.x - extentX, y: pin.y - extentY,
+                      width: extentX * 2, height: extentY * 2)
+    }
 }

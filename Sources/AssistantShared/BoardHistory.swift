@@ -6,6 +6,9 @@ import Foundation
 public enum BoardOp: Equatable {
     case annotation(before: ClassAnnotationDTO?, after: ClassAnnotationDTO?)
     case pin(before: ClassPinDTO?, after: ClassPinDTO?)
+    /// Several mutations that undo/redo as ONE unit (marquee group move /
+    /// group delete). Undo applies members in reverse order.
+    case batch([BoardOp])
 }
 
 /// Session-scoped unified undo/redo for the class board. Pure value type;

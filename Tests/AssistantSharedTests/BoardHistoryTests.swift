@@ -67,4 +67,15 @@ final class BoardHistoryTests: XCTestCase {
         guard case let .pin(b, a)? = h.undo() else { return XCTFail("expected pin op") }
         XCTAssertEqual(b, before); XCTAssertEqual(a, after)
     }
+
+    func testBatchIsOneUndoUnit() {
+        var h = BoardHistory()
+        h.record(.batch([annOp(1), annOp(2), annOp(3)]))
+        XCTAssertTrue(h.canUndo)
+        guard case let .batch(ops)? = h.undo() else { return XCTFail("expected batch") }
+        XCTAssertEqual(ops, [annOp(1), annOp(2), annOp(3)])
+        XCTAssertFalse(h.canUndo)   // one unit, not three
+        XCTAssertTrue(h.canRedo)
+        XCTAssertEqual(h.redo(), .batch([annOp(1), annOp(2), annOp(3)]))
+    }
 }

@@ -64,4 +64,21 @@ final class CanvasHitTestingTests: XCTestCase {
         XCTAssertEqual(c?.y, 150)
         XCTAssertNil(PinLayout.boundingCenter(of: []))
     }
+
+    func testBoundingBoxOfPin() {
+        // Unrotated: the plain centered rect.
+        let flat = pin(x: 100, y: 100, w: 100, h: 60)
+        XCTAssertEqual(CanvasHitTesting.boundingBox(of: flat),
+                       CGRect(x: 50, y: 70, width: 100, height: 60))
+        // 90°: width/height swap.
+        let quarter = pin(x: 100, y: 100, w: 100, h: 60, rotation: .pi / 2)
+        let qBox = CanvasHitTesting.boundingBox(of: quarter)
+        XCTAssertEqual(qBox.width, 60, accuracy: 1e-9)
+        XCTAssertEqual(qBox.height, 100, accuracy: 1e-9)
+        XCTAssertEqual(qBox.midX, 100, accuracy: 1e-9)
+        // 45° square: diagonal-sized AABB.
+        let tilted = pin(x: 0, y: 0, w: 100, h: 100, rotation: .pi / 4)
+        XCTAssertEqual(CanvasHitTesting.boundingBox(of: tilted).width,
+                       100 * 2.0.squareRoot(), accuracy: 1e-9)
+    }
 }
