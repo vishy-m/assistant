@@ -8,6 +8,11 @@ import AssistantShared
 /// `file.id` as text) drop here to create an interactive pin at the drop point.
 struct ClassCanvasView: View {
     @ObservedObject var store: ClassStore
+    /// Observed separately: nested ObservableObjects don't forward changes
+    /// through ClassStore, and this body reads board.tool / selection to
+    /// mount the capture overlay and resize handle. Same instance as
+    /// store.board — the property exists purely for the subscription.
+    @ObservedObject var board: BoardEditor
     /// One hit test per select-gesture: set on the first onChanged event.
     @State private var inkGestureHitTested = false
 

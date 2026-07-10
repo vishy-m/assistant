@@ -17,7 +17,7 @@ struct ClassCanvasContainer: View {
                 FileDocumentView(store: store, fileId: fileId)
                     .id(fileId)
             } else {
-                ClassCanvasView(store: store)
+                ClassCanvasView(store: store, board: store.board)
             }
         }
     }
