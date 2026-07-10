@@ -14,7 +14,7 @@ struct ClassCanvasView: View {
             ZStack {
                 BoardGridLayer(viewport: store.viewport)
                     .contentShape(Rectangle())
-                    .onTapGesture { store.focusedPinId = nil }
+                    .gesture(inkSelectGesture)
 
                 BoardInkLayer(store: store, editor: store.board)
 
@@ -63,6 +63,8 @@ struct ClassCanvasView: View {
                 if store.board.tool != .select {
                     BoardCaptureOverlay(store: store, editor: store.board)
                 }
+
+                if store.board.tool == .select { selectedInkHandle }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
@@ -72,6 +74,21 @@ struct ClassCanvasView: View {
             .overlay(alignment: .bottomTrailing) { BoardZoomPill(store: store, canvasSize: geo.size) }
             .onDrop(of: [UTType.text.identifier], isTargeted: nil) { providers, location in
                 handleDrop(providers, at: store.viewport.screenToWorld(location))
+            }
+            .onDeleteCommand {
+                guard store.board.editingAnnotationId == nil,
+                      let id = store.board.selectedAnnotationId else { return }
+                store.board.selectedAnnotationId = nil
+                store.deleteAnnotation(id: id)
+            }
+            .onExitCommand {
+                if store.board.editingAnnotationId != nil {
+                    store.board.editingAnnotationId = nil
+                } else if store.board.selectedAnnotationId != nil {
+                    store.board.selectedAnnotationId = nil
+                } else {
+                    store.board.tool = .select
+                }
             }
         }
     }
@@ -124,5 +141,102 @@ struct ClassCanvasView: View {
             },
             onGestureEnd: { store.saveViewport() }
         )
+    }
+
+    /// Select-mode interactions for ink (strokes/shapes), which have no views
+    /// of their own: click selects, drag moves. Runs on the grid layer, which
+    /// is what clicks land on when they miss every pin/object view. Also
+    /// clears pin focus / annotation selection on empty-canvas clicks.
+    private var inkSelectGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard store.board.tool == .select else { return }
+                if store.board.inkDrag == nil {
+                    let world = store.viewport.screenToWorld(value.startLocation)
+                    guard let hit = AnnotationGeometry.topmostInk(
+                        at: world, in: store.annotations,
+                        tolerance: BoardStyle.hitTolerance / store.viewport.zoom)
+                    else { return }
+                    store.board.selectedAnnotationId = hit.id
+                    store.board.inkDrag = (id: hit.id, dx: 0, dy: 0)
+                }
+                if let drag = store.board.inkDrag {
+                    store.board.inkDrag = (id: drag.id,
+                                           dx: value.translation.width / store.viewport.zoom,
+                                           dy: value.translation.height / store.viewport.zoom)
+                }
+            }
+            .onEnded { value in
+                guard store.board.tool == .select else { return }
+                defer { store.board.inkDrag = nil }
+                let worldDx = value.translation.width / store.viewport.zoom
+                let worldDy = value.translation.height / store.viewport.zoom
+                if let drag = store.board.inkDrag, abs(worldDx) + abs(worldDy) > 1 {
+                    moveInkAnnotation(id: drag.id, dx: worldDx, dy: worldDy)
+                    return
+                }
+                // A click (no drag): select what's under it, or clear.
+                let world = store.viewport.screenToWorld(value.location)
+                if let hit = AnnotationGeometry.topmostInk(
+                    at: world, in: store.annotations,
+                    tolerance: BoardStyle.hitTolerance / store.viewport.zoom) {
+                    store.board.selectedAnnotationId = hit.id
+                } else {
+                    store.board.selectedAnnotationId = nil
+                    store.board.editingAnnotationId = nil
+                    store.focusedPinId = nil
+                }
+            }
+    }
+
+    private func moveInkAnnotation(id: String, dx: Double, dy: Double) {
+        guard let dto = store.annotations.first(where: { $0.id == id }) else { return }
+        if dto.annotationKind == .stroke,
+           var payload = dto.decodedPayload(StrokePayload.self) {
+            payload.points = AnnotationGeometry.translate(points: payload.points, dx: dx, dy: dy)
+            store.updateAnnotation(
+                dto.moved(x: dto.x + dx, y: dto.y + dy)
+                    .withPayload(ClassAnnotationDTO.encodePayload(payload)))
+        } else {
+            store.updateAnnotation(dto.moved(x: dto.x + dx, y: dto.y + dy))
+        }
+    }
+
+    /// Screen-space resize handle at the selected ink annotation's
+    /// bottom-trailing corner (ink lives in a Canvas, so the handle is the
+    /// one interactive view it gets).
+    @ViewBuilder private var selectedInkHandle: some View {
+        if let id = store.board.selectedAnnotationId,
+           let dto = store.annotations.first(where: { $0.id == id }),
+           dto.annotationKind == .stroke || dto.annotationKind == .shape,
+           store.board.inkDrag == nil {
+            let corner = store.viewport.worldToScreen(
+                CGPoint(x: dto.box.maxX, y: dto.box.maxY))
+            Circle()
+                .fill(Color.accentColor)
+                .frame(width: 12, height: 12)
+                .position(x: corner.x + 8, y: corner.y + 8)
+                .gesture(inkResizeGesture(dto: dto))
+        }
+    }
+
+    private func inkResizeGesture(dto: ClassAnnotationDTO) -> some Gesture {
+        DragGesture()
+            .onEnded { value in
+                let old = dto.box
+                let new = CGRect(x: old.minX, y: old.minY,
+                                 width: max(8, old.width + value.translation.width / store.viewport.zoom),
+                                 height: max(8, old.height + value.translation.height / store.viewport.zoom))
+                var updated = dto
+                    .moved(x: new.midX, y: new.midY)
+                    .resized(width: new.width, height: new.height)
+                if dto.annotationKind == .stroke,
+                   var payload = dto.decodedPayload(StrokePayload.self) {
+                    payload.points = AnnotationGeometry.scale(points: payload.points,
+                                                              from: old, to: new)
+                    updated = updated.withPayload(ClassAnnotationDTO.encodePayload(payload))
+                }
+                store.updateAnnotation(updated)
+            }
     }
 }
