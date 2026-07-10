@@ -73,7 +73,9 @@ struct ClassCanvasView: View {
             .contentShape(Rectangle())
             .background(eventMonitor)
             .background(resetShortcut(canvasSize: geo.size))
+            .background(undoShortcuts)
             .overlay(alignment: .bottomTrailing) { BoardZoomPill(store: store, canvasSize: geo.size) }
+            .overlay(alignment: .leading) { BoardToolbar(store: store, editor: store.board) }
             .onDrop(of: [UTType.text.identifier], isTargeted: nil) { providers, location in
                 handleDrop(providers, at: store.viewport.screenToWorld(location))
             }
@@ -116,6 +118,23 @@ struct ClassCanvasView: View {
             .frame(width: 0, height: 0)
             .opacity(0)
             .accessibilityHidden(true)
+    }
+
+    /// ⌘Z / ⇧⌘Z, board-scoped like ⌘0. Disabled while a text editor is
+    /// focused so typing undo stays with the text system.
+    private var undoShortcuts: some View {
+        Group {
+            Button("") { store.undoBoard() }
+                .keyboardShortcut("z", modifiers: .command)
+                .disabled(store.board.editingAnnotationId != nil)
+            Button("") { store.redoBoard() }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .disabled(store.board.editingAnnotationId != nil)
+        }
+        .buttonStyle(.plain)
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .accessibilityHidden(true)
     }
 
     /// AppKit gesture layer: pan/zoom the viewport, forward scrolls over PDF

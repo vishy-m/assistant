@@ -69,6 +69,7 @@
 		7B0CB4823D17497FF647C434 /* TaskDeadlineLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06852D43594CF63625C8AEEB /* TaskDeadlineLine.swift */; };
 		7EC2BF87581AB3743BAB8229 /* TaskProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = A415F2C91A70D0DA1E36DEA2 /* TaskProgressRing.swift */; };
 		80ACB3CB63F00D1F339E6AA2 /* AssistantShared in Frameworks */ = {isa = PBXBuildFile; productRef = B1799365C89809ECC8A77DA1 /* AssistantShared */; };
+		8126E25399D90C5524C4D01C /* BoardToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 695E96D38462CE186E1D8906 /* BoardToolbar.swift */; };
 		81295EB0F37C893E82AA169B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E70A6DF9577F3B33F959A92 /* AppDelegate.swift */; };
 		8275C55E0EFB78393FB205C9 /* TasksNotesPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72DD423EA0F9EFF2F520B170 /* TasksNotesPanel.swift */; };
 		869B3BBC94722BD6824A3BEE /* ClassWeekCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3CD2F6EF07A250DE8FC46AF /* ClassWeekCalendar.swift */; };
@@ -155,6 +156,7 @@
 		561A4FFD10488258A5F97454 /* AssistantUIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantUIApp.swift; sourceTree = "<group>"; };
 		5CDF07360C99263759321E8A /* GeneralTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralTab.swift; sourceTree = "<group>"; };
 		64E6B7407D431FCF167BC152 /* DaemonInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonInstaller.swift; sourceTree = "<group>"; };
+		695E96D38462CE186E1D8906 /* BoardToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardToolbar.swift; sourceTree = "<group>"; };
 		6A09AD6576917FD9715C4828 /* RateLimiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateLimiter.swift; sourceTree = "<group>"; };
 		6AD3102EB1B880D1AA8E48CC /* assistant-proj */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "assistant-proj"; path = .; sourceTree = SOURCE_ROOT; };
 		6B8C4CAEB2BF4FEC17055DDF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -408,6 +410,7 @@
 				969A66882DE3B5B695A78543 /* BoardInkLayer.swift */,
 				3F90C9826572BEC56BE599B6 /* BoardObjectView.swift */,
 				8A2BE9C75974D0D8CF27DD32 /* BoardStyle.swift */,
+				695E96D38462CE186E1D8906 /* BoardToolbar.swift */,
 				8230EE5CDA62FB40802E6DF0 /* BoardZoomPill.swift */,
 				30F4A7834821C087CE9CC823 /* CanvasEventMonitor.swift */,
 				163D4E8FA06B3D5A317D8929 /* ClassCanvasContainer.swift */,
@@ -601,6 +604,7 @@
 				19CA4272E9A495972E0162F7 /* BoardInkLayer.swift in Sources */,
 				C4BC99D0F194C6830120647A /* BoardObjectView.swift in Sources */,
 				FC18FEE71FF4B5A94FA809CC /* BoardStyle.swift in Sources */,
+				8126E25399D90C5524C4D01C /* BoardToolbar.swift in Sources */,
 				4E4603106AB21C703A58D40F /* BoardZoomPill.swift in Sources */,
 				708417B65D3A5B710DB9A8FB /* BreakdownPanel.swift in Sources */,
 				39ED19FE24010E796931A061 /* BriefingCardView.swift in Sources */,
