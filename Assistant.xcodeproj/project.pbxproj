@@ -92,6 +92,7 @@
 		C39F4B71FEEDDBFBCAEA082F /* AssistantService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A892CCF3499ED25646D0B2 /* AssistantService.swift */; };
 		C3C768725AD8BE2483C3ECBC /* GoogleAuthFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 105EC00715B617AE4B0EEC22 /* GoogleAuthFlow.swift */; };
 		C3F30364C00D0E12782F194C /* BriefingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3945F90369D0D8F5A28E4D1A /* BriefingsTab.swift */; };
+		C4BC99D0F194C6830120647A /* BoardObjectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F90C9826572BEC56BE599B6 /* BoardObjectView.swift */; };
 		C7B6479ECD072D47E88B9140 /* OverlayRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0581A10C7EFF2B8AF05B7A61 /* OverlayRootView.swift */; };
 		CA510A42AE4B22B980BD0901 /* OnboardingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B09C39BC838874FD579CC146 /* OnboardingWindow.swift */; };
 		D13FD8D7362591B642F14311 /* ClassesDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17BF5B80526A8CA3B65BC2F9 /* ClassesDashboardView.swift */; };
@@ -142,6 +143,7 @@
 		3738D91354FA570201E782BE /* OnboardingPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPane.swift; sourceTree = "<group>"; };
 		3945F90369D0D8F5A28E4D1A /* BriefingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingsTab.swift; sourceTree = "<group>"; };
 		3D3A7CD9D9ABA6D4FDEDD125 /* Step5Ready.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Step5Ready.swift; sourceTree = "<group>"; };
+		3F90C9826572BEC56BE599B6 /* BoardObjectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardObjectView.swift; sourceTree = "<group>"; };
 		432515D178E3A336650B88AA /* BoardGridLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardGridLayer.swift; sourceTree = "<group>"; };
 		44CCB152BA77F50F4965E0DE /* ShortcutNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutNames.swift; sourceTree = "<group>"; };
 		45DBBAC2639C893A155EF5C8 /* CourseDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseDetailView.swift; sourceTree = "<group>"; };
@@ -404,6 +406,7 @@
 				4ED8DB457D352CA77EC0A96C /* BoardEditor.swift */,
 				432515D178E3A336650B88AA /* BoardGridLayer.swift */,
 				969A66882DE3B5B695A78543 /* BoardInkLayer.swift */,
+				3F90C9826572BEC56BE599B6 /* BoardObjectView.swift */,
 				8A2BE9C75974D0D8CF27DD32 /* BoardStyle.swift */,
 				8230EE5CDA62FB40802E6DF0 /* BoardZoomPill.swift */,
 				30F4A7834821C087CE9CC823 /* CanvasEventMonitor.swift */,
@@ -596,6 +599,7 @@
 				0CFC83EE4A2E4C660250F322 /* BoardEditor.swift in Sources */,
 				D2FEEB097D58095D659DADF4 /* BoardGridLayer.swift in Sources */,
 				19CA4272E9A495972E0162F7 /* BoardInkLayer.swift in Sources */,
+				C4BC99D0F194C6830120647A /* BoardObjectView.swift in Sources */,
 				FC18FEE71FF4B5A94FA809CC /* BoardStyle.swift in Sources */,
 				4E4603106AB21C703A58D40F /* BoardZoomPill.swift in Sources */,
 				708417B65D3A5B710DB9A8FB /* BreakdownPanel.swift in Sources */,

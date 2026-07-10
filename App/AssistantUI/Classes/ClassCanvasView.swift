@@ -29,6 +29,12 @@ struct ClassCanvasView: View {
                 // lives INSIDE the transform so PinView's gestures read back
                 // world-space values unchanged at any zoom.
                 ZStack {
+                    ForEach(store.annotations
+                        .filter { $0.annotationKind == .sticky || $0.annotationKind == .text }
+                        .sorted { $0.zOrder < $1.zOrder }) { dto in
+                        BoardObjectView(dto: dto, store: store, editor: store.board)
+                    }
+
                     ForEach(store.pins.sorted { $0.zOrder < $1.zOrder }) { pin in
                         PinView(
                             pin: pin,

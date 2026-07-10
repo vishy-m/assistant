@@ -56,7 +56,7 @@ struct BoardCaptureOverlay: View {
         defer { editor.liveStrokePoints = [] }
         guard let dto = ClassAnnotationDTO.stroke(
             id: UUID().uuidString,
-            courseId: store.detail?.id ?? "",
+            courseId: currentCourseId ?? "",
             points: editor.liveStrokePoints,
             color: editor.penColor,
             lineWidth: editor.penWidth,
@@ -81,13 +81,69 @@ struct BoardCaptureOverlay: View {
         for dto in victims { store.deleteAnnotation(id: dto.id) }
     }
 
-    // MARK: shape / sticky / text — completed in the next task
+    // MARK: shape / sticky / text
 
     private func commitShape() {
-        editor.liveShapeStart = nil
-        editor.liveShapeCurrent = nil
+        defer { editor.liveShapeStart = nil; editor.liveShapeCurrent = nil }
+        guard let start = editor.liveShapeStart, let end = editor.liveShapeCurrent,
+              let courseId = currentCourseId else { return }
+        let width = abs(start.x - end.x), height = abs(start.y - end.y)
+        guard width + height > 4 else { return } // a click is not a shape
+        let box = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
+                         width: max(width, 1), height: max(height, 1))
+        let flipped = (end.x - start.x) * (end.y - start.y) < 0
+        // Arrowheads track the drag END: box+flipped picks the diagonal,
+        // `reversed` picks which of its endpoints is the head.
+        let ends = AnnotationGeometry.lineEndpoints(in: box, flipped: flipped)
+        let reversed = hypot(end.x - ends.a.x, end.y - ends.a.y)
+            < hypot(end.x - ends.b.x, end.y - ends.b.y)
+        let payload = ShapePayload(shape: editor.shapeKind,
+                                   strokeColor: editor.shapeStrokeColor,
+                                   fillColor: editor.shapeFilled ? editor.shapeStrokeColor : nil,
+                                   lineWidth: editor.penWidth,
+                                   flipped: flipped,
+                                   reversed: reversed)
+        store.createAnnotation(ClassAnnotationDTO(
+            id: UUID().uuidString, courseId: courseId,
+            kind: AnnotationKind.shape.rawValue,
+            x: (start.x + end.x) / 2, y: (start.y + end.y) / 2,
+            width: max(width, 1), height: max(height, 1),
+            zOrder: store.nextAnnotationZOrder(),
+            payload: ClassAnnotationDTO.encodePayload(payload)))
     }
 
-    private func placeSticky(at world: CGPoint) {}
-    private func placeText(at world: CGPoint) {}
+    private func placeSticky(at world: CGPoint) {
+        guard let courseId = currentCourseId else { return }
+        let dto = ClassAnnotationDTO(
+            id: UUID().uuidString, courseId: courseId,
+            kind: AnnotationKind.sticky.rawValue,
+            x: world.x, y: world.y, width: 160, height: 160,
+            zOrder: store.nextAnnotationZOrder(),
+            payload: ClassAnnotationDTO.encodePayload(
+                StickyPayload(text: "", color: editor.stickyColor)))
+        store.createAnnotation(dto)
+        editor.selectedAnnotationId = dto.id
+        editor.editingAnnotationId = dto.id
+        editor.tool = .select // place one, then type/move — FigJam behavior
+    }
+
+    private func placeText(at world: CGPoint) {
+        guard let courseId = currentCourseId else { return }
+        let dto = ClassAnnotationDTO(
+            id: UUID().uuidString, courseId: courseId,
+            kind: AnnotationKind.text.rawValue,
+            x: world.x, y: world.y, width: 240, height: 44,
+            zOrder: store.nextAnnotationZOrder(),
+            payload: ClassAnnotationDTO.encodePayload(
+                TextPayload(text: "", fontSize: editor.textSize, color: editor.textColor)))
+        store.createAnnotation(dto)
+        editor.selectedAnnotationId = dto.id
+        editor.editingAnnotationId = dto.id
+        editor.tool = .select
+    }
+
+    private var currentCourseId: String? {
+        let id = store.detail?.id ?? "" // ClassDetail.id IS the course id
+        return id.isEmpty ? nil : id
+    }
 }
