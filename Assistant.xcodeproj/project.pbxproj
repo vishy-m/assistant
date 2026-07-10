@@ -37,6 +37,7 @@
 		39BDA5D96F2225A41E30413A /* AssistantStore in Frameworks */ = {isa = PBXBuildFile; productRef = 62A6239761C73603E481F0B8 /* AssistantStore */; };
 		39ED19FE24010E796931A061 /* BriefingCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2351A579E910E15728964641 /* BriefingCardView.swift */; };
 		3EDAD5B762D9505B9E537F2D /* FilePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B250FC4C819D59AC5B5101D /* FilePreviewView.swift */; };
+		3F2F9E260CC5D473440ABADF /* BoardCaptureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 294FAFB709E619BC8CD19363 /* BoardCaptureOverlay.swift */; };
 		4021DB8501B0D5EC80DE6391 /* OverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6379DDAD00AF27FA718C950 /* OverlayController.swift */; };
 		40A93AFC67551321A86FECAA /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = F865E5D5B6CCE46A3E435E56 /* KeyboardShortcuts */; };
 		41C42346FF57DFDA01D1425C /* ScreenshotCapturer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9FD1DD83A8B2676D6E6326E /* ScreenshotCapturer.swift */; };
@@ -135,6 +136,7 @@
 		21996CB0CA747849369B93A7 /* SettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindow.swift; sourceTree = "<group>"; };
 		2351A579E910E15728964641 /* BriefingCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingCardView.swift; sourceTree = "<group>"; };
 		246F9D9BE2BB5F990647BC86 /* TaskDeadlinePopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDeadlinePopover.swift; sourceTree = "<group>"; };
+		294FAFB709E619BC8CD19363 /* BoardCaptureOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardCaptureOverlay.swift; sourceTree = "<group>"; };
 		30F4A7834821C087CE9CC823 /* CanvasEventMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasEventMonitor.swift; sourceTree = "<group>"; };
 		3206E14B526D87620591E3AA /* XPCClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XPCClient.swift; sourceTree = "<group>"; };
 		3738D91354FA570201E782BE /* OnboardingPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPane.swift; sourceTree = "<group>"; };
@@ -398,6 +400,7 @@
 		D1E478D63C7C2022879A6E7E /* Classes */ = {
 			isa = PBXGroup;
 			children = (
+				294FAFB709E619BC8CD19363 /* BoardCaptureOverlay.swift */,
 				4ED8DB457D352CA77EC0A96C /* BoardEditor.swift */,
 				432515D178E3A336650B88AA /* BoardGridLayer.swift */,
 				969A66882DE3B5B695A78543 /* BoardInkLayer.swift */,
@@ -589,6 +592,7 @@
 				4556C38E3D62FE6E317F21C0 /* APIKeysTab.swift in Sources */,
 				81295EB0F37C893E82AA169B /* AppDelegate.swift in Sources */,
 				51DD4FEFA8476535486F8A91 /* AssistantUIApp.swift in Sources */,
+				3F2F9E260CC5D473440ABADF /* BoardCaptureOverlay.swift in Sources */,
 				0CFC83EE4A2E4C660250F322 /* BoardEditor.swift in Sources */,
 				D2FEEB097D58095D659DADF4 /* BoardGridLayer.swift in Sources */,
 				19CA4272E9A495972E0162F7 /* BoardInkLayer.swift in Sources */,

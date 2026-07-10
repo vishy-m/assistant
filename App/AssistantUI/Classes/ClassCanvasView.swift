@@ -49,9 +49,14 @@ struct ClassCanvasView: View {
                     }
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+                .allowsHitTesting(store.board.tool == .select)
                 .coordinateSpace(name: "canvas")
                 .scaleEffect(store.viewport.zoom, anchor: .topLeading)
                 .offset(x: store.viewport.offsetX, y: store.viewport.offsetY)
+
+                if store.board.tool != .select {
+                    BoardCaptureOverlay(store: store, editor: store.board)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
