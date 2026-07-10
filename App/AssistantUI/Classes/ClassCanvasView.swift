@@ -8,6 +8,8 @@ import AssistantShared
 /// `file.id` as text) drop here to create an interactive pin at the drop point.
 struct ClassCanvasView: View {
     @ObservedObject var store: ClassStore
+    /// One hit test per select-gesture: set on the first onChanged event.
+    @State private var inkGestureHitTested = false
 
     var body: some View {
         GeometryReader { geo in
@@ -151,14 +153,15 @@ struct ClassCanvasView: View {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 guard store.board.tool == .select else { return }
-                if store.board.inkDrag == nil {
+                if !inkGestureHitTested {
+                    inkGestureHitTested = true
                     let world = store.viewport.screenToWorld(value.startLocation)
-                    guard let hit = AnnotationGeometry.topmostInk(
+                    if let hit = AnnotationGeometry.topmostInk(
                         at: world, in: store.annotations,
-                        tolerance: BoardStyle.hitTolerance / store.viewport.zoom)
-                    else { return }
-                    store.board.selectedAnnotationId = hit.id
-                    store.board.inkDrag = (id: hit.id, dx: 0, dy: 0)
+                        tolerance: BoardStyle.hitTolerance / store.viewport.zoom) {
+                        store.board.selectedAnnotationId = hit.id
+                        store.board.inkDrag = (id: hit.id, dx: 0, dy: 0)
+                    }
                 }
                 if let drag = store.board.inkDrag {
                     store.board.inkDrag = (id: drag.id,
@@ -167,15 +170,27 @@ struct ClassCanvasView: View {
                 }
             }
             .onEnded { value in
-                guard store.board.tool == .select else { return }
-                defer { store.board.inkDrag = nil }
-                let worldDx = value.translation.width / store.viewport.zoom
-                let worldDy = value.translation.height / store.viewport.zoom
-                if let drag = store.board.inkDrag, abs(worldDx) + abs(worldDy) > 1 {
-                    moveInkAnnotation(id: drag.id, dx: worldDx, dy: worldDy)
+                guard store.board.tool == .select else {
+                    inkGestureHitTested = false
                     return
                 }
-                // A click (no drag): select what's under it, or clear.
+                defer {
+                    store.board.inkDrag = nil
+                    inkGestureHitTested = false
+                }
+                let worldDx = value.translation.width / store.viewport.zoom
+                let worldDy = value.translation.height / store.viewport.zoom
+                if let drag = store.board.inkDrag {
+                    // Started on ink: commit the move (if it moved) and never
+                    // fall through to background-click handling.
+                    if abs(worldDx) + abs(worldDy) > 1 {
+                        moveInkAnnotation(id: drag.id, dx: worldDx, dy: worldDy)
+                    }
+                    return
+                }
+                // Started on empty canvas: only a true click (no meaningful
+                // drag) selects at the release point or clears state.
+                guard abs(worldDx) + abs(worldDy) <= 1 else { return }
                 let world = store.viewport.screenToWorld(value.location)
                 if let hit = AnnotationGeometry.topmostInk(
                     at: world, in: store.annotations,
