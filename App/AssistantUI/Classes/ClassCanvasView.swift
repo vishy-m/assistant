@@ -15,6 +15,9 @@ struct ClassCanvasView: View {
     @ObservedObject var board: BoardEditor
     /// One hit test per select-gesture: set on the first onChanged event.
     @State private var inkGestureHitTested = false
+    /// The current grid-layer drag is moving the whole selection (it started
+    /// on an already-selected ink annotation).
+    @State private var inkGroupDragging = false
 
     var body: some View {
         GeometryReader { geo in
@@ -50,6 +53,17 @@ struct ClassCanvasView: View {
                             contentType: store.filesById[pin.fileId]?.contentType ?? "public.data",
                             pdfRegistry: store.pdfViews,
                             isFocused: store.focusedPinId == pin.id,
+                            isSelected: store.board.selectedPinIds.contains(pin.id),
+                            groupDragOffset: store.board.selectedPinIds.contains(pin.id)
+                                ? (store.board.selectionDrag ?? .zero) : .zero,
+                            onGroupDragChanged: { store.board.selectionDrag = $0 },
+                            onGroupDragEnded: { translation in
+                                store.board.selectionDrag = nil
+                                store.moveSelection(
+                                    annotationIds: store.board.selectedAnnotationIds,
+                                    pinIds: store.board.selectedPinIds,
+                                    dx: translation.width, dy: translation.height)
+                            },
                             onCommit: { store.updatePin($0) },
                             onBringToFront: { store.bringPinToFront(id: pin.id) },
                             onFocus: { store.focusedPinId = pin.id },
@@ -87,8 +101,9 @@ struct ClassCanvasView: View {
             .onExitCommand {
                 if store.board.editingAnnotationId != nil {
                     store.board.editingAnnotationId = nil
-                } else if store.board.selectedAnnotationId != nil {
-                    store.board.selectedAnnotationId = nil
+                } else if store.board.hasSelection {
+                    store.board.selectedAnnotationIds = []
+                    store.board.selectedPinIds = []
                 } else {
                     store.board.tool = .select
                 }
@@ -163,9 +178,12 @@ struct ClassCanvasView: View {
             onDelete: {
                 guard store.board.tool == .select,
                       store.board.editingAnnotationId == nil else { return false }
-                if let id = store.board.selectedAnnotationId {
-                    store.board.selectedAnnotationId = nil
-                    store.deleteAnnotation(id: id)
+                if store.board.hasSelection {
+                    let annotationIds = store.board.selectedAnnotationIds
+                    let pinIds = store.board.selectedPinIds
+                    store.board.selectedAnnotationIds = []
+                    store.board.selectedPinIds = []
+                    store.deleteSelection(annotationIds: annotationIds, pinIds: pinIds)
                     return true
                 }
                 if let pinId = store.focusedPinId {
@@ -192,50 +210,95 @@ struct ClassCanvasView: View {
                     if let hit = AnnotationGeometry.topmostInk(
                         at: world, in: store.annotations,
                         tolerance: BoardStyle.hitTolerance / store.viewport.zoom) {
-                        store.board.selectedAnnotationId = hit.id
-                        store.board.inkDrag = (id: hit.id, dx: 0, dy: 0)
+                        if store.board.selectedAnnotationIds.contains(hit.id),
+                           store.board.selectionCount > 1 {
+                            inkGroupDragging = true
+                        } else {
+                            store.board.selectedAnnotationIds = [hit.id]
+                            store.board.selectedPinIds = []
+                            store.board.inkDrag = (id: hit.id, dx: 0, dy: 0)
+                        }
+                    } else {
+                        store.board.marqueeStart = world
                     }
                 }
-                if let drag = store.board.inkDrag {
-                    store.board.inkDrag = (id: drag.id,
-                                           dx: value.translation.width / store.viewport.zoom,
-                                           dy: value.translation.height / store.viewport.zoom)
+                let worldDx = value.translation.width / store.viewport.zoom
+                let worldDy = value.translation.height / store.viewport.zoom
+                if inkGroupDragging {
+                    store.board.selectionDrag = CGSize(width: worldDx, height: worldDy)
+                } else if let drag = store.board.inkDrag {
+                    store.board.inkDrag = (id: drag.id, dx: worldDx, dy: worldDy)
+                } else if store.board.marqueeStart != nil {
+                    store.board.marqueeCurrent = store.viewport.screenToWorld(value.location)
                 }
             }
             .onEnded { value in
                 guard store.board.tool == .select else {
                     inkGestureHitTested = false
+                    inkGroupDragging = false
                     store.board.inkDrag = nil
+                    store.board.marqueeStart = nil
+                    store.board.marqueeCurrent = nil
+                    store.board.selectionDrag = nil
                     return
                 }
                 defer {
                     store.board.inkDrag = nil
+                    store.board.marqueeStart = nil
+                    store.board.marqueeCurrent = nil
+                    store.board.selectionDrag = nil
                     inkGestureHitTested = false
+                    inkGroupDragging = false
                 }
                 let worldDx = value.translation.width / store.viewport.zoom
                 let worldDy = value.translation.height / store.viewport.zoom
+                if inkGroupDragging {
+                    if abs(worldDx) + abs(worldDy) > 1 {
+                        store.moveSelection(annotationIds: store.board.selectedAnnotationIds,
+                                            pinIds: store.board.selectedPinIds,
+                                            dx: worldDx, dy: worldDy)
+                    }
+                    return
+                }
                 if let drag = store.board.inkDrag {
-                    // Started on ink: commit the move (if it moved) and never
-                    // fall through to background-click handling.
                     if abs(worldDx) + abs(worldDy) > 1 {
                         moveInkAnnotation(id: drag.id, dx: worldDx, dy: worldDy)
                     }
                     return
                 }
-                // Started on empty canvas: only a true click (no meaningful
-                // drag) selects at the release point or clears state.
-                guard abs(worldDx) + abs(worldDy) <= 1 else { return }
+                if let start = store.board.marqueeStart {
+                    let end = store.viewport.screenToWorld(value.location)
+                    let rect = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
+                                      width: abs(start.x - end.x), height: abs(start.y - end.y))
+                    if rect.width + rect.height > 4 {
+                        selectMarquee(rect)
+                        return
+                    }
+                }
+                // True click on empty canvas (or a tiny marquee): select what's
+                // under it or clear everything.
                 let world = store.viewport.screenToWorld(value.location)
                 if let hit = AnnotationGeometry.topmostInk(
                     at: world, in: store.annotations,
                     tolerance: BoardStyle.hitTolerance / store.viewport.zoom) {
-                    store.board.selectedAnnotationId = hit.id
+                    store.board.selectedAnnotationIds = [hit.id]
+                    store.board.selectedPinIds = []
                 } else {
-                    store.board.selectedAnnotationId = nil
+                    store.board.selectedAnnotationIds = []
+                    store.board.selectedPinIds = []
                     store.board.editingAnnotationId = nil
                     store.focusedPinId = nil
                 }
             }
+    }
+
+    /// Marquee select: everything whose bounds intersect the world rect.
+    private func selectMarquee(_ rect: CGRect) {
+        store.board.selectedAnnotationIds = Set(
+            store.annotations.filter { $0.box.intersects(rect) }.map(\.id))
+        store.board.selectedPinIds = Set(
+            store.pins.filter { CanvasHitTesting.boundingBox(of: $0).intersects(rect) }.map(\.id))
+        store.board.editingAnnotationId = nil
     }
 
     private func moveInkAnnotation(id: String, dx: Double, dy: Double) {
@@ -255,10 +318,10 @@ struct ClassCanvasView: View {
     /// bottom-trailing corner (ink lives in a Canvas, so the handle is the
     /// one interactive view it gets).
     @ViewBuilder private var selectedInkHandle: some View {
-        if let id = store.board.selectedAnnotationId,
+        if let id = store.board.soleSelectedAnnotationId,
            let dto = store.annotations.first(where: { $0.id == id }),
            dto.annotationKind == .stroke || dto.annotationKind == .shape,
-           store.board.inkDrag == nil {
+           store.board.inkDrag == nil, store.board.selectionDrag == nil {
             let corner = store.viewport.worldToScreen(
                 CGPoint(x: dto.box.maxX, y: dto.box.maxY))
             Circle()

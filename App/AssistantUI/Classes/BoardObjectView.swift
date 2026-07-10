@@ -15,7 +15,11 @@ struct BoardObjectView: View {
     @State private var draft: String = ""
     @FocusState private var textFocused: Bool
 
-    private var isSelected: Bool { editor.selectedAnnotationId == dto.id }
+    private var isSelected: Bool { editor.selectedAnnotationIds.contains(dto.id) }
+    /// Offset applied while the whole selection is being dragged from any member.
+    private var groupOffset: CGSize {
+        (isSelected && editor.selectionCount > 1) ? (editor.selectionDrag ?? .zero) : .zero
+    }
     private var isEditing: Bool { editor.editingAnnotationId == dto.id }
     private var size: CGSize { liveSize ?? CGSize(width: dto.width, height: dto.height) }
 
@@ -29,15 +33,20 @@ struct BoardObjectView: View {
             .gesture(moveGesture)
             .onTapGesture(count: 2) { beginEditing() }
             .onTapGesture {
-                editor.selectedAnnotationId = dto.id
+                editor.selectedAnnotationIds = [dto.id]
+                editor.selectedPinIds = []
                 // Tapping one object ends any other object's edit session.
                 if editor.editingAnnotationId != dto.id { editor.editingAnnotationId = nil }
             }
             .contextMenu {
                 Button("Edit Text") { beginEditing() }
-                Button("Remove", role: .destructive) { store.deleteAnnotation(id: dto.id) }
+                Button("Remove", role: .destructive) {
+                    editor.selectedAnnotationIds.remove(dto.id)
+                    store.deleteAnnotation(id: dto.id)
+                }
             }
-            .position(x: dto.x + dragOffset.width, y: dto.y + dragOffset.height)
+            .position(x: dto.x + dragOffset.width + groupOffset.width,
+                      y: dto.y + dragOffset.height + groupOffset.height)
             .onChange(of: isEditing) { _ in if !isEditing { endEditing() } }
     }
 
@@ -87,7 +96,8 @@ struct BoardObjectView: View {
     }
 
     private func beginEditing() {
-        editor.selectedAnnotationId = dto.id
+        editor.selectedAnnotationIds = [dto.id]
+        editor.selectedPinIds = []
         editor.editingAnnotationId = dto.id
     }
 
@@ -98,12 +108,20 @@ struct BoardObjectView: View {
         switch dto.annotationKind {
         case .sticky:
             guard var payload = dto.decodedPayload(StickyPayload.self) else { return }
-            if text.isEmpty { store.deleteAnnotation(id: dto.id); return }
+            if text.isEmpty {
+                editor.selectedAnnotationIds.remove(dto.id)
+                store.deleteAnnotation(id: dto.id)
+                return
+            }
             payload.text = draft
             store.updateAnnotation(dto.withPayload(ClassAnnotationDTO.encodePayload(payload)))
         case .text:
             guard var payload = dto.decodedPayload(TextPayload.self) else { return }
-            if text.isEmpty { store.deleteAnnotation(id: dto.id); return }
+            if text.isEmpty {
+                editor.selectedAnnotationIds.remove(dto.id)
+                store.deleteAnnotation(id: dto.id)
+                return
+            }
             payload.text = draft
             store.updateAnnotation(dto.withPayload(ClassAnnotationDTO.encodePayload(payload)))
         default: break
@@ -114,11 +132,28 @@ struct BoardObjectView: View {
         DragGesture(coordinateSpace: .named("canvas"))
             .onChanged { value in
                 guard !isEditing else { return }
-                if dragOffset == .zero { editor.selectedAnnotationId = dto.id }
+                // Dragging any member of a multi-selection moves the whole
+                // selection live; the store commits one batch op on release.
+                if isSelected && editor.selectionCount > 1 {
+                    editor.selectionDrag = value.translation
+                    return
+                }
+                if dragOffset == .zero {
+                    editor.selectedAnnotationIds = [dto.id]
+                    editor.selectedPinIds = []
+                }
                 dragOffset = value.translation
             }
             .onEnded { value in
                 guard !isEditing else { return }
+                if isSelected && editor.selectionCount > 1, editor.selectionDrag != nil {
+                    editor.selectionDrag = nil
+                    store.moveSelection(annotationIds: editor.selectedAnnotationIds,
+                                        pinIds: editor.selectedPinIds,
+                                        dx: value.translation.width,
+                                        dy: value.translation.height)
+                    return
+                }
                 dragOffset = .zero
                 store.updateAnnotation(dto.moved(x: dto.x + value.translation.width,
                                                  y: dto.y + value.translation.height))

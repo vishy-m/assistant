@@ -77,12 +77,13 @@ struct BoardCaptureOverlay: View {
                                      tolerance: BoardStyle.eraserWorldRadius)
         }
         for dto in victims {
-            if editor.selectedAnnotationId == dto.id { editor.selectedAnnotationId = nil }
+            editor.selectedAnnotationIds.remove(dto.id)
             if editor.editingAnnotationId == dto.id { editor.editingAnnotationId = nil }
             store.deleteAnnotation(id: dto.id)
         }
         for pin in store.pins where CanvasHitTesting.point(world, inside: pin) {
             if store.focusedPinId == pin.id { store.focusedPinId = nil }
+            editor.selectedPinIds.remove(pin.id)
             store.deletePin(id: pin.id)
         }
     }
@@ -128,7 +129,8 @@ struct BoardCaptureOverlay: View {
             payload: ClassAnnotationDTO.encodePayload(
                 StickyPayload(text: "", color: editor.stickyColor)))
         store.createAnnotation(dto)
-        editor.selectedAnnotationId = dto.id
+        editor.selectedAnnotationIds = [dto.id]
+        editor.selectedPinIds = []
         editor.editingAnnotationId = dto.id
         editor.tool = .select // place one, then type/move — FigJam behavior
     }
@@ -143,7 +145,8 @@ struct BoardCaptureOverlay: View {
             payload: ClassAnnotationDTO.encodePayload(
                 TextPayload(text: "", fontSize: editor.textSize, color: editor.textColor)))
         store.createAnnotation(dto)
-        editor.selectedAnnotationId = dto.id
+        editor.selectedAnnotationIds = [dto.id]
+        editor.selectedPinIds = []
         editor.editingAnnotationId = dto.id
         editor.tool = .select
     }

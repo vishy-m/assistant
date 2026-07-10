@@ -11,6 +11,12 @@ struct PinView: View {
     let contentType: String
     let pdfRegistry: PDFViewRegistry?
     let isFocused: Bool
+    /// Marquee selection: accent ring + drags route to the group instead of
+    /// moving just this pin.
+    let isSelected: Bool
+    let groupDragOffset: CGSize
+    let onGroupDragChanged: (CGSize) -> Void
+    let onGroupDragEnded: (CGSize) -> Void
     let onCommit: (ClassPinDTO) -> Void
     let onBringToFront: () -> Void
     let onFocus: () -> Void
@@ -43,8 +49,8 @@ struct PinView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8)
-            .stroke(showsFocusRing ? Color.accentColor : Color.black.opacity(0.18),
-                    lineWidth: showsFocusRing ? 2 : 1))
+            .stroke((showsFocusRing || isSelected) ? Color.accentColor : Color.black.opacity(0.18),
+                    lineWidth: (showsFocusRing || isSelected) ? 2 : 1))
         .shadow(radius: 4, y: 2)
         // Drag anywhere on the card to move it; the handles (overlays, drawn on
         // top) keep their own resize/rotate gestures.
@@ -55,7 +61,8 @@ struct PinView: View {
         .overlay(alignment: .top) { if previewKind != .pdf { rotateHandle } }
         .overlay(alignment: .bottomTrailing) { resizeHandle }
         .rotationEffect(.radians(rotation))
-        .position(x: pin.x + dragOffset.width, y: pin.y + dragOffset.height)
+        .position(x: pin.x + dragOffset.width + groupDragOffset.width,
+                  y: pin.y + dragOffset.height + groupDragOffset.height)
         .onTapGesture { onBringToFront(); onFocus() }
         .contextMenu {
             Button("Open in Tab") { onOpenInTab() }
@@ -96,12 +103,14 @@ struct PinView: View {
     private var moveGesture: some Gesture {
         DragGesture(coordinateSpace: .named("canvas"))
             .onChanged { value in
+                if isSelected { onGroupDragChanged(value.translation); return }
                 // Raise the pin once, at the start of the drag, so grabbing a
                 // half-covered pin brings it forward as you move it.
                 if dragOffset == .zero { onBringToFront() }
                 dragOffset = value.translation
             }
             .onEnded { value in
+                if isSelected { onGroupDragEnded(value.translation); return }
                 let committed = pin.moved(x: pin.x + value.translation.width,
                                           y: pin.y + value.translation.height)
                 dragOffset = .zero

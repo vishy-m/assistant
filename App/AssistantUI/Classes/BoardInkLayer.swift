@@ -101,22 +101,42 @@ struct BoardInkLayer: View {
     }
 
     private func drawSelection(in context: inout GraphicsContext, viewport: CanvasViewport) {
-        guard let id = editor.selectedAnnotationId,
-              let dto = store.annotations.first(where: { $0.id == id }),
-              dto.annotationKind == .stroke || dto.annotationKind == .shape else { return }
-        let drag = dragOffset(for: id)
-        let box = screenRect(dto.box.offsetBy(dx: drag.width, dy: drag.height)
-                                 .insetBy(dx: -6, dy: -6), viewport: viewport)
-        context.stroke(Path(roundedRect: box, cornerRadius: 4),
-                       with: .color(.accentColor),
-                       style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+        for id in editor.selectedAnnotationIds {
+            guard let dto = store.annotations.first(where: { $0.id == id }),
+                  dto.annotationKind == .stroke || dto.annotationKind == .shape
+            else { continue }
+            let drag = dragOffset(for: id)
+            let box = screenRect(dto.box.offsetBy(dx: drag.width, dy: drag.height)
+                                     .insetBy(dx: -6, dy: -6), viewport: viewport)
+            context.stroke(Path(roundedRect: box, cornerRadius: 4),
+                           with: .color(.accentColor),
+                           style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+        }
+        drawMarquee(in: &context, viewport: viewport)
+    }
+
+    private func drawMarquee(in context: inout GraphicsContext, viewport: CanvasViewport) {
+        guard editor.tool == .select,
+              let start = editor.marqueeStart,
+              let current = editor.marqueeCurrent else { return }
+        let world = CGRect(x: min(start.x, current.x), y: min(start.y, current.y),
+                           width: abs(start.x - current.x), height: abs(start.y - current.y))
+        let box = screenRect(world, viewport: viewport)
+        context.fill(Path(box), with: .color(.accentColor.opacity(0.08)))
+        context.stroke(Path(box), with: .color(.accentColor),
+                       style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
     }
 
     // MARK: helpers
 
     private func dragOffset(for id: String) -> CGSize {
-        guard let drag = editor.inkDrag, drag.id == id else { return .zero }
-        return CGSize(width: drag.dx, height: drag.dy)
+        if let drag = editor.inkDrag, drag.id == id {
+            return CGSize(width: drag.dx, height: drag.dy)
+        }
+        if let group = editor.selectionDrag, editor.selectedAnnotationIds.contains(id) {
+            return group
+        }
+        return .zero
     }
 
     private func polylinePath(_ points: [[Double]], viewport: CanvasViewport,
