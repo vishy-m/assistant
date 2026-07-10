@@ -14,11 +14,21 @@ struct BoardToolbar: View {
     @State private var textPopover = false
 
     var body: some View {
+        // Never taller than the board: prefer the full palette, fall back to
+        // scrolling when the canvas is short. Contained content can't spill
+        // over the tab bar / calendar / neighboring panels.
+        ViewThatFits(in: .vertical) {
+            stack
+            ScrollView(.vertical, showsIndicators: false) { stack }
+        }
+        .padding(.leading, 12)
+    }
+
+    private var stack: some View {
         VStack(spacing: 10) {
             palette
             undoRedoPill
         }
-        .padding(.leading, 12)
     }
 
     private var palette: some View {
