@@ -191,6 +191,7 @@ struct ClassCanvasView: View {
             .onEnded { value in
                 guard store.board.tool == .select else {
                     inkGestureHitTested = false
+                    store.board.inkDrag = nil
                     return
                 }
                 defer {

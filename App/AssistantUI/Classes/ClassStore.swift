@@ -90,10 +90,14 @@ final class ClassStore: ObservableObject {
     }
 
     func loadDetail(courseId: String) {
+        let isNewClass = courseId != currentCourseId
         currentCourseId = courseId
         restoreTabs(courseId: courseId)
-        restoreViewport(courseId: courseId)
-        focusedPinId = nil
+        // Same-class refreshes (event/info saves re-call loadDetail) must not wipe the board session.
+        if isNewClass {
+            restoreViewport(courseId: courseId)
+            focusedPinId = nil
+        }
         detail = nil
         XPCClient.shared.getClassDetail(courseId: courseId) { [weak self] detail in
             self?.detail = detail
@@ -101,8 +105,10 @@ final class ClassStore: ObservableObject {
         loadClassTasks(courseId: courseId)
         loadFiles(courseId: courseId)
         loadPins(courseId: courseId)
-        boardHistory = BoardHistory()
-        board.reset()
+        if isNewClass {
+            boardHistory = BoardHistory()
+            board.reset()
+        }
         loadAnnotations(courseId: courseId)
     }
 
@@ -336,6 +342,10 @@ final class ClassStore: ObservableObject {
     }
 
     func updateAnnotation(_ dto: ClassAnnotationDTO, recordHistory: Bool = true) {
+        // Never resurrect an annotation another window deleted mid-gesture
+        // (mirrors updatePin's ghost guard). The undo executor routes absent
+        // ids through createAnnotation, so undo/redo is unaffected.
+        guard annotations.contains(where: { $0.id == dto.id }) else { return }
         let before = annotations.first { $0.id == dto.id }
         if recordHistory, let before, before != dto {
             boardHistory.record(.annotation(before: before, after: dto))
