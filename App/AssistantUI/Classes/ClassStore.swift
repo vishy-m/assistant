@@ -16,6 +16,12 @@ final class ClassStore: ObservableObject {
     @Published var filesById: [String: ClassFileDTO] = [:]
     /// The viewed class's canvas pins, held locally as the live source of truth.
     @Published var pins: [ClassPinDTO] = []
+    /// The viewed class's board annotations, held locally as the live source of truth.
+    @Published var annotations: [ClassAnnotationDTO] = []
+    /// Unified board undo/redo (annotations + pins). Session-only, per class.
+    @Published var boardHistory = BoardHistory()
+    /// Board tool/session state (survives tab switches; reset on class switch).
+    let board = BoardEditor()
     /// Open file tabs + active tab for this class's canvas (persisted per course).
     @Published var tabs: CanvasTabs = CanvasTabs()
     /// The board's pan/zoom viewport for the viewed class (persisted per course).
@@ -34,6 +40,7 @@ final class ClassStore: ObservableObject {
     private var changeObserver: NSObjectProtocol?
     private var pinObserver: NSObjectProtocol?
     private var filesObserver: NSObjectProtocol?
+    private var annotationObserver: NSObjectProtocol?
     private var terminateObserver: NSObjectProtocol?
 
     init() {
@@ -52,6 +59,11 @@ final class ClassStore: ObservableObject {
             forName: .assistantFilesDidChange, object: nil, queue: .main) { [weak self] note in
             _Concurrency.Task { @MainActor in self?.reloadFilesFromBroadcast(note) }
         }
+        // Re-pull this class's annotations when another window edits the same class.
+        annotationObserver = NotificationCenter.default.addObserver(
+            forName: .assistantAnnotationsDidChange, object: nil, queue: .main) { [weak self] note in
+            _Concurrency.Task { @MainActor in self?.reloadAnnotationsFromBroadcast(note) }
+        }
         // Persist the board viewport on quit — gesture-end saves can miss the
         // final state (e.g. momentum still coasting when the app closes).
         terminateObserver = NotificationCenter.default.addObserver(
@@ -64,6 +76,7 @@ final class ClassStore: ObservableObject {
         if let changeObserver { NotificationCenter.default.removeObserver(changeObserver) }
         if let pinObserver { NotificationCenter.default.removeObserver(pinObserver) }
         if let filesObserver { NotificationCenter.default.removeObserver(filesObserver) }
+        if let annotationObserver { NotificationCenter.default.removeObserver(annotationObserver) }
         if let terminateObserver { NotificationCenter.default.removeObserver(terminateObserver) }
     }
 
@@ -77,10 +90,14 @@ final class ClassStore: ObservableObject {
     }
 
     func loadDetail(courseId: String) {
+        let isNewClass = courseId != currentCourseId
         currentCourseId = courseId
         restoreTabs(courseId: courseId)
-        restoreViewport(courseId: courseId)
-        focusedPinId = nil
+        // Same-class refreshes (event/info saves re-call loadDetail) must not wipe the board session.
+        if isNewClass {
+            restoreViewport(courseId: courseId)
+            focusedPinId = nil
+        }
         detail = nil
         XPCClient.shared.getClassDetail(courseId: courseId) { [weak self] detail in
             self?.detail = detail
@@ -88,6 +105,11 @@ final class ClassStore: ObservableObject {
         loadClassTasks(courseId: courseId)
         loadFiles(courseId: courseId)
         loadPins(courseId: courseId)
+        if isNewClass {
+            boardHistory = BoardHistory()
+            board.reset()
+        }
+        loadAnnotations(courseId: courseId)
     }
 
     private func loadClassTasks(courseId: String) {
@@ -113,6 +135,13 @@ final class ClassStore: ObservableObject {
     private func loadPins(courseId: String) {
         XPCClient.shared.listClassPins(courseId: courseId) { [weak self] pins in
             self?.pins = pins
+        }
+    }
+
+    private func loadAnnotations(courseId: String) {
+        XPCClient.shared.listClassAnnotations(courseId: courseId) { [weak self] annotations in
+            guard let self, self.currentCourseId == courseId else { return }
+            self.annotations = annotations
         }
     }
 
@@ -227,11 +256,12 @@ final class ClassStore: ObservableObject {
 
     // MARK: - Pins (local source of truth; write through to the daemon)
 
-    func createPin(fileId: String, x: Double, y: Double) {
+    func createPin(fileId: String, x: Double, y: Double, recordHistory: Bool = true) {
         guard let courseId = currentCourseId else { return }
         let pin = PinLayout.makePin(id: UUID().uuidString, courseId: courseId,
                                     fileId: fileId, x: x, y: y,
                                     zOrder: PinLayout.nextZOrder(pins))
+        if recordHistory { boardHistory.record(.pin(before: nil, after: pin)) }
         pins.append(pin)
         XPCClient.shared.upsertClassPin(pin) { [weak self] ok in
             if ok { self?.broadcastPinsChanged() }
@@ -241,8 +271,12 @@ final class ClassStore: ObservableObject {
     /// Commit a moved/resized/rotated pin (called on gesture end). No-op if the
     /// pin is gone (e.g. a commit racing with its deletion), so we never recreate
     /// a ghost pin on the daemon.
-    func updatePin(_ pin: ClassPinDTO) {
+    func updatePin(_ pin: ClassPinDTO, recordHistory: Bool = true) {
         guard let i = pins.firstIndex(where: { $0.id == pin.id }) else { return }
+        let before = pins.first { $0.id == pin.id }
+        if recordHistory, let before, before != pin {
+            boardHistory.record(.pin(before: before, after: pin))
+        }
         pins[i] = pin
         XPCClient.shared.upsertClassPin(pin) { [weak self] ok in
             if ok { self?.broadcastPinsChanged() }
@@ -259,7 +293,10 @@ final class ClassStore: ObservableObject {
     }
 
     /// Remove the placement only; the underlying file is untouched.
-    func deletePin(id: String) {
+    func deletePin(id: String, recordHistory: Bool = true) {
+        if recordHistory, let before = pins.first(where: { $0.id == id }) {
+            boardHistory.record(.pin(before: before, after: nil))
+        }
         pins.removeAll { $0.id == id }
         XPCClient.shared.deleteClassPin(id: id) { [weak self] ok in
             if ok { self?.broadcastPinsChanged() }
@@ -287,6 +324,156 @@ final class ClassStore: ObservableObject {
               let courseId = currentCourseId,
               note.userInfo?["courseId"] as? String == courseId else { return }
         loadPins(courseId: courseId)
+    }
+
+    // MARK: - Annotations (local source of truth; write through to the daemon)
+
+    func nextAnnotationZOrder() -> Int {
+        (annotations.map(\.zOrder).max() ?? -1) + 1
+    }
+
+    func createAnnotation(_ dto: ClassAnnotationDTO, recordHistory: Bool = true) {
+        if recordHistory { boardHistory.record(.annotation(before: nil, after: dto)) }
+        annotations.removeAll { $0.id == dto.id }
+        annotations.append(dto)
+        XPCClient.shared.upsertClassAnnotation(dto) { [weak self] ok in
+            if ok { self?.broadcastAnnotationsChanged() }
+        }
+    }
+
+    func updateAnnotation(_ dto: ClassAnnotationDTO, recordHistory: Bool = true) {
+        // Never resurrect an annotation another window deleted mid-gesture
+        // (mirrors updatePin's ghost guard). The undo executor routes absent
+        // ids through createAnnotation, so undo/redo is unaffected.
+        guard annotations.contains(where: { $0.id == dto.id }) else { return }
+        let before = annotations.first { $0.id == dto.id }
+        if recordHistory, let before, before != dto {
+            boardHistory.record(.annotation(before: before, after: dto))
+        }
+        annotations.removeAll { $0.id == dto.id }
+        annotations.append(dto)
+        XPCClient.shared.upsertClassAnnotation(dto) { [weak self] ok in
+            if ok { self?.broadcastAnnotationsChanged() }
+        }
+    }
+
+    func deleteAnnotation(id: String, recordHistory: Bool = true) {
+        guard let before = annotations.first(where: { $0.id == id }) else { return }
+        if recordHistory { boardHistory.record(.annotation(before: before, after: nil)) }
+        annotations.removeAll { $0.id == id }
+        XPCClient.shared.deleteClassAnnotation(id: id) { [weak self] ok in
+            if ok { self?.broadcastAnnotationsChanged() }
+        }
+    }
+
+    /// Move a whole marquee selection as ONE undoable unit. Snapshots are
+    /// taken first; writes then flow through the normal write-through paths
+    /// with history recording disabled (the batch op carries the history).
+    func moveSelection(annotationIds: Set<String>, pinIds: Set<String>,
+                       dx: Double, dy: Double) {
+        var ops: [BoardOp] = []
+        for dto in annotations where annotationIds.contains(dto.id) {
+            ops.append(.annotation(before: dto, after: movedAnnotation(dto, dx: dx, dy: dy)))
+        }
+        for pin in pins where pinIds.contains(pin.id) {
+            ops.append(.pin(before: pin, after: pin.moved(x: pin.x + dx, y: pin.y + dy)))
+        }
+        guard !ops.isEmpty else { return }
+        boardHistory.record(.batch(ops))
+        for op in ops { apply(op, undo: false) }
+    }
+
+    /// Delete a whole marquee selection as ONE undoable unit.
+    func deleteSelection(annotationIds: Set<String>, pinIds: Set<String>) {
+        var ops: [BoardOp] = []
+        for dto in annotations where annotationIds.contains(dto.id) {
+            ops.append(.annotation(before: dto, after: nil))
+        }
+        for pin in pins where pinIds.contains(pin.id) {
+            ops.append(.pin(before: pin, after: nil))
+        }
+        guard !ops.isEmpty else { return }
+        boardHistory.record(.batch(ops))
+        for op in ops { apply(op, undo: false) }
+    }
+
+    /// Translate an annotation, keeping stroke payload points in sync with
+    /// the box (the stroke box/points contract).
+    private func movedAnnotation(_ dto: ClassAnnotationDTO,
+                                 dx: Double, dy: Double) -> ClassAnnotationDTO {
+        var moved = dto.moved(x: dto.x + dx, y: dto.y + dy)
+        if dto.annotationKind == .stroke,
+           var payload = dto.decodedPayload(StrokePayload.self) {
+            payload.points = AnnotationGeometry.translate(points: payload.points,
+                                                          dx: dx, dy: dy)
+            moved = moved.withPayload(ClassAnnotationDTO.encodePayload(payload))
+        }
+        return moved
+    }
+
+    private func broadcastAnnotationsChanged() {
+        guard let courseId = currentCourseId else { return }
+        NotificationCenter.default.post(name: .assistantAnnotationsDidChange, object: self,
+                                        userInfo: ["courseId": courseId])
+    }
+
+    private func reloadAnnotationsFromBroadcast(_ note: Notification) {
+        guard note.object as AnyObject !== self,
+              let courseId = currentCourseId,
+              note.userInfo?["courseId"] as? String == courseId else { return }
+        loadAnnotations(courseId: courseId)
+    }
+
+    // MARK: - Unified board undo/redo
+
+    func undoBoard() {
+        guard let op = boardHistory.undo() else { return }
+        apply(op, undo: true)
+    }
+
+    func redoBoard() {
+        guard let op = boardHistory.redo() else { return }
+        apply(op, undo: false)
+    }
+
+    /// Applies one side of an op WITHOUT recording history (recordHistory:
+    /// false everywhere) — undo/redo must not generate new ops.
+    private func apply(_ op: BoardOp, undo: Bool) {
+        switch op {
+        case .annotation(let before, let after):
+            let target = undo ? before : after
+            if let target {
+                if annotations.contains(where: { $0.id == target.id }) {
+                    updateAnnotation(target, recordHistory: false)
+                } else {
+                    createAnnotation(target, recordHistory: false)
+                }
+            } else if let victim = undo ? after : before {
+                deleteAnnotation(id: victim.id, recordHistory: false)
+            }
+        case .pin(let before, let after):
+            let target = undo ? before : after
+            if let target {
+                upsertPinForHistory(target)
+            } else if let victim = undo ? after : before {
+                deletePin(id: victim.id, recordHistory: false)
+            }
+        case .batch(let ops):
+            // One history unit: undo replays members in reverse.
+            for member in (undo ? Array(ops.reversed()) : ops) {
+                apply(member, undo: undo)
+            }
+        }
+    }
+
+    /// Re-applies a pin snapshot through the same local-first + write-through
+    /// path pins normally use (covers both "restore geometry" and "undelete").
+    private func upsertPinForHistory(_ pin: ClassPinDTO) {
+        pins.removeAll { $0.id == pin.id }
+        pins.append(pin)
+        XPCClient.shared.upsertClassPin(pin) { [weak self] ok in
+            if ok { self?.broadcastPinsChanged() }
+        }
     }
 
     // MARK: - Canvas tabs (per-course, persisted in UserDefaults)

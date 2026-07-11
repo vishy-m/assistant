@@ -17,6 +17,11 @@ extension Notification.Name {
     /// window never reloads — and risks a mid-drag flicker — from its own edits.
     static let assistantPinsDidChange = Notification.Name("assistantPinsDidChange")
 
+    /// Posted in-process after a successful class-annotation write. Same shape
+    /// as `.assistantPinsDidChange`: the originating `ClassStore` is the
+    /// `object` and the changed class's id rides in `userInfo["courseId"]`.
+    static let assistantAnnotationsDidChange = Notification.Name("assistantAnnotationsDidChange")
+
     /// Posted in-process after a successful class file/folder write (create,
     /// rename, move, delete, import). Same shape as `.assistantPinsDidChange`:
     /// the originating `ClassStore` is the `object` and the class id rides in
@@ -585,6 +590,31 @@ final class XPCClient {
         do {
             let proxy = try makeProxy()
             proxy.deleteClassPin(id: id) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func listClassAnnotations(courseId: String, reply: @escaping ([ClassAnnotationDTO]) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.listClassAnnotations(courseId: courseId) { data in
+                let v = (try? JSONDecoder().decode([ClassAnnotationDTO].self, from: data)) ?? []
+                DispatchQueue.main.async { reply(v) }
+            }
+        } catch { DispatchQueue.main.async { reply([]) } }
+    }
+
+    func upsertClassAnnotation(_ annotation: ClassAnnotationDTO, reply: @escaping (Bool) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(annotation)
+            let proxy = try makeProxy()
+            proxy.upsertClassAnnotation(data) { ok in DispatchQueue.main.async { reply(ok) } }
+        } catch { DispatchQueue.main.async { reply(false) } }
+    }
+
+    func deleteClassAnnotation(id: String, reply: @escaping (Bool) -> Void) {
+        do {
+            let proxy = try makeProxy()
+            proxy.deleteClassAnnotation(id: id) { ok in DispatchQueue.main.async { reply(ok) } }
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
