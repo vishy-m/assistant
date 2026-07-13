@@ -76,6 +76,16 @@ struct ClassDetailView: View {
                 store.loadDetail(courseId: courseId)
             }
         }
+        .sheet(item: $store.syllabusScanResult) { result in
+            SyllabusReviewSheet(result: result, store: store)
+        }
+        .alert("Syllabus Scan", isPresented: Binding(
+            get: { store.syllabusScanNotice != nil },
+            set: { if !$0 { store.syllabusScanNotice = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(store.syllabusScanNotice ?? "")
+        }
     }
 
     private func content(_ detail: ClassDetail) -> some View {

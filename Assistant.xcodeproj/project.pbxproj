@@ -10,6 +10,7 @@
 		05B81D47C38C879691DC04C3 /* CalendarEventPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C68A3FD6A63964F1D6ED22 /* CalendarEventPopover.swift */; };
 		05F3A52EF4B11201947DE6F4 /* XPCClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3206E14B526D87620591E3AA /* XPCClient.swift */; };
 		08647350847F5C5F13DB59D7 /* RecurrenceEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4CBAFE5D76C7A920FD246C2 /* RecurrenceEditor.swift */; };
+		0959FC3C0E12EEBB7A4DEA5F /* SyllabusReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E7B5C4AED38605FF0BB5964 /* SyllabusReviewSheet.swift */; };
 		0A7F2BE6648C9112000C3BF1 /* CanvasEventMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F4A7834821C087CE9CC823 /* CanvasEventMonitor.swift */; };
 		0CFC83EE4A2E4C660250F322 /* BoardEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ED8DB457D352CA77EC0A96C /* BoardEditor.swift */; };
 		0FCE9C5F55EC6CC920FB53C3 /* ClassCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 079546257CFD46BDEE7E479B /* ClassCanvasView.swift */; };
@@ -146,6 +147,7 @@
 		3738D91354FA570201E782BE /* OnboardingPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPane.swift; sourceTree = "<group>"; };
 		3945F90369D0D8F5A28E4D1A /* BriefingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingsTab.swift; sourceTree = "<group>"; };
 		3D3A7CD9D9ABA6D4FDEDD125 /* Step5Ready.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Step5Ready.swift; sourceTree = "<group>"; };
+		3E7B5C4AED38605FF0BB5964 /* SyllabusReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyllabusReviewSheet.swift; sourceTree = "<group>"; };
 		3F90C9826572BEC56BE599B6 /* BoardObjectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardObjectView.swift; sourceTree = "<group>"; };
 		432515D178E3A336650B88AA /* BoardGridLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardGridLayer.swift; sourceTree = "<group>"; };
 		44CCB152BA77F50F4965E0DE /* ShortcutNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutNames.swift; sourceTree = "<group>"; };
@@ -433,6 +435,7 @@
 				0903AC67CB4F1EA4611D5AC2 /* PDFViewRegistry.swift */,
 				509DF1B6CD47A2A453CF1D85 /* PinView.swift */,
 				A552CDEE3794B57E2151017C /* ResizableSplit.swift */,
+				3E7B5C4AED38605FF0BB5964 /* SyllabusReviewSheet.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -675,6 +678,7 @@
 				9B440870F4BB08FCE6B65063 /* Step4Hotkey.swift in Sources */,
 				7465D2ADF49794641F24E5B9 /* Step5Ready.swift in Sources */,
 				F195B807E39176D508835265 /* SwipeToDelete.swift in Sources */,
+				0959FC3C0E12EEBB7A4DEA5F /* SyllabusReviewSheet.swift in Sources */,
 				7B0CB4823D17497FF647C434 /* TaskDeadlineLine.swift in Sources */,
 				97E0006774911267C8379CBE /* TaskDeadlinePopover.swift in Sources */,
 				7879F94DA1DFE140F703D49E /* TaskEditorSheet.swift in Sources */,
