@@ -618,6 +618,19 @@ final class XPCClient {
         } catch { DispatchQueue.main.async { reply(false) } }
     }
 
+    func scanSyllabusFile(fileId: String, reply: @escaping (SyllabusScanResult) -> Void) {
+        let failure = SyllabusScanResult(fileId: fileId, status: .failed("daemon unreachable"),
+                                         events: [], tasks: [])
+        do {
+            let proxy = try makeProxy()
+            proxy.scanSyllabusFile(fileId: fileId) { data in
+                let result = (try? JSONDecoder().decode(SyllabusScanResult.self, from: data))
+                    ?? failure
+                DispatchQueue.main.async { reply(result) }
+            }
+        } catch { DispatchQueue.main.async { reply(failure) } }
+    }
+
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
         do {

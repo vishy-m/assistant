@@ -13,6 +13,11 @@ public final class LLMChain {
         self.providers = providers
     }
 
+    /// True when at least one provider could run a request right now.
+    public var hasConfiguredProvider: Bool {
+        providers.contains { $0.isConfigured() }
+    }
+
     public func complete(messages: [LLMMessage], tools: [LLMTool]) async throws -> LLMResponse {
         guard !providers.isEmpty else { throw ChainError.noProviders }
 

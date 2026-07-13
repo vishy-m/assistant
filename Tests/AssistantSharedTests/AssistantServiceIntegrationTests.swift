@@ -72,6 +72,7 @@ final class AssistantServiceIntegrationTests: XCTestCase {
             func listClassAnnotations(courseId: String, reply: @escaping (Data) -> Void) { reply(Data()) }
             func upsertClassAnnotation(_ data: Data, reply: @escaping (Bool) -> Void) { reply(false) }
             func deleteClassAnnotation(id: String, reply: @escaping (Bool) -> Void) { reply(false) }
+            func scanSyllabusFile(fileId: String, reply: @escaping (Data) -> Void) { reply(Data()) }
             func saveCategory(originalName: String?, name: String, colorHex: String,
                               reply: @escaping (Bool) -> Void) { reply(false) }
             func removeCategory(name: String, reply: @escaping (Bool) -> Void) { reply(false) }

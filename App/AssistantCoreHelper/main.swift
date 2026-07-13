@@ -42,7 +42,7 @@ BuiltinTools.registerTaskTools(into: &registry,
                                categoryRepo: CategoryRepository(db: db))
 
 let loop = ToolLoop(chain: chain, registry: registry)
-let service = AssistantService(db: db, loop: loop)
+let service = AssistantService(db: db, loop: loop, chain: chain)
 
 // MARK: - Google Calendar integration
 

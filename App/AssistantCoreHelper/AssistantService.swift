@@ -15,16 +15,18 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     private let taskRepo: TaskRepository
     private let gcalRepo: GCalRepository
     private var loop: ToolLoop
+    private let scanChain: LLMChain
     private var gcalClient: GCalClient?
     private var calendarWriter: CalendarWriter?
     private var syncWorker: GCalSyncWorker?
     private let promptRateLimiter = RateLimiter(limit: 30, window: 60)
 
-    init(db: AssistantDB, loop: ToolLoop) {
+    init(db: AssistantDB, loop: ToolLoop, chain: LLMChain) {
         self.db = db
         self.taskRepo = TaskRepository(db: db)
         self.gcalRepo = GCalRepository(db: db)
         self.loop = loop
+        self.scanChain = chain
     }
 
     func replaceLoop(_ newLoop: ToolLoop) {
@@ -832,6 +834,32 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     func deleteClassAnnotation(id: String, reply: @escaping (Bool) -> Void) {
         do { try ClassAnnotationRepository(db: db).delete(id: id); reply(true) }
         catch { NSLog("[AssistantService] deleteClassAnnotation error: \(error)"); reply(false) }
+    }
+
+    func scanSyllabusFile(fileId: String, reply: @escaping (Data) -> Void) {
+        func send(_ result: SyllabusScanResult) {
+            reply((try? JSONEncoder().encode(result)) ?? Data())
+        }
+        do {
+            guard let file = try ClassFileRepository(db: db).find(id: fileId),
+                  let storage = classFileStorage() else {
+                send(SyllabusScanResult(fileId: fileId, status: .failed("file not found"),
+                                        events: [], tasks: []))
+                return
+            }
+            let className = (try? CourseRepository(db: db).find(id: file.courseId))?.name
+                ?? file.courseId
+            let url = storage.fileURL(courseId: file.courseId, storedName: file.storedName)
+            let scanner = SyllabusScanner(chain: scanChain)
+            _Concurrency.Task {
+                let result = await scanner.scan(file: file, className: className,
+                                                fileURL: url)
+                send(result)
+            }
+        } catch {
+            send(SyllabusScanResult(fileId: fileId, status: .failed("\(error)"),
+                                    events: [], tasks: []))
+        }
     }
 
     func saveCategory(originalName: String?, name: String, colorHex: String,

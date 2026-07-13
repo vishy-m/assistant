@@ -54,6 +54,7 @@ public protocol AssistantServiceProtocol {
     func listClassAnnotations(courseId: String, reply: @escaping (Data) -> Void)
     func upsertClassAnnotation(_ data: Data, reply: @escaping (Bool) -> Void)
     func deleteClassAnnotation(id: String, reply: @escaping (Bool) -> Void)
+    func scanSyllabusFile(fileId: String, reply: @escaping (Data) -> Void)
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void)
     func removeCategory(name: String, reply: @escaping (Bool) -> Void)
