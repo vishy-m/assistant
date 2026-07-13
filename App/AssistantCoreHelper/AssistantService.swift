@@ -247,6 +247,11 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
                 try repo.update(course)
             } else {
                 try repo.insert(course)
+                // New classes start with a root Syllabus folder (spec: default
+                // folder; deleting it later is permanent and harmless).
+                try ClassFolderRepository(db: db).create(ClassFolder(
+                    id: UUID().uuidString, courseId: course.id,
+                    parentFolderId: nil, name: "Syllabus"))
             }
             reply(true)
         } catch {

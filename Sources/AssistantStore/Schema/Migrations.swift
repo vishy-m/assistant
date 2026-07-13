@@ -20,5 +20,6 @@ public enum Migrations {
         Migration012EventClassLink.register(&migrator)
         Migration013ClassFiles.register(&migrator)
         Migration014ClassAnnotations.register(&migrator)
+        Migration015SyllabusFolders.register(&migrator)
     }
 }
