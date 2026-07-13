@@ -22,6 +22,44 @@ final class ClassStore: ObservableObject {
     @Published var boardHistory = BoardHistory()
     /// Board tool/session state (survives tab switches; reset on class switch).
     let board = BoardEditor()
+
+    // MARK: - Syllabus scanning
+
+    /// Files currently being scanned (spinner state).
+    @Published var scanningFileIds: Set<String> = []
+    /// A completed scan with proposals — presents the review sheet.
+    @Published var syllabusScanResult: SyllabusScanResult?
+    /// Human-readable notice for scans that produced nothing/failed.
+    @Published var syllabusScanNotice: String?
+
+    /// The class's root-level "Syllabus" folder, if the user hasn't deleted it.
+    var rootSyllabusFolderId: String? {
+        fileTree.folders.first {
+            $0.folder.parentFolderId == nil
+                && $0.folder.name.compare("syllabus", options: .caseInsensitive) == .orderedSame
+        }?.id
+    }
+
+    func scanSyllabusFile(id: String) {
+        guard !scanningFileIds.contains(id) else { return }
+        scanningFileIds.insert(id)
+        XPCClient.shared.scanSyllabusFile(fileId: id) { [weak self] result in
+            guard let self else { return }
+            self.scanningFileIds.remove(id)
+            switch result.status {
+            case .ok where !(result.events.isEmpty && result.tasks.isEmpty):
+                self.syllabusScanResult = result
+            case .ok, .nothingToScan:
+                self.syllabusScanNotice = "No schedule information found in that file."
+            case .llmUnavailable:
+                self.syllabusScanNotice =
+                    "No AI provider is configured. Add an API key in Settings to scan syllabi."
+            case .failed(let message):
+                self.syllabusScanNotice = "Syllabus scan failed: \(message)"
+            }
+        }
+    }
+
     /// Open file tabs + active tab for this class's canvas (persisted per course).
     @Published var tabs: CanvasTabs = CanvasTabs()
     /// The board's pan/zoom viewport for the viewed class (persisted per course).
@@ -251,7 +289,11 @@ final class ClassStore: ObservableObject {
         let dto = ClassFileDTO(id: fileId, courseId: courseId, folderId: folderId,
                                name: url.lastPathComponent, storedName: storedName,
                                contentType: uti, byteSize: bytes.count)
-        XPCClient.shared.addClassFile(dto, bytes: bytes) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
+        let isSyllabusDrop = dto.folderId != nil && dto.folderId == rootSyllabusFolderId
+        XPCClient.shared.addClassFile(dto, bytes: bytes) { [weak self] ok in
+            self?.reloadAndBroadcastFiles(ok)
+            if ok && isSyllabusDrop { self?.scanSyllabusFile(id: dto.id) }
+        }
     }
 
     // MARK: - Pins (local source of truth; write through to the daemon)

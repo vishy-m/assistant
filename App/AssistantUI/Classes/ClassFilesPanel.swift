@@ -68,6 +68,9 @@ struct ClassFilesPanel: View {
         HStack(spacing: 4) {
             Image(systemName: "doc").foregroundStyle(.secondary)
             Text(file.name).font(GradeTheme.mono(11)).lineLimit(1)
+            if store.scanningFileIds.contains(file.id) {
+                ProgressView().controlSize(.small)
+            }
         }
         .padding(.leading, CGFloat(depth) * 12 + 14)
         .padding(.vertical, 2)
@@ -77,6 +80,9 @@ struct ClassFilesPanel: View {
         .onDrag { NSItemProvider(object: file.id as NSString) }
         .contextMenu {
             Button("Rename") { renameFile(file) }
+            if file.folderId != nil && file.folderId == store.rootSyllabusFolderId {
+                Button("Scan for Events") { store.scanSyllabusFile(id: file.id) }
+            }
             Button("Delete", role: .destructive) { store.deleteFile(id: file.id) }
         }
     }
