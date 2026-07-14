@@ -6,6 +6,9 @@ import AssistantStore
 struct ClassDetailView: View {
     let courseId: String
     @ObservedObject var store: ClassStore
+    /// Pops this view off the dashboard's NavigationStack (the window's
+    /// transparent title bar makes the system back chevron unreliable).
+    @Environment(\.dismiss) private var dismissToClasses
     @State private var showEditor = false
     @State private var showAddEvent = false
     @State private var showAddTask = false
@@ -113,6 +116,16 @@ struct ClassDetailView: View {
         .navigationTitle(detail.name)
         .onDisappear { savePanelPrefs() }
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    dismissToClasses()
+                } label: {
+                    Label("All Classes", systemImage: "chevron.left")
+                        .labelStyle(.titleAndIcon)
+                }
+                .keyboardShortcut("[", modifiers: .command)
+                .help("Back to all classes (⌘[)")
+            }
             ToolbarItemGroup {
                 Button("Add Event") { showAddEvent = true }
                 Button("Grades") { GradeDashboardWindow.shared.show() }
