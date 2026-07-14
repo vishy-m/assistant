@@ -74,15 +74,16 @@ public enum SyllabusScanStatus: Codable, Equatable {
 
 public struct SyllabusScanResult: Codable, Equatable, Identifiable {
     public let fileId: String
+    public let courseId: String
     public let status: SyllabusScanStatus
     public let events: [SyllabusProposedEvent]
     public let tasks: [SyllabusProposedTask]
 
     public var id: String { fileId }
 
-    public init(fileId: String, status: SyllabusScanStatus,
+    public init(fileId: String, courseId: String, status: SyllabusScanStatus,
                 events: [SyllabusProposedEvent], tasks: [SyllabusProposedTask]) {
-        self.fileId = fileId; self.status = status
+        self.fileId = fileId; self.courseId = courseId; self.status = status
         self.events = events; self.tasks = tasks
     }
 }

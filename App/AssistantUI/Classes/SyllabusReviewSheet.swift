@@ -137,8 +137,10 @@ struct SyllabusReviewSheet: View {
     }
 
     private func createApproved() {
-        guard let courseId = store.detail?.id else { return }
+        let courseId = result.courseId.isEmpty ? store.detail?.id : result.courseId
+        guard let courseId, !courseId.isEmpty else { return }
         creating = true
+        var failures = 0
         let group = DispatchGroup()
         for row in eventRows where row.included {
             group.enter()
@@ -150,7 +152,10 @@ struct SyllabusReviewSheet: View {
                 recurrence: row.proposal.recurrence,
                 courseId: courseId,
                 eventType: eventType(for: row.proposal.kind))
-            XPCClient.shared.createCalendarEvent(request) { _ in group.leave() }
+            XPCClient.shared.createCalendarEvent(request) { result in
+                if result.errorMessage != nil || result.event == nil { failures += 1 }
+                group.leave()
+            }
         }
         for row in taskRows where row.included {
             group.enter()
@@ -159,10 +164,17 @@ struct SyllabusReviewSheet: View {
                 dueAt: row.dueAt, completedAt: nil, courseId: courseId,
                 gradeItemId: nil, priority: 1, category: "Misc",
                 source: "syllabus")
-            XPCClient.shared.createTask(task) { _ in group.leave() }
+            XPCClient.shared.createTask(task) { ok in
+                if !ok { failures += 1 }
+                group.leave()
+            }
         }
         group.notify(queue: .main) {
             store.loadDetail(courseId: courseId) // refresh tasks/events views
+            if failures > 0 {
+                store.syllabusScanNotice =
+                    "\(failures) item\(failures == 1 ? "" : "s") could not be created. Check your calendar connection and rescan to retry."
+            }
             dismiss()
         }
     }

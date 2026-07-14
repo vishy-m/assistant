@@ -29,16 +29,17 @@ final class SyllabusDTOTests: XCTestCase {
             notes: "Submit on Gradescope")
         for status: SyllabusScanStatus in [.ok, .nothingToScan, .llmUnavailable,
                                            .failed("provider down")] {
-            let result = SyllabusScanResult(fileId: "f1", status: status,
+            let result = SyllabusScanResult(fileId: "f1", courseId: "c1", status: status,
                                             events: [event], tasks: [task])
             let back = try JSONDecoder().decode(SyllabusScanResult.self,
                                                 from: JSONEncoder().encode(result))
             XCTAssertEqual(back, result)
+            XCTAssertEqual(back.courseId, "c1")
         }
     }
 
     func testScanResultIdentityIsFileId() {
-        let r = SyllabusScanResult(fileId: "abc", status: .ok, events: [], tasks: [])
+        let r = SyllabusScanResult(fileId: "abc", courseId: "c1", status: .ok, events: [], tasks: [])
         XCTAssertEqual(r.id, "abc")
     }
 }

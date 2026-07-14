@@ -619,7 +619,7 @@ final class XPCClient {
     }
 
     func scanSyllabusFile(fileId: String, reply: @escaping (SyllabusScanResult) -> Void) {
-        let failure = SyllabusScanResult(fileId: fileId, status: .failed("daemon unreachable"),
+        let failure = SyllabusScanResult(fileId: fileId, courseId: "", status: .failed("daemon unreachable"),
                                          events: [], tasks: [])
         do {
             let proxy = try makeProxy()

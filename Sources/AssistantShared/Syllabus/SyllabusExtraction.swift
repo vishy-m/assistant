@@ -150,10 +150,11 @@ public enum SyllabusNormalizer {
         for entry in raw.recurringEvents ?? [] {
             guard let kind = recurringKind(entry.kind),
                   let start = entry.startTime.flatMap(parseTime),
-                  let weekdays = entry.weekdays?.compactMap({
+                  let weekdaysRaw = entry.weekdays?.compactMap({
                       weekdayNumbers[$0.lowercased()]
-                  }), !weekdays.isEmpty
+                  }), !weekdaysRaw.isEmpty
             else { continue }
+            let weekdays = Array(Set(weekdaysRaw))
             let end = entry.endTime.flatMap(parseTime)
             guard let firstStart = nextOccurrence(of: weekdays, atHour: start.h,
                                                   minute: start.m, onOrAfter: scanDate,

@@ -43,8 +43,13 @@ final class ClassStore: ObservableObject {
     func scanSyllabusFile(id: String) {
         guard !scanningFileIds.contains(id) else { return }
         scanningFileIds.insert(id)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 180) { [weak self] in
+            guard let self, self.scanningFileIds.contains(id) else { return }
+            self.scanningFileIds.remove(id)
+            self.syllabusScanNotice = "Syllabus scan timed out. Right-click the file and choose Scan for Events to retry."
+        }
         XPCClient.shared.scanSyllabusFile(fileId: id) { [weak self] result in
-            guard let self else { return }
+            guard let self, self.scanningFileIds.contains(id) else { return }
             self.scanningFileIds.remove(id)
             switch result.status {
             case .ok where !(result.events.isEmpty && result.tasks.isEmpty):

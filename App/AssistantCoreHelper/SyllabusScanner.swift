@@ -8,14 +8,15 @@ import AssistantLLM
 struct SyllabusScanner {
     let chain: LLMChain
 
-    func scan(file: ClassFile, className: String, fileURL: URL) async -> SyllabusScanResult {
+    func scan(file: ClassFile, className: String, fileURL: URL,
+              courseId: String) async -> SyllabusScanResult {
         guard let text = SyllabusTextExtractor.extract(url: fileURL,
                                                        contentType: file.contentType) else {
-            return SyllabusScanResult(fileId: file.id, status: .nothingToScan,
+            return SyllabusScanResult(fileId: file.id, courseId: courseId, status: .nothingToScan,
                                       events: [], tasks: [])
         }
         guard chain.hasConfiguredProvider else {
-            return SyllabusScanResult(fileId: file.id, status: .llmUnavailable,
+            return SyllabusScanResult(fileId: file.id, courseId: courseId, status: .llmUnavailable,
                                       events: [], tasks: [])
         }
 
@@ -35,7 +36,7 @@ struct SyllabusScanner {
             guard let call = response.toolCalls.first(where: {
                 $0.name == SyllabusPrompt.toolName
             }) else {
-                return SyllabusScanResult(fileId: file.id,
+                return SyllabusScanResult(fileId: file.id, courseId: courseId,
                                           status: .failed("model returned no extraction"),
                                           events: [], tasks: [])
             }
@@ -44,10 +45,10 @@ struct SyllabusScanner {
             let normalized = SyllabusNormalizer.normalize(raw, className: className,
                                                           scanDate: Date(),
                                                           calendar: Calendar.current)
-            return SyllabusScanResult(fileId: file.id, status: .ok,
+            return SyllabusScanResult(fileId: file.id, courseId: courseId, status: .ok,
                                       events: normalized.events, tasks: normalized.tasks)
         } catch {
-            return SyllabusScanResult(fileId: file.id,
+            return SyllabusScanResult(fileId: file.id, courseId: courseId,
                                       status: .failed("\(error)"), events: [], tasks: [])
         }
     }

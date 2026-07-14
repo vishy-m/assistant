@@ -250,10 +250,15 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             } else {
                 try repo.insert(course)
                 // New classes start with a root Syllabus folder (spec: default
-                // folder; deleting it later is permanent and harmless).
-                try ClassFolderRepository(db: db).create(ClassFolder(
-                    id: UUID().uuidString, courseId: course.id,
-                    parentFolderId: nil, name: "Syllabus"))
+                // folder; deleting it later is permanent and harmless). A failure
+                // here must not fail course creation — the feature just stays off.
+                do {
+                    try ClassFolderRepository(db: db).create(ClassFolder(
+                        id: UUID().uuidString, courseId: course.id,
+                        parentFolderId: nil, name: "Syllabus"))
+                } catch {
+                    NSLog("[AssistantService] default syllabus folder error: \(error)")
+                }
             }
             reply(true)
         } catch {
@@ -843,7 +848,7 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         do {
             guard let file = try ClassFileRepository(db: db).find(id: fileId),
                   let storage = classFileStorage() else {
-                send(SyllabusScanResult(fileId: fileId, status: .failed("file not found"),
+                send(SyllabusScanResult(fileId: fileId, courseId: "", status: .failed("file not found"),
                                         events: [], tasks: []))
                 return
             }
@@ -853,11 +858,11 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             let scanner = SyllabusScanner(chain: scanChain)
             _Concurrency.Task {
                 let result = await scanner.scan(file: file, className: className,
-                                                fileURL: url)
+                                                fileURL: url, courseId: file.courseId)
                 send(result)
             }
         } catch {
-            send(SyllabusScanResult(fileId: fileId, status: .failed("\(error)"),
+            send(SyllabusScanResult(fileId: fileId, courseId: "", status: .failed("\(error)"),
                                     events: [], tasks: []))
         }
     }
