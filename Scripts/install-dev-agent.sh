@@ -1,6 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Render the launchd plist by key. Shell substitution treats '&', '|', and
+# '\' specially and a failed redirect truncates the destination. plutil writes
+# a temp file in the destination directory, lints it, then renames it into place.
+render_plist() {
+    local binary_path="$1"
+    local log_dir="$2"
+    local env_file="$3"
+    local template="$4"
+    local out="$5"
+
+    if [ ! -f "$template" ]; then
+        echo "ERROR: template not found: $template" >&2
+        return 1
+    fi
+
+    local dest_dir tmp
+    dest_dir="$(dirname "$out")"
+    mkdir -p "$dest_dir"
+    tmp="$(mktemp "${dest_dir}/assistant-plist.XXXXXX")"
+
+    if ! cp "$template" "$tmp" \
+        || ! plutil -replace ProgramArguments.0 -string "$binary_path" "$tmp" \
+        || ! plutil -replace StandardOutPath -string "${log_dir}/core.log" "$tmp" \
+        || ! plutil -replace StandardErrorPath -string "${log_dir}/core.log" "$tmp" \
+        || ! plutil -replace EnvironmentVariables.ASSISTANT_ENV_FILE -string "$env_file" "$tmp" \
+        || ! plutil -lint "$tmp" >/dev/null; then
+        rm -f "$tmp"
+        echo "ERROR: failed to render $out" >&2
+        return 1
+    fi
+    mv -f "$tmp" "$out"
+}
+
+if [ "${RENDER_ONLY:-}" = "1" ]; then
+    : "${BINARY_PATH:?BINARY_PATH is required when RENDER_ONLY=1}"
+    : "${LOG_DIR:?LOG_DIR is required when RENDER_ONLY=1}"
+    : "${ENV_FILE:?ENV_FILE is required when RENDER_ONLY=1}"
+    : "${TEMPLATE:?TEMPLATE is required when RENDER_ONLY=1}"
+    : "${OUT:?OUT is required when RENDER_ONLY=1}"
+    render_plist "$BINARY_PATH" "$LOG_DIR" "$ENV_FILE" "$TEMPLATE" "$OUT"
+    exit 0
+fi
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TEMPLATE="$REPO_ROOT/Resources/LaunchAgents/com.vishruth.assistant.core.plist"
 LAUNCH_AGENT_DIR="$HOME/Library/LaunchAgents"
@@ -37,11 +80,8 @@ if [ ! -e "$ENV_FILE" ]; then
 fi
 chmod 600 "$ENV_FILE"
 
-# Render plist with absolute paths
-sed -e "s|__BINARY_PATH__|$BINARY_PATH|g" \
-    -e "s|__LOG_DIR__|$LOG_DIR|g" \
-    -e "s|__ENV_FILE__|$ENV_FILE|g" \
-    "$TEMPLATE" > "$INSTALLED_PLIST"
+# Render plist with absolute paths. A failed render leaves the installed plist.
+render_plist "$BINARY_PATH" "$LOG_DIR" "$ENV_FILE" "$TEMPLATE" "$INSTALLED_PLIST"
 
 # If already loaded, bootout first (idempotent install)
 if launchctl print "gui/$UID/$LABEL" >/dev/null 2>&1; then

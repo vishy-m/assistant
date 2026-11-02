@@ -40,15 +40,20 @@ final class CropSelectionController {
         let view = CropView()
         view.frame = NSRect(origin: .zero, size: frame.size)
         view.onMouseDown = { [weak self] point in self?.startPoint = point }
-        view.onMouseDragged = { [weak self] point in
-            guard let self, let start = self.startPoint else { return }
+        view.onMouseDragged = { [weak self, weak view] point in
+            guard let self, let view, let start = self.startPoint else { return }
             self.currentRect = Self.makeRect(from: start, to: point)
             view.selectionRect = self.currentRect
             view.needsDisplay = true
         }
-        view.onMouseUp = { [weak self] _ in
+        view.onMouseUp = { [weak self, weak view] _ in
             guard let self else { return }
-            let global = view.window?.convertToScreen(self.currentRect) ?? self.currentRect
+            let global: NSRect
+            if let view {
+                global = view.window?.convertToScreen(self.currentRect) ?? self.currentRect
+            } else {
+                global = self.currentRect
+            }
             self.hide()
             self.resolve(global.width > 4 && global.height > 4 ? global : nil)
         }
@@ -65,6 +70,12 @@ final class CropSelectionController {
 
     private func hide() {
         NSCursor.arrow.set()
+        if let crop = window?.contentView as? CropView {
+            crop.onMouseDown = nil
+            crop.onMouseDragged = nil
+            crop.onMouseUp = nil
+            crop.onEscape = nil
+        }
         window?.orderOut(nil)
         window = nil
         startPoint = nil

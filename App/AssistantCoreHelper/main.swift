@@ -111,6 +111,12 @@ focusPollTimer.setEventHandler {
 focusPollTimer.resume()
 NSLog("[BriefingScheduler] focus poll timer started")
 
+private func assistantPeerRequirement() -> String? {
+    XPCPeerRequirement.string(
+        forIdentifier: "com.vishruth.assistant",
+        uiBinaryURL: XPCPeerRequirement.resolvedUIBinaryURL())
+}
+
 final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
     let service: AssistantService
     init(service: AssistantService) { self.service = service }
@@ -119,9 +125,13 @@ final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
         // Authenticate the peer: only the Assistant UI app may drive the
         // daemon's RPCs. Without this any same-user process could connect to
         // the Mach service and overwrite keys, spend LLM credits, or read the
-        // conversation history.
-        conn.setCodeSigningRequirement(
-            XPCPeerRequirement.string(forIdentifier: "com.vishruth.assistant"))
+        // conversation history. Re-read the UI cdhash on each accept so a
+        // rebuilt app is picked up without restarting the helper.
+        guard let requirement = assistantPeerRequirement() else {
+            NSLog("[AssistantCoreHelper] refusing XPC connection: no team identity and no UI cdhash")
+            return false
+        }
+        conn.setCodeSigningRequirement(requirement)
         conn.exportedInterface = NSXPCInterface(with: AssistantServiceProtocol.self)
         conn.exportedObject = service
         conn.resume()
@@ -132,6 +142,10 @@ final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
 let delegate = ListenerDelegate(service: service)
 let listener = NSXPCListener(machServiceName: XPCConstants.machServiceName)
 listener.delegate = delegate
+guard assistantPeerRequirement() != nil else {
+    NSLog("[AssistantCoreHelper] FATAL: cannot build an XPC peer requirement (no team identity and no AssistantUI cdhash). Build AssistantUI next to this binary or set ASSISTANT_UI_BINARY.")
+    exit(1)
+}
 listener.resume()
 NSLog("[AssistantCoreHelper] listener resumed")
 RunLoop.main.run()

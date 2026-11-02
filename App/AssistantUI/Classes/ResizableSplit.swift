@@ -1,4 +1,5 @@
 import SwiftUI
+import AssistantShared
 
 enum PanelEdge { case leading, trailing, bottom }
 
@@ -15,6 +16,7 @@ struct ResizableSplit<Center: View, Panel: View>: View {
 
     private let railThickness: CGFloat = 22
     private let dividerThickness: CGFloat = 6
+    @State private var dragOrigin: CGFloat?
 
     var body: some View {
         switch edge {
@@ -44,8 +46,10 @@ struct ResizableSplit<Center: View, Panel: View>: View {
                 if inside { NSCursor.resizeLeftRight.set() } else { NSCursor.arrow.set() }
             }
             .gesture(DragGesture().onChanged { v in
-                let delta = edge == .leading ? v.translation.width : -v.translation.width
-                size = min(max(size + delta, range.lowerBound), range.upperBound)
+                let sign: CGFloat = edge == .leading ? 1 : -1
+                size = sizeAfterDrag(translation: v.translation.width, sign: sign)
+            }.onEnded { _ in
+                dragOrigin = nil
             })
     }
 
@@ -67,11 +71,24 @@ struct ResizableSplit<Center: View, Panel: View>: View {
                         if inside { NSCursor.resizeUpDown.set() } else { NSCursor.arrow.set() }
                     }
                     .gesture(DragGesture().onChanged { v in
-                        size = min(max(size - v.translation.height, range.lowerBound), range.upperBound)
+                        size = sizeAfterDrag(translation: v.translation.height, sign: -1)
+                    }.onEnded { _ in
+                        dragOrigin = nil
                     })
             }
             panelOrRail
         }
+    }
+
+    private func sizeAfterDrag(translation: CGFloat, sign: CGFloat) -> CGFloat {
+        let origin: CGFloat
+        if let dragOrigin {
+            origin = dragOrigin
+        } else {
+            origin = size
+            dragOrigin = size
+        }
+        return SplitDragMath.apply(origin: origin, translation: translation, range: range, sign: sign)
     }
 
     @ViewBuilder private var panelOrRail: some View {
