@@ -8,8 +8,8 @@ import AssistantGrades
 final class AssistantService: NSObject, AssistantServiceProtocol {
 
     // Defense-in-depth bounds on submitPrompt, independent of XPC peer auth.
-    private static let maxPromptTextBytes = 100_000        // 100 KB of prompt text
-    private static let maxPromptImageBytes = 10 * 1024 * 1024  // 10 MB image payload
+    // Size caps live in PromptAdmission; this gate caps concurrent prompts.
+    private let promptGate = PromptAdmission.InFlightGate()
 
     private let db: AssistantDB
     private let taskRepo: TaskRepository
@@ -68,14 +68,27 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func submitPrompt(_ requestData: Data, reply: @escaping (Data) -> Void) {
+        // Admission runs synchronously, before decoding or spawning a task.
+        guard PromptAdmission.preflight(byteCount: requestData.count) else {
+            reply((try? JSONEncoder().encode(PromptResponse(
+                text: "", modelUsed: "", needsFollowup: false,
+                sessionId: nil, errorMessage: "Request too large."))) ?? Data())
+            return
+        }
+        guard promptGate.tryEnter() else {
+            reply((try? JSONEncoder().encode(PromptResponse(
+                text: "", modelUsed: "", needsFollowup: false, sessionId: nil,
+                errorMessage: "Assistant is busy — try again in a moment."))) ?? Data())
+            return
+        }
         _Concurrency.Task {
+            defer { promptGate.leave() }
             let response: PromptResponse
             do {
                 let req = try JSONDecoder().decode(PromptRequest.self, from: requestData)
 
-                // Bound payload size and request rate.
-                if req.text.utf8.count > Self.maxPromptTextBytes
-                    || (req.imageData?.count ?? 0) > Self.maxPromptImageBytes {
+                // Bound field sizes and request rate.
+                if PromptAdmission.fieldError(for: req) != nil {
                     reply((try? JSONEncoder().encode(PromptResponse(
                         text: "", modelUsed: "", needsFollowup: false,
                         sessionId: nil, errorMessage: "Request too large."))) ?? Data())
@@ -186,17 +199,18 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         }
     }
 
-    private var eventClientConnection: NSXPCConnection?
+    private let eventClient = EventClientSlot<NSXPCConnection>()
 
     func registerEventClient(_ endpoint: NSXPCListenerEndpoint, reply: @escaping (Bool) -> Void) {
         let conn = NSXPCConnection(listenerEndpoint: endpoint)
         conn.remoteObjectInterface = NSXPCInterface(with: AssistantEventsProtocol.self)
-        conn.invalidationHandler = { [weak self] in
+        conn.invalidationHandler = { [weak self, weak conn] in
             NSLog("[AssistantService] event client invalidated")
-            self?.eventClientConnection = nil
+            // Only clear if this connection is still the registered one.
+            if let conn { self?.eventClient.clearIfSame(conn) }
         }
         conn.resume()
-        self.eventClientConnection = conn
+        eventClient.replace(conn)?.invalidate()
         reply(true)
     }
 
@@ -210,7 +224,9 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
                 projection = [:]
             }
             let input = try buildCalculatorInput(courseId: courseId, projection: projection)
-            let breakdown = GradeCalculator.compute(input: input)
+            let scale = GradingScale.parse(
+                json: try CourseRepository(db: db).find(id: courseId)?.gradingScaleJson)
+            let breakdown = GradeCalculator.compute(input: input, gradingScale: scale)
             let data = try JSONEncoder().encode(breakdown)
             reply(data)
         } catch {
@@ -240,6 +256,7 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func upsertCourse(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsJSON(data) else { reply(false); return }
         do {
             let course = try JSONDecoder().decode(Course.self, from: data)
             let repo = CourseRepository(db: db)
@@ -325,7 +342,26 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
 
     func deleteCourse(id: String, reply: @escaping (Bool) -> Void) {
         do {
-            try CourseRepository(db: db).delete(id: id)
+            // Unlink class-file bytes first; keep the course if any unlink fails
+            // so the user can retry. Unsafe ids never had bytes under ClassFiles.
+            let diskCleanup = ClassFileStorage.isSafeComponent(id)
+            var storage: ClassFileStorage?
+            if diskCleanup {
+                guard let s = classFileStorage() else { reply(false); return }
+                storage = s
+                for file in try ClassFileRepository(db: db).all(courseId: id) {
+                    guard s.discard(courseId: file.courseId, storedName: file.storedName) else {
+                        reply(false); return
+                    }
+                }
+            }
+            let removed = try CourseRepository(db: db).delete(id: id)
+            if let storage {
+                // Rows added between the unlink pass and the delete.
+                for file in removed { _ = storage.discard(courseId: file.courseId,
+                                                          storedName: file.storedName) }
+                try? storage.removeCourseDirectory(courseId: id)
+            }
             reply(true)
         } catch {
             NSLog("[AssistantService] deleteCourse error: \(error)")
@@ -437,8 +473,12 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
                 let items = try gradeRepo.items(forCourse: course.id)
                 allItems.append(contentsOf: items)
                 let input = try buildCalculatorInput(courseId: course.id, projection: [:])
-                let breakdown = GradeCalculator.compute(input: input)
-                let hasGradedWork = items.contains { $0.earnedPoints != nil }
+                let breakdown = GradeCalculator.compute(
+                    input: input, gradingScale: GradingScale.parse(json: course.gradingScaleJson))
+                // Regular items with no category are not counted by the calculator.
+                let hasGradedWork = items.contains {
+                    $0.earnedPoints != nil && ($0.categoryId != nil || $0.isExtraCredit)
+                }
                 if !cats.isEmpty {
                     standings.append(ClassStanding(
                         courseId: course.id, courseName: course.name,
@@ -703,7 +743,8 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func createClassFolder(_ data: Data, reply: @escaping (Bool) -> Void) {
-        guard let dto = try? JSONDecoder().decode(ClassFolderDTO.self, from: data) else {
+        guard XPCPayloadLimit.allowsJSON(data),
+              let dto = try? JSONDecoder().decode(ClassFolderDTO.self, from: data) else {
             reply(false); return
         }
         do {
@@ -715,6 +756,7 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func renameClassFolder(id: String, name: String, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsShortString(name) else { reply(false); return }
         do { try ClassFolderRepository(db: db).rename(id: id, name: name); reply(true) }
         catch { NSLog("[AssistantService] renameClassFolder error: \(error)"); reply(false) }
     }
@@ -725,31 +767,50 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func deleteClassFolder(id: String, reply: @escaping (Bool) -> Void) {
+        guard let storage = classFileStorage() else { reply(false); return }
         do {
-            let courseId = try ClassFolderRepository(db: db).find(id: id)?.courseId
-            let storedNames = try ClassFolderRepository(db: db).deleteRecursively(id: id)
-            if let courseId, let storage = classFileStorage() {
-                for name in storedNames {
-                    try? storage.remove(courseId: courseId, storedName: name)
+            // Unlink bytes first (each from the file's own course dir). If any
+            // unlink fails, drop only the rows whose bytes are gone, keep the
+            // folders, and report failure so the user can retry.
+            let folders = ClassFolderRepository(db: db)
+            let files = ClassFileRepository(db: db)
+            var unlinked: Set<String> = []
+            var failed = false
+            for file in try folders.filesInSubtree(id: id) {
+                if storage.discard(courseId: file.courseId, storedName: file.storedName) {
+                    unlinked.insert(file.id)
+                } else {
+                    failed = true
                 }
+            }
+            if failed {
+                for fileId in unlinked { try files.delete(id: fileId) }
+                reply(false); return
+            }
+            // Files added between the unlink pass and the delete.
+            for file in try folders.deleteRecursively(id: id) where !unlinked.contains(file.id) {
+                _ = storage.discard(courseId: file.courseId, storedName: file.storedName)
             }
             reply(true)
         } catch { NSLog("[AssistantService] deleteClassFolder error: \(error)"); reply(false) }
     }
 
     func addClassFile(_ data: Data, bytes: Data, reply: @escaping (Bool) -> Void) {
-        guard let dto = try? JSONDecoder().decode(ClassFileDTO.self, from: data),
+        guard XPCPayloadLimit.allowsJSON(data),
+              XPCPayloadLimit.allowsFileBytes(bytes.count),
+              let dto = try? JSONDecoder().decode(ClassFileDTO.self, from: data),
               let storage = classFileStorage() else { reply(false); return }
         do {
-            try storage.write(bytes, courseId: dto.courseId, storedName: dto.storedName)
-            try ClassFileRepository(db: db).create(ClassFile(
+            // The importer validates course/folder, ignores the client storedName
+            // and byteSize, and never overwrites existing bytes.
+            reply(try ClassFileImporter(db: db, storage: storage).importFile(
                 id: dto.id, courseId: dto.courseId, folderId: dto.folderId, name: dto.name,
-                storedName: dto.storedName, contentType: dto.contentType, byteSize: dto.byteSize))
-            reply(true)
+                contentType: dto.contentType, bytes: bytes))
         } catch { NSLog("[AssistantService] addClassFile error: \(error)"); reply(false) }
     }
 
     func renameClassFile(id: String, name: String, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsShortString(name) else { reply(false); return }
         do { try ClassFileRepository(db: db).rename(id: id, name: name); reply(true) }
         catch { NSLog("[AssistantService] renameClassFile error: \(error)"); reply(false) }
     }
@@ -760,12 +821,15 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func deleteClassFile(id: String, reply: @escaping (Bool) -> Void) {
+        guard let storage = classFileStorage() else { reply(false); return }
         do {
-            let courseId = try ClassFileRepository(db: db).find(id: id)?.courseId
-            let stored = try ClassFileRepository(db: db).delete(id: id)
-            if let courseId, let stored, let storage = classFileStorage() {
-                try? storage.remove(courseId: courseId, storedName: stored)
+            // Unlink first; drop the row only once the bytes are gone.
+            let repo = ClassFileRepository(db: db)
+            guard let file = try repo.find(id: id) else { reply(true); return }
+            guard storage.discard(courseId: file.courseId, storedName: file.storedName) else {
+                reply(false); return
             }
+            try repo.delete(id: id)
             reply(true)
         } catch { NSLog("[AssistantService] deleteClassFile error: \(error)"); reply(false) }
     }
@@ -782,7 +846,8 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func upsertClassPin(_ data: Data, reply: @escaping (Bool) -> Void) {
-        guard let dto = try? JSONDecoder().decode(ClassPinDTO.self, from: data) else {
+        guard XPCPayloadLimit.allowsJSON(data),
+              let dto = try? JSONDecoder().decode(ClassPinDTO.self, from: data) else {
             reply(false); return
         }
         do {
@@ -1022,7 +1087,7 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func pushBriefing(_ payload: BriefingPayload) -> Bool {
-        guard let conn = eventClientConnection else { return false }
+        guard let conn = eventClient.current else { return false }
         guard let proxy = conn.remoteObjectProxyWithErrorHandler({ err in
             NSLog("[AssistantService] briefing push error: \(err)")
         }) as? AssistantEventsProtocol else {
