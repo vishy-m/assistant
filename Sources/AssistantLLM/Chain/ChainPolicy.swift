@@ -9,6 +9,7 @@ public enum ChainPolicy {
         case .rateLimited, .serverOverloaded: return true
         case .transient, .timeout: return true
         case .decodingFailure: return true        // try a different provider rather than fail
+        case .responseRejected: return true       // blocked/empty answer: another model may still answer
         case .clientError: return false           // 4xx — our fault, retry won't help
         }
     }

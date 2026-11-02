@@ -9,7 +9,7 @@ struct Step3GoogleCalendar: View {
     var body: some View {
         VStack(spacing: 14) {
             Text("Connect Google Calendar").font(.title2.bold())
-            Text("Assistant writes events to a dedicated 'Assistant' calendar in your Google account. Create a Desktop App OAuth client in Google Cloud Console and paste its client ID and secret. The secret is stored in your macOS Keychain.")
+            Text("Assistant writes events to a dedicated 'Assistant' calendar in your Google account. Create a Desktop App OAuth client in Google Cloud Console and paste its client ID and secret. The secret is stored in the Assistant .env file on this Mac.")
                 .multilineTextAlignment(.center).foregroundStyle(.secondary).padding(.horizontal, 24)
             TextField("OAuth Client ID", text: $clientID).frame(maxWidth: 380)
             SecureField("OAuth Client Secret", text: $clientSecret).frame(maxWidth: 380)

@@ -16,23 +16,26 @@ do {
     exit(1)
 }
 
-// Relocate any pre-Keychain Google OAuth client secret before anything reads it.
+// Relocate any legacy SQLite-stored Google OAuth client secret before anything reads it.
 OAuthSecretMigration.run(db: db)
 
-// HTTP + Keychain
+// HTTP + secrets (.env file, path from $ASSISTANT_ENV_FILE)
 let http: HTTPClient = URLSessionHTTPClient()
-let keychain = KeychainStore()
+let secrets = SecretStore()
+NSLog("[AssistantCoreHelper] secrets file: \(secrets.fileURL.path)")
 
 // Providers — each reads its key lazily so the user can configure later without restart.
 let claude = ClaudeProvider(http: http,
-                            apiKeyProvider: { try? keychain.get(.claudeAPIKey) })
+                            apiKeyProvider: { try? secrets.get(.claudeAPIKey) })
 let openai = OpenAIProvider(http: http,
-                            apiKeyProvider: { try? keychain.get(.openaiAPIKey) })
+                            apiKeyProvider: { try? secrets.get(.openaiAPIKey) })
+let gemini = GeminiProvider(http: http,
+                            apiKeyProvider: { try? secrets.get(.geminiAPIKey) })
 let gemmaHosted = GemmaHostedProvider(http: http,
-                                      apiKeyProvider: { try? keychain.get(.gemmaHostedAPIKey) })
+                                      apiKeyProvider: { try? secrets.get(.gemmaHostedAPIKey) })
 let ollama = OllamaLocalProvider(http: http)
 
-let chain = LLMChain(providers: [claude, openai, gemmaHosted, ollama])
+let chain = LLMChain(providers: [claude, openai, gemini, gemmaHosted, ollama])
 
 // Tool registry
 var registry = ToolRegistry()

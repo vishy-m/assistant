@@ -21,8 +21,9 @@ struct StatusTab: View {
             Section("LLM providers") {
                 row("Claude (Tier 1)", store.claudeConfigured)
                 row("OpenAI (Tier 2)", store.openaiConfigured)
-                row("Gemma hosted (Tier 3)", store.gemmaHostedConfigured)
-                row("Gemma local (Tier 4)", true)
+                row("Gemini (Tier 3)", store.geminiConfigured)
+                row("Gemma hosted (Tier 4)", store.gemmaHostedConfigured)
+                row("Gemma local (Tier 5)", true)
             }
             Section("Google Calendar") {
                 row("Connected", store.gcalConnected)

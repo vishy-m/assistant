@@ -4,7 +4,7 @@ public protocol LLMProvider: Sendable {
     /// Identifier for logging and budget tracking ("claude", "openai", etc.)
     var name: String { get }
 
-    /// Does this provider currently have configuration to run? (e.g., API key in Keychain.)
+    /// Does this provider currently have configuration to run? (e.g., API key in `.env`.)
     func isConfigured() -> Bool
 
     /// Sends the conversation + tool list to the provider and returns one model response.
@@ -20,4 +20,5 @@ public enum ProviderError: Error, Equatable {
     case timeout
     case clientError(statusCode: Int, message: String)   // 4xx (non-429)
     case decodingFailure(message: String)
+    case responseRejected(message: String)   // blocked or empty model response
 }

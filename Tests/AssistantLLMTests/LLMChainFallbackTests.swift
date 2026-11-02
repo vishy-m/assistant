@@ -80,4 +80,22 @@ final class LLMChainFallbackTests: XCTestCase {
             XCTAssertEqual(errs.count, 2)
         } catch { XCTFail("\(error)") }
     }
+    func testResponseRejectedFallsThrough() {
+        XCTAssertTrue(ChainPolicy.shouldFallThrough(ProviderError.responseRejected(message: "blocked")))
+    }
+
+    /// Claude -> OpenAI -> Gemini -> Gemma hosted -> Ollama, as wired in main.swift.
+    func testFiveTierOrderFallsThroughToNextTier() async throws {
+        let claude = StubProvider(name: "claude", outcome: .failure(ProviderError.rateLimited))
+        let openai = StubProvider(name: "openai", configured: false, outcome: .success(okResp("openai")))
+        let gemini = StubProvider(name: "gemini",
+                                  outcome: .failure(ProviderError.responseRejected(message: "gemini: SAFETY")))
+        let gemma = StubProvider(name: "gemma_hosted", outcome: .success(okResp("gemma_hosted")))
+        let ollama = StubProvider(name: "ollama", outcome: .success(okResp("ollama")))
+        let chain = LLMChain(providers: [claude, openai, gemini, gemma, ollama])
+        let r = try await chain.complete(
+            messages: [LLMMessage(role: .user, content: [.text("x")])], tools: [])
+        XCTAssertEqual(r.modelUsed, "gemma_hosted")
+        XCTAssertEqual([claude, openai, gemini, gemma, ollama].map(\.callCount), [1, 0, 1, 1, 0])
+    }
 }

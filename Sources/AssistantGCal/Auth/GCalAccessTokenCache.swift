@@ -40,14 +40,14 @@ public final class GCalAccessTokenCache: @unchecked Sendable {
         return cachedToken
     }
 
-    /// Reads the OAuth client ID from settings and the client secret from Keychain.
+    /// Reads the OAuth client ID from settings and the client secret from `.env`.
     private func clientCredentials() -> (id: String, secret: String)? {
         guard let db else { return nil }
         guard let settings: AppSettings = try? SettingRepository(db: db).getCodable("app_settings"),
               let id = settings.gcalOAuthClientID, !id.isEmpty else {
             return nil
         }
-        let secret = ((try? KeychainStore().get(.googleOAuthClientSecret)) ?? nil) ?? ""
+        let secret = ((try? SecretStore().get(.googleOAuthClientSecret)) ?? nil) ?? ""
         return (id, secret)
     }
 

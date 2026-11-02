@@ -17,10 +17,13 @@ public struct ToolCall: Codable, Equatable {
     public let id: String
     public let name: String
     public let argumentsJSON: String
+    /// Opaque Google reasoning state, returned unchanged on the functionCall part.
+    public let thoughtSignature: String?
 
-    public init(id: String, name: String, argumentsJSON: String) {
+    public init(id: String, name: String, argumentsJSON: String, thoughtSignature: String? = nil) {
         self.id = id
         self.name = name
         self.argumentsJSON = argumentsJSON
+        self.thoughtSignature = thoughtSignature
     }
 }

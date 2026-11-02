@@ -26,3 +26,6 @@ Package.resolved
 /superpowers/
 # Superpowers session scratch (briefs, ledgers, review packages)
 .superpowers/
+
+# Secrets (API keys, OAuth tokens). See .env.example.
+.env

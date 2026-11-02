@@ -5,6 +5,7 @@ struct APIKeysTab: View {
 
     @State private var claudeKey = ""
     @State private var openaiKey = ""
+    @State private var geminiKey = ""
     @State private var gemmaKey = ""
 
     var body: some View {
@@ -33,7 +34,19 @@ struct APIKeysTab: View {
                      destination: URL(string: "https://platform.openai.com/api-keys")!)
                     .font(.caption)
             }
-            Section("Gemma 4 hosted (Tier 3)") {
+            Section("Gemini (Tier 3)") {
+                statusRow(configured: store.geminiConfigured)
+                SecureField("API key", text: $geminiKey)
+                HStack {
+                    Button("Save") { _Concurrency.Task { _ = await store.setKey(provider: "gemini", key: geminiKey); geminiKey = "" } }
+                        .disabled(geminiKey.isEmpty)
+                    Button("Clear") { _Concurrency.Task { _ = await store.setKey(provider: "gemini", key: "") } }
+                }
+                Link("Get one at aistudio.google.com →",
+                     destination: URL(string: "https://aistudio.google.com/apikey")!)
+                    .font(.caption)
+            }
+            Section("Gemma 4 hosted (Tier 4)") {
                 statusRow(configured: store.gemmaHostedConfigured)
                 SecureField("API key", text: $gemmaKey)
                 HStack {
@@ -44,7 +57,7 @@ struct APIKeysTab: View {
                 Text("Default endpoint is Google AI Studio.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Local Gemma 4 (Tier 4)") {
+            Section("Local Gemma 4 (Tier 5)") {
                 Text("No key required. Install via brew install ollama && ollama pull gemma4.")
                     .font(.caption)
             }

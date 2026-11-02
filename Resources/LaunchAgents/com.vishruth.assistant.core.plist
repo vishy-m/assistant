@@ -32,6 +32,8 @@
     <dict>
         <key>ASSISTANT_DEV</key>
         <string>1</string>
+        <key>ASSISTANT_ENV_FILE</key>
+        <string>__ENV_FILE__</string>
     </dict>
 </dict>
 </plist>

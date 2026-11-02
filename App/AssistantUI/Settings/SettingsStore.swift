@@ -7,6 +7,7 @@ final class SettingsStore: ObservableObject {
     @Published var settings: AppSettings = .default
     @Published var claudeConfigured: Bool = false
     @Published var openaiConfigured: Bool = false
+    @Published var geminiConfigured: Bool = false
     @Published var gemmaHostedConfigured: Bool = false
     @Published var gcalConnected: Bool = false
 
@@ -21,7 +22,7 @@ final class SettingsStore: ObservableObject {
     }
 
     func refreshProviderStatuses() async {
-        let providers = ["claude", "openai", "gemma_hosted"]
+        let providers = ["claude", "openai", "gemini", "gemma_hosted"]
         for p in providers {
             let ok: Bool = await withCheckedContinuation { cont in
                 XPCClient.shared.getProviderConfigured(provider: p) { cont.resume(returning: $0) }
@@ -29,6 +30,7 @@ final class SettingsStore: ObservableObject {
             switch p {
             case "claude": claudeConfigured = ok
             case "openai": openaiConfigured = ok
+            case "gemini": geminiConfigured = ok
             case "gemma_hosted": gemmaHostedConfigured = ok
             default: break
             }

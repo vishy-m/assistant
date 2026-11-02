@@ -2,23 +2,21 @@ import Foundation
 import AssistantLLM
 
 public struct GCalAuthStore {
-    public static let refreshTokenAccount = "google_oauth_refresh_token"
+    private let secrets: SecretStore
 
-    private let keychain: KeychainStore
-
-    public init(keychain: KeychainStore = KeychainStore()) {
-        self.keychain = keychain
+    public init(secrets: SecretStore = SecretStore()) {
+        self.secrets = secrets
     }
 
     public func setRefreshToken(_ token: String) throws {
-        try keychain.set(account: Self.refreshTokenAccount, value: token)
+        try secrets.set(.googleOAuthRefreshToken, value: token)
     }
 
     public func refreshToken() throws -> String? {
-        try keychain.get(account: Self.refreshTokenAccount)
+        try secrets.get(.googleOAuthRefreshToken)
     }
 
     public func clear() throws {
-        try keychain.delete(account: Self.refreshTokenAccount)
+        try secrets.delete(.googleOAuthRefreshToken)
     }
 }

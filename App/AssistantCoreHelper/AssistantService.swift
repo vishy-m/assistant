@@ -335,17 +335,11 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
 
     func setProviderAPIKey(provider: String, key: String, reply: @escaping (Bool) -> Void) {
         do {
-            let account: KeychainAccount
-            switch provider {
-            case "claude": account = .claudeAPIKey
-            case "openai": account = .openaiAPIKey
-            case "gemma_hosted": account = .gemmaHostedAPIKey
-            default: reply(false); return
-            }
+            guard let secret = Self.secretKey(forProvider: provider) else { reply(false); return }
             if key.isEmpty {
-                try KeychainStore().delete(account: account.rawValue)
+                try SecretStore().delete(secret)
             } else {
-                try KeychainStore().set(account, value: key)
+                try SecretStore().set(secret, value: key)
             }
             reply(true)
         } catch {
@@ -355,15 +349,19 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func getProviderConfigured(provider: String, reply: @escaping (Bool) -> Void) {
-        let account: KeychainAccount
-        switch provider {
-        case "claude": account = .claudeAPIKey
-        case "openai": account = .openaiAPIKey
-        case "gemma_hosted": account = .gemmaHostedAPIKey
-        default: reply(false); return
-        }
-        let configured = ((try? KeychainStore().get(account)) ?? nil) != nil
+        guard let secret = Self.secretKey(forProvider: provider) else { reply(false); return }
+        let configured = ((try? SecretStore().get(secret)) ?? nil) != nil
         reply(configured)
+    }
+
+    private static func secretKey(forProvider provider: String) -> SecretKey? {
+        switch provider {
+        case "claude": return .claudeAPIKey
+        case "openai": return .openaiAPIKey
+        case "gemini": return .geminiAPIKey
+        case "gemma_hosted": return .gemmaHostedAPIKey
+        default: return nil
+        }
     }
 
     func getSettings(reply: @escaping (Data) -> Void) {
@@ -402,9 +400,9 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     func setGoogleClientSecret(_ secret: String, reply: @escaping (Bool) -> Void) {
         do {
             if secret.isEmpty {
-                try KeychainStore().delete(account: KeychainAccount.googleOAuthClientSecret.rawValue)
+                try SecretStore().delete(.googleOAuthClientSecret)
             } else {
-                try KeychainStore().set(.googleOAuthClientSecret, value: secret)
+                try SecretStore().set(.googleOAuthClientSecret, value: secret)
             }
             reply(true)
         } catch {
@@ -414,7 +412,7 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func getGoogleClientSecret(reply: @escaping (String?) -> Void) {
-        reply((try? KeychainStore().get(.googleOAuthClientSecret)) ?? nil)
+        reply((try? SecretStore().get(.googleOAuthClientSecret)) ?? nil)
     }
 
     func googleAccountTimeZone(reply: @escaping (String?) -> Void) {

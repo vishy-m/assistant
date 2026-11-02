@@ -11,7 +11,7 @@ struct GoogleAccountTab: View {
     var body: some View {
         Form {
             Section("OAuth credentials") {
-                Text("Create a Desktop App OAuth client at Google Cloud Console → APIs & Services → Credentials. Paste both the client ID and client secret — Google's desktop clients now issue a secret, and the token endpoint requires it. The secret is stored in your macOS Keychain.")
+                Text("Create a Desktop App OAuth client at Google Cloud Console → APIs & Services → Credentials. Paste both the client ID and client secret — Google's desktop clients now issue a secret, and the token endpoint requires it. The secret is stored in the Assistant .env file on this Mac.")
                     .font(.caption).foregroundStyle(.secondary)
                 TextField("Client ID", text: $clientID,
                           prompt: Text("123-abc.apps.googleusercontent.com"))

@@ -28,9 +28,19 @@ fi
 
 mkdir -p "$LAUNCH_AGENT_DIR" "$LOG_DIR"
 
+# Secrets live in <repo root>/.env (gitignored). Seed it from the example on
+# first install and keep it owner-only.
+ENV_FILE="$REPO_ROOT/.env"
+if [ ! -e "$ENV_FILE" ]; then
+    cp "$REPO_ROOT/.env.example" "$ENV_FILE"
+    echo "Created $ENV_FILE from .env.example. Fill in your keys (or paste them in Settings)."
+fi
+chmod 600 "$ENV_FILE"
+
 # Render plist with absolute paths
 sed -e "s|__BINARY_PATH__|$BINARY_PATH|g" \
     -e "s|__LOG_DIR__|$LOG_DIR|g" \
+    -e "s|__ENV_FILE__|$ENV_FILE|g" \
     "$TEMPLATE" > "$INSTALLED_PLIST"
 
 # If already loaded, bootout first (idempotent install)
@@ -45,6 +55,7 @@ echo "Installed LaunchAgent:"
 echo "  plist:  $INSTALLED_PLIST"
 echo "  binary: $BINARY_PATH"
 echo "  log:    $LOG_DIR/core.log"
+echo "  env:    $ENV_FILE"
 echo ""
 echo "Test it:"
 echo "  launchctl print gui/\$UID/$LABEL | grep state"
