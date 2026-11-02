@@ -26,6 +26,8 @@ final class DashboardStore: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var sessionId: String?
     @Published var isSending = false
+    /// Bumped by `clearChat` and each send; stale replies are dropped.
+    private var conversationEpoch = ConversationEpoch()
 
     private var refreshTimer: Timer?
     private var changeObserver: NSObjectProtocol?
@@ -214,10 +216,12 @@ final class DashboardStore: ObservableObject {
     }
 
     func loadChatHistory() {
+        let epoch = conversationEpoch.current
         XPCClient.shared.getMostRecentSessionId { [weak self] sid in
-            guard let self, let sid else { return }
+            guard let self, let sid, self.conversationEpoch.isCurrent(epoch) else { return }
             self.sessionId = sid
             XPCClient.shared.getMessages(sessionId: sid) { msgs in
+                guard self.conversationEpoch.isCurrent(epoch) else { return }
                 self.messages = msgs.map { m in
                     ChatMessage(role: m.role == "assistant" ? .assistant : .user,
                                 text: m.content)
@@ -257,8 +261,10 @@ final class DashboardStore: ObservableObject {
     /// Clears the dashboard chat panel and starts a fresh conversation — the
     /// next prompt creates a new session.
     func clearChat() {
+        conversationEpoch.bump()   // drops any in-flight reply for the old chat
         messages = []
         sessionId = nil
+        isSending = false
     }
 
     func send(_ text: String) {
@@ -266,8 +272,18 @@ final class DashboardStore: ObservableObject {
         guard !trimmed.isEmpty, !isSending else { return }
         messages.append(ChatMessage(role: .user, text: trimmed))
         isSending = true
+        conversationEpoch.bump()
+        let epoch = conversationEpoch.current
         XPCClient.shared.submitPrompt(text: trimmed, sessionId: sessionId) { [weak self] result in
             guard let self else { return }
+            // Only the live conversation's reply may append, set sessionId, or
+            // clear isSending; a reply that lands after /clear is dropped.
+            guard self.conversationEpoch.isCurrent(epoch) else {
+                self.refreshSummary()
+                self.refreshEvents()
+                self.refreshTasks()
+                return
+            }
             self.isSending = false
             switch result {
             case .success(let resp):
@@ -292,7 +308,8 @@ final class DashboardStore: ObservableObject {
 
     func createEvent(title: String, start: Date, end: Date, category: String,
                      recurrence: RecurrenceRule? = nil,
-                     courseId: String? = nil, eventType: String? = nil) {
+                     courseId: String? = nil, eventType: String? = nil,
+                     onResult: ((CalendarWriteResult) -> Void)? = nil) {
         XPCClient.shared.createCalendarEvent(
             CreateEventRequest(title: title, startAt: start, endAt: end,
                                location: nil, category: category,
@@ -302,8 +319,11 @@ final class DashboardStore: ObservableObject {
             // Recurring create returns the master event id, which sync never
             // surfaces (singleEvents=true expands to instance ids); appending
             // it would leave a phantom row until the next refresh.
-            if let ev = result.event, recurrence == nil { self?.events.append(ev) }
+            if result.errorMessage == nil, let ev = result.event, recurrence == nil {
+                self?.events.append(ev)
+            }
             self?.refreshEvents()
+            onResult?(result)
         }
     }
 

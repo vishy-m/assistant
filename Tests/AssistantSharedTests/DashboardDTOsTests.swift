@@ -158,3 +158,60 @@ final class DashboardDTOsTests: XCTestCase {
         XCTAssertEqual(ds.openTaskCount, 2)
     }
 }
+
+// MARK: - P7 gates
+
+final class ConversationEpochTests: XCTestCase {
+    func testStaleEpochDoesNotApply() {
+        var epoch = ConversationEpoch()
+        let sent = epoch.current
+        epoch.bump()
+        var messages: [String] = []
+        epoch.apply(sent) { messages.append("late") }
+        XCTAssertTrue(messages.isEmpty)
+    }
+
+    func testCurrentEpochAppliesOnce() {
+        let epoch = ConversationEpoch()
+        var messages: [String] = []
+        let applied = epoch.apply(epoch.current) { messages.append("reply") }
+        XCTAssertTrue(applied)
+        XCTAssertEqual(messages, ["reply"])
+    }
+
+    func testCropGate() {
+        XCTAssertFalse(CropDismissGate.shouldDismiss(suspended: true, isKey: false))
+        XCTAssertFalse(CropDismissGate.shouldDismiss(suspended: false, isKey: true))
+        XCTAssertTrue(CropDismissGate.shouldDismiss(suspended: false, isKey: false))
+    }
+}
+
+final class CalendarWriteGateTests: XCTestCase {
+    private let ev = WeekEvent(id: "e1", title: "T", startAt: Date(timeIntervalSince1970: 0),
+                               endAt: Date(timeIntervalSince1970: 3600), category: "Misc",
+                               location: nil, isRecurring: false)
+
+    func testErrorStaysOpen() {
+        XCTAssertFalse(CalendarWriteGate.shouldClose(errorMessage: "Google disconnected",
+                                                     event: ev, isRecurring: false))
+        XCTAssertFalse(CalendarWriteGate.shouldClose(errorMessage: "x",
+                                                     event: nil, isRecurring: true))
+    }
+
+    func testRecurringSuccessWithNilEventCloses() {
+        XCTAssertTrue(CalendarWriteGate.shouldClose(errorMessage: nil, event: nil, isRecurring: true))
+    }
+
+    func testNonRecurringSuccessWithEventCloses() {
+        XCTAssertTrue(CalendarWriteGate.shouldClose(errorMessage: nil, event: ev, isRecurring: false))
+    }
+
+    func testNonRecurringWithoutEventStaysOpen() {
+        XCTAssertFalse(CalendarWriteGate.shouldClose(errorMessage: nil, event: nil, isRecurring: false))
+    }
+
+    func testResultOverload() {
+        XCTAssertTrue(CalendarWriteGate.shouldClose(
+            CalendarWriteResult(event: ev, errorMessage: nil), isRecurring: false))
+    }
+}

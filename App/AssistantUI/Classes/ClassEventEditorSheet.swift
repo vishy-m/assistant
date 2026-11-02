@@ -14,6 +14,8 @@ struct ClassEventEditorSheet: View {
     @State private var start: Date
     @State private var durationMinutes: Int
     @State private var eventType: String?
+    @State private var isSaving = false
+    @State private var errorMessage: String?
 
     init(courseId: String, event: ClassEventItem, store: ClassStore,
          onDone: @escaping () -> Void) {
@@ -41,13 +43,18 @@ struct ClassEventEditorSheet: View {
             DatePicker("Start", selection: $start)
             Stepper("Duration: \(durationMinutes)m", value: $durationMinutes,
                     in: 15...480, step: 15)
+            if let errorMessage {
+                Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack {
                 Button("Delete", role: .destructive) { deleteEvent() }
+                    .disabled(isSaving)
                 Spacer()
                 Button("Cancel") { dismiss() }
                 Button("Save") { save() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
             }
         }
         .padding(16)
@@ -59,20 +66,40 @@ struct ClassEventEditorSheet: View {
         guard !t.isEmpty else { return }
         let end = start.addingTimeInterval(Double(durationMinutes) * 60)
         let req = UpdateEventRequest(eventId: event.id, startAt: start, endAt: end, title: t)
-        XPCClient.shared.updateCalendarEvent(req) { _ in
+        isSaving = true
+        errorMessage = nil
+        XPCClient.shared.updateCalendarEvent(req) { ok in
+            // A failed update must not change the type either.
+            guard ok else {
+                isSaving = false
+                errorMessage = "Could not save the event."
+                return
+            }
             if eventType != event.eventType {
                 XPCClient.shared.setEventClassification(
-                    eventId: event.id, courseId: courseId, eventType: eventType) { _ in
-                    finish()
+                    eventId: event.id, courseId: courseId, eventType: eventType) { classified in
+                    isSaving = false
+                    if classified {
+                        finish()
+                    } else {
+                        onDone()   // the time/title change did land; refresh
+                        errorMessage = "The time was saved, but the type was not."
+                    }
                 }
             } else {
+                isSaving = false
                 finish()
             }
         }
     }
 
     private func deleteEvent() {
-        XPCClient.shared.deleteCalendarEvent(eventId: event.id) { _ in finish() }
+        isSaving = true
+        errorMessage = nil
+        XPCClient.shared.deleteCalendarEvent(eventId: event.id) { ok in
+            isSaving = false
+            if ok { finish() } else { errorMessage = "Could not delete the event." }
+        }
     }
 
     private func finish() {
