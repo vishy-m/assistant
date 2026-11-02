@@ -12,6 +12,7 @@ struct CategoryEditorSheet: View {
     @State private var weightPct: Double
     @State private var dropLowest: Int
     @State private var dropHighest: Int
+    @State private var saveError: String?
 
     init(courseId: String, existing: GradeCategory?,
          onSave: @escaping (GradeCategory) -> Void) {
@@ -22,6 +23,7 @@ struct CategoryEditorSheet: View {
         _weightPct = State(initialValue: existing?.weightPct ?? 20)
         _dropLowest = State(initialValue: existing?.dropLowestN ?? 0)
         _dropHighest = State(initialValue: existing?.dropHighestN ?? 0)
+        _saveError = State(initialValue: nil)
     }
 
     var body: some View {
@@ -57,25 +59,53 @@ struct CategoryEditorSheet: View {
                 }
             }
 
+            if let message = visibleError {
+                Text(message)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.red)
+            }
+
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
                 Button(existing == nil ? "Add" : "Save") {
+                    saveError = nil
+                    guard canSave else { return }
                     let cat = GradeCategory(
                         id: existing?.id ?? UUID().uuidString,
                         courseId: courseId, name: name, weightPct: weightPct,
                         dropLowestN: dropLowest, dropHighestN: dropHighest)
-                    XPCClient.shared.upsertCategory(cat) { _ in
+                    XPCClient.shared.upsertCategory(cat) { ok in
+                        guard ok else {
+                            saveError = "Couldn't save this category."
+                            return
+                        }
                         onSave(cat)
                         dismiss()
                     }
                 }
                 .keyboardShortcut(.return)
-                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(!canSave)
             }
         }
         .padding(22)
         .frame(width: 380)
+    }
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespaces)
+    }
+
+    private var canSave: Bool {
+        !trimmedName.isEmpty && GradeWriteRules.isSavableWeight(weightPct)
+    }
+
+    private var visibleError: String? {
+        if let saveError { return saveError }
+        if !trimmedName.isEmpty && !GradeWriteRules.isSavableWeight(weightPct) {
+            return "Weight must be between 0 and 100."
+        }
+        return nil
     }
 
     @ViewBuilder
