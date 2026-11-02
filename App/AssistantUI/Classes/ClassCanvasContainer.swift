@@ -11,11 +11,11 @@ struct ClassCanvasContainer: View {
             ClassCanvasTabBar(store: store)
             Divider()
             if let fileId = store.tabs.activeFileId {
-                // .id(fileId) forces a fresh preview per file so switching between
-                // a PDF and a non-PDF tab rebuilds the NSView instead of showing
-                // stale content (FilePreviewView can't swap engines in updateNSView).
+                // Identity includes the resolved path. A restored tab is created
+                // before the file list arrives, and FilePreviewView can't swap
+                // its NSView from the "File unavailable" label once the URL exists.
                 FileDocumentView(store: store, fileId: fileId)
-                    .id(fileId)
+                    .id(store.fileURL(forFileId: fileId)?.path ?? fileId)
             } else {
                 ClassCanvasView(store: store)
             }
