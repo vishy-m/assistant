@@ -7,7 +7,8 @@ public enum GCalTools {
     public static func register(into registry: inout ToolRegistry,
                                 client: GCalClient,
                                 db: AssistantDB,
-                                isOnline: @escaping @Sendable () -> Bool = { NetworkMonitor.shared.isOnline }) {
+                                isOnline: @escaping @Sendable () -> Bool = { NetworkMonitor.shared.isOnline },
+                                now: @escaping @Sendable () -> Date = { Date() }) {
         let gcalRepo = GCalRepository(db: db)
 
         registry.register(
@@ -55,24 +56,30 @@ public enum GCalTools {
         registry.register(
             tool: LLMTool(
                 name: "list_calendar",
-                description: "List calendar events from the local cache. range ∈ today, this_week, next_24h",
+                description: "List calendar events from the local cache. range ∈ today (the current calendar day), this_week (today through the next 6 days), next_24h (events overlapping the next 24 hours). Default today.",
                 inputSchema: #"{"type":"object","properties":{"range":{"type":"string"}}}"#),
             handler: { argsJSON in
                 struct Args: Decodable { let range: String? }
                 let args = (try? JSONDecoder().decode(Args.self,
                                                      from: argsJSON.data(using: .utf8) ?? Data()))
                 let range = args?.range ?? "today"
-                let now = Date()
+                let now = now()
                 let events: [GCalEventCache]
+                // One overlap query per range, so a multi-day event appears once.
                 switch range {
+                case "today":
+                    events = try gcalRepo.eventsOn(date: now)
                 case "this_week":
-                    let cal = Calendar(identifier: .gregorian)
-                    let end = cal.date(byAdding: .day, value: 7, to: now) ?? now
-                    events = try (try gcalRepo.eventsOn(date: now)) + (try gcalRepo.eventsOn(date: end))
+                    let cal = Calendar.current
+                    let start = cal.startOfDay(for: now)
+                    let end = cal.date(byAdding: .day, value: 7, to: start)
+                        ?? start.addingTimeInterval(7 * 86_400)
+                    events = try gcalRepo.eventsOverlapping(start: start, end: end)
                 case "next_24h":
-                    events = try gcalRepo.eventsOn(date: now)
+                    events = try gcalRepo.eventsOverlapping(start: now,
+                                                            end: now.addingTimeInterval(86_400))
                 default:
-                    events = try gcalRepo.eventsOn(date: now)
+                    return #"{"error":"unsupported range","supported":["today","this_week","next_24h"]}"#
                 }
                 struct Item: Encodable {
                     let title: String; let start_at: String; let end_at: String

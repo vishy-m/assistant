@@ -19,5 +19,7 @@ public enum Migrations {
         Migration011EventType.register(&migrator)
         Migration012EventClassLink.register(&migrator)
         Migration013ClassFiles.register(&migrator)
+        // 014/015 live on the syllabus branch; keep 016 after them when merging.
+        Migration016GCalIdentity.register(&migrator)
     }
 }

@@ -56,6 +56,7 @@ public final class GCalClient: Sendable {
             NSLog("[GCalClient] 403 forbidden: \(reason)")
             throw GCalError.forbidden
         case 404: throw GCalError.notFound
+        case 409: throw GCalError.conflict
         case 410:
             if let body = String(data: resp.data, encoding: .utf8),
                body.contains("fullSyncRequired") {
@@ -70,11 +71,28 @@ public final class GCalClient: Sendable {
 
     // MARK: - Calendars
 
+    /// Upper bound on calendarList pages, so a server that keeps returning a
+    /// page token cannot spin the loop forever.
+    public static let maxCalendarListPages = 20
+
+    /// Every calendar in the user's list, following `nextPageToken`.
     public func listCalendars() async throws -> GCalCalendarList {
-        let req = try makeRequest("GET", path: "/calendar/v3/users/me/calendarList")
-        let data = try await send(req)
-        do { return try Self.decoder.decode(GCalCalendarList.self, from: data) }
-        catch { throw GCalError.decoding("\(error)") }
+        var items: [GCalCalendarList.Item] = []
+        var pageToken: String? = nil
+        var pages = 0
+        repeat {
+            let query = pageToken.map { [URLQueryItem(name: "pageToken", value: $0)] } ?? []
+            let req = try makeRequest("GET", path: "/calendar/v3/users/me/calendarList",
+                                      query: query)
+            let data = try await send(req)
+            let page: GCalCalendarList
+            do { page = try Self.decoder.decode(GCalCalendarList.self, from: data) }
+            catch { throw GCalError.decoding("\(error)") }
+            items += page.items
+            pageToken = page.nextPageToken
+            pages += 1
+        } while pageToken != nil && pages < Self.maxCalendarListPages
+        return GCalCalendarList(items: items, nextPageToken: nil)
     }
 
     public func createCalendar(summary: String,
@@ -141,7 +159,11 @@ public final class GCalClient: Sendable {
         catch { throw GCalError.decoding("\(error)") }
     }
 
-    public func insertEvent(calendarId: String,
+    /// `eventId` is a client-minted id (see `GCalEventID`). Sending it makes a
+    /// retried insert idempotent: a replay of an insert Google already accepted
+    /// fails with `GCalError.conflict` instead of creating a duplicate.
+    public func insertEvent(eventId: String? = nil,
+                            calendarId: String,
                             summary: String,
                             start: Date, end: Date,
                             location: String?,
@@ -157,6 +179,7 @@ public final class GCalClient: Sendable {
             "start": ["dateTime": iso.string(from: start), "timeZone": tz],
             "end":   ["dateTime": iso.string(from: end), "timeZone": tz]
         ]
+        if let eventId { body["id"] = eventId }
         if let l = location { body["location"] = l }
         if let d = description { body["description"] = d }
         if let cid = colorId { body["colorId"] = cid }
@@ -201,6 +224,14 @@ public final class GCalClient: Sendable {
                                   body: data)
         let responseData = try await send(req)
         do { return try Self.decoder.decode(GCalEvent.self, from: responseData) }
+        catch { throw GCalError.decoding("\(error)") }
+    }
+
+    public func getEvent(calendarId: String, eventId: String) async throws -> GCalEvent {
+        let req = try makeRequest("GET",
+                                  path: "/calendar/v3/calendars/\(calendarId)/events/\(eventId)")
+        let data = try await send(req)
+        do { return try Self.decoder.decode(GCalEvent.self, from: data) }
         catch { throw GCalError.decoding("\(error)") }
     }
 

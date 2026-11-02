@@ -46,6 +46,9 @@ public final class CalendarWriter: Sendable {
         var extProps: [String: String] = [:]
         if let courseId { extProps["assistant_course_id"] = courseId }
         if let eventType { extProps["assistant_event_type"] = eventType }
+        extProps["assistant_category"] = resolvedCategory.name
+        // Minted before the first POST and reused by every retry (see GCalEventID).
+        let eventId = GCalEventID.mint()
 
         let calID: String
         if isOnline() {
@@ -57,17 +60,39 @@ public final class CalendarWriter: Sendable {
         }
 
         if isOnline() {
+            let ev: GCalEvent
             do {
-                let ev = try await client.insertEvent(
-                    calendarId: calID, summary: title, start: start, end: end,
-                    location: location, description: description,
-                    colorId: effectiveColorId, recurrence: rrule,
-                    extendedProperties: extProps)
-                // For a recurring master we do NOT cache a row: Google does not
-                // return the master under singleEvents=true, so a cached master
-                // would linger as a phantom duplicate. The expanded instances
-                // arrive via the next sync instead.
+                do {
+                    ev = try await client.insertEvent(
+                        eventId: eventId,
+                        calendarId: calID, summary: title, start: start, end: end,
+                        location: location, description: description,
+                        colorId: effectiveColorId, recurrence: rrule,
+                        extendedProperties: extProps)
+                } catch GCalError.conflict {
+                    // Our id already exists: an earlier attempt went through.
+                    ev = try await client.getEvent(calendarId: calID, eventId: eventId)
+                }
+            } catch {
+                // Google did not confirm the insert. Only one-off events queue
+                // offline (with the same id, so a replay cannot duplicate);
+                // recurring failures surface.
                 if recurrence == nil {
+                    try enqueueInsert(eventId: eventId, title: title, start: start, end: end,
+                                      location: location, description: description,
+                                      category: resolvedCategory.name,
+                                      courseId: courseId, eventType: eventType, repo: repo)
+                }
+                throw error
+            }
+            // Google has the event now. A local cache failure must not queue a
+            // second insert; the next sync restores the row.
+            // For a recurring master we do NOT cache a row: Google does not
+            // return the master under singleEvents=true, so a cached master
+            // would linger as a phantom duplicate. The expanded instances
+            // arrive via the next sync instead.
+            if recurrence == nil {
+                do {
                     try repo.upsert(GCalEventCache(
                         gcalEventId: ev.id, calendarId: calID,
                         title: ev.summary ?? title, startAt: start, endAt: end,
@@ -75,24 +100,19 @@ public final class CalendarWriter: Sendable {
                         lastSyncedAt: Date(), rawJson: "{}",
                         recurringEventId: nil,
                         courseId: courseId, eventType: eventType))
+                } catch {
+                    NSLog("[CalendarWriter] cache write failed after insert of \(ev.id); sync will restore it")
                 }
-                return WeekEvent(id: ev.id, title: ev.summary ?? title,
-                                 startAt: start, endAt: end,
-                                 category: resolvedCategory.name, location: location,
-                                 isRecurring: recurrence != nil,
-                                 courseId: courseId, eventType: eventType)
-            } catch {
-                // Only one-off events queue offline; recurring failures surface.
-                if recurrence == nil {
-                    try enqueueInsert(title: title, start: start, end: end,
-                                      location: location, description: description,
-                                      courseId: courseId, eventType: eventType, repo: repo)
-                }
-                throw error
             }
+            return WeekEvent(id: ev.id, title: ev.summary ?? title,
+                             startAt: start, endAt: end,
+                             category: resolvedCategory.name, location: location,
+                             isRecurring: recurrence != nil,
+                             courseId: courseId, eventType: eventType)
         }
-        try enqueueInsert(title: title, start: start, end: end,
+        try enqueueInsert(eventId: eventId, title: title, start: start, end: end,
                           location: location, description: description,
+                          category: resolvedCategory.name,
                           courseId: courseId, eventType: eventType, repo: repo)
         throw WriteError.offlineNoCalendar
     }
@@ -160,7 +180,7 @@ public final class CalendarWriter: Sendable {
             } catch GCalError.notFound {
                 // Already gone on Google — still purge locally.
             }
-            try repo.deleteCachedSeries(recurringEventId: masterId)
+            try repo.deleteCachedSeries(calendarId: cached.calendarId, recurringEventId: masterId)
             return
         }
 
@@ -170,11 +190,12 @@ public final class CalendarWriter: Sendable {
             // Already gone on Google (deleted elsewhere, or a stale cache row) —
             // still purge it locally so it stops reappearing.
         }
-        try repo.deleteCached(id: eventId)
+        try repo.deleteCached(calendarId: cached.calendarId, eventId: eventId)
     }
 
-    private func enqueueInsert(title: String, start: Date, end: Date,
+    private func enqueueInsert(eventId: String, title: String, start: Date, end: Date,
                                location: String?, description: String?,
+                               category: String,
                                courseId: String?, eventType: String?,
                                repo: GCalRepository) throws {
         let iso = ISO8601DateFormatter()
@@ -185,7 +206,9 @@ public final class CalendarWriter: Sendable {
             location: location,
             description: description,
             courseId: courseId,
-            eventType: eventType))
+            eventType: eventType,
+            eventId: eventId,
+            category: category))
         let json = String(data: try JSONEncoder().encode(payload), encoding: .utf8) ?? "{}"
         try repo.enqueue(PendingGCalOp(
             id: UUID().uuidString, opType: "insert_event",
