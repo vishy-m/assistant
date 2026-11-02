@@ -36,7 +36,15 @@ public enum BuiltinTools {
                     let category: String?
                 }
                 let args = try JSONDecoder().decode(Args.self, from: argsJSON.data(using: .utf8) ?? Data())
-                let dueAt = FlexibleDate.parse(args.due_at)
+                let dueAt: Date?
+                if let raw = args.due_at?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
+                    guard let parsed = FlexibleDate.parse(raw) else {
+                        return #"{"error":"bad ISO date"}"#
+                    }
+                    dueAt = parsed
+                } else {
+                    dueAt = nil
+                }
                 let categoryName = try categoryRepo.resolve(args.category).name
                 let id = UUID().uuidString
                 let t = AssistantStore.Task(
@@ -73,7 +81,7 @@ public enum BuiltinTools {
                 struct Args: Decodable { let filter: String? }
                 let args = (try? JSONDecoder().decode(Args.self,
                                                      from: argsJSON.data(using: .utf8) ?? Data()))
-                let filter = args?.filter ?? "today"
+                let filter = (args?.filter ?? "today").lowercased()
                 let now = clock()
                 let tasks: [AssistantStore.Task]
                 switch filter {
@@ -81,8 +89,15 @@ public enum BuiltinTools {
                     tasks = try taskRepo.overdue(asOf: now)
                 case "today":
                     tasks = try taskRepo.dueOn(date: now)
+                case "all":
+                    tasks = try taskRepo.all().filter { $0.completedAt == nil }
+                case "this_week":
+                    guard let interval = Calendar.current.dateInterval(of: .weekOfYear, for: now) else {
+                        return #"{"error":"unsupported filter"}"#
+                    }
+                    tasks = try taskRepo.dueInRange(start: interval.start, end: interval.end)
                 default:
-                    tasks = try taskRepo.dueOn(date: now)
+                    return #"{"error":"unsupported filter"}"#
                 }
                 struct Out: Encodable { let tasks: [TaskOut] }
                 struct TaskOut: Encodable {
