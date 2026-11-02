@@ -30,6 +30,14 @@ public struct ClassFileRepository {
     public func move(id: String, toFolder folderId: String?) throws {
         try db.queue.write { db in
             guard var f = try ClassFile.fetchOne(db, key: id) else { return }
+            if let folderId {
+                guard let folder = try ClassFolder.fetchOne(db, key: folderId) else {
+                    throw ClassFilesIntegrityError.missingFolder(folderId)
+                }
+                guard folder.courseId == f.courseId else {
+                    throw ClassFilesIntegrityError.crossCourse
+                }
+            }
             f.folderId = folderId; f.updatedAt = Date(); try f.update(db)
         }
     }

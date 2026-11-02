@@ -62,8 +62,11 @@ public enum GradeTools {
                         isExtraCredit: $0.isExtraCredit,
                         weightOverridePct: $0.weightOverridePct)
                 }
+                let scale = GradingScale.parse(
+                    json: try CourseRepository(db: db).find(id: args.course_id)?.gradingScaleJson)
                 let breakdown = GradeCalculator.compute(input: GradeCalculatorInput(
-                    categories: cats, items: items, projection: args.projection ?? [:]))
+                    categories: cats, items: items, projection: args.projection ?? [:]),
+                    gradingScale: scale)
                 struct Out: Encodable {
                     let current_pct: Double
                     let current_letter: String

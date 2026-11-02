@@ -34,6 +34,34 @@ final class CourseRepositoryTests: XCTestCase {
         XCTAssertNil(try repo.find(id: "c1"))
     }
 
+    func testDeleteRemovesThatCoursesClassRowsOnly() throws {
+        let db = try InMemoryDB.make()
+        let repo = CourseRepository(db: db)
+        for id in ["c1", "c2"] {
+            try repo.insert(Course(id: id, name: id, term: nil, color: nil,
+                                   targetGrade: nil, gradingScaleJson: nil, syllabusSourcePath: nil))
+        }
+        try db.queue.write { db in
+            for c in ["c1", "c2"] {
+                try ClassFolder(id: "fo-\(c)", courseId: c, parentFolderId: nil, name: "N").insert(db)
+                try ClassFile(id: "fi-\(c)", courseId: c, folderId: "fo-\(c)", name: "a",
+                              storedName: "fi-\(c).pdf", contentType: "x", byteSize: 1).insert(db)
+                try ClassPin(id: "p-\(c)", courseId: c, fileId: "fi-\(c)", x: 0, y: 0,
+                             width: 1, height: 1).insert(db)
+            }
+        }
+        let removed = try repo.delete(id: "c1")
+        XCTAssertEqual(removed.map(\.storedName), ["fi-c1.pdf"])
+        XCTAssertEqual(removed.map(\.courseId), ["c1"])
+        XCTAssertNil(try repo.find(id: "c1"))
+        XCTAssertTrue(try ClassFolderRepository(db: db).all(courseId: "c1").isEmpty)
+        XCTAssertTrue(try ClassFileRepository(db: db).all(courseId: "c1").isEmpty)
+        XCTAssertTrue(try ClassPinRepository(db: db).all(courseId: "c1").isEmpty)
+        XCTAssertEqual(try ClassFileRepository(db: db).all(courseId: "c2").count, 1)
+        XCTAssertEqual(try ClassFolderRepository(db: db).all(courseId: "c2").count, 1)
+        XCTAssertEqual(try ClassPinRepository(db: db).all(courseId: "c2").count, 1)
+    }
+
     func testCourseRoundTripsContactFields() throws {
         let db = try InMemoryDB.make()
         let repo = CourseRepository(db: db)

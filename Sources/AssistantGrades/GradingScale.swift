@@ -14,6 +14,24 @@ public struct GradingScale: Equatable {
 
     public init(cutoffs: [String: Double]) { self.cutoffs = cutoffs }
 
+    /// Letters a stored scale may define; anything else in the JSON is ignored.
+    static let knownLetters: Set<String> = [
+        "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-"
+    ]
+
+    /// Parses `Course.gradingScaleJson` (`{"A": 93, "A-": 90, ...}`). nil, blank,
+    /// invalid JSON, a non-numeric cutoff, or no known letters all fall back to
+    /// `.default` so a bad scale only affects letters, never the grade read.
+    public static func parse(json: String?) -> GradingScale {
+        guard let json, !json.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let data = json.data(using: .utf8),
+              let raw = try? JSONDecoder().decode([String: Double].self, from: data)
+        else { return .default }
+        guard raw.values.allSatisfy({ $0.isFinite }) else { return .default }
+        let cutoffs = raw.filter { knownLetters.contains($0.key) }
+        return cutoffs.isEmpty ? .default : GradingScale(cutoffs: cutoffs)
+    }
+
     public func letter(for score: Double) -> String {
         let sorted = cutoffs.sorted { $0.value > $1.value }
         for (letter, min) in sorted where score >= min {

@@ -23,7 +23,19 @@ public struct CourseRepository {
         try db.queue.read { db in try Course.fetchAll(db) }
     }
 
-    public func delete(id: String) throws {
-        _ = try db.queue.write { db in try Course.deleteOne(db, key: id) }
+    /// Deletes the course and, in the same transaction, its class pins, files
+    /// and folders (those tables have no foreign key to `course`). Returns the
+    /// removed file rows so the caller can clean up any bytes it has not
+    /// already removed.
+    @discardableResult
+    public func delete(id: String) throws -> [ClassFile] {
+        try db.queue.write { db in
+            let files = try ClassFile.filter(Column("course_id") == id).fetchAll(db)
+            try ClassPin.filter(Column("course_id") == id).deleteAll(db)
+            try ClassFile.filter(Column("course_id") == id).deleteAll(db)
+            try ClassFolder.filter(Column("course_id") == id).deleteAll(db)
+            try Course.deleteOne(db, key: id)
+            return files
+        }
     }
 }
