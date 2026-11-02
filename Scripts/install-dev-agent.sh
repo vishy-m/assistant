@@ -22,11 +22,13 @@ render_plist() {
     tmp="$(mktemp "${dest_dir}/assistant-plist.XXXXXX")"
 
     if ! cp "$template" "$tmp" \
-        || ! plutil -replace ProgramArguments.0 -string "$binary_path" "$tmp" \
+        || ! plutil -replace ProgramArguments -array "$tmp" \
+        || ! plutil -insert ProgramArguments.0 -string "$binary_path" "$tmp" \
         || ! plutil -replace StandardOutPath -string "${log_dir}/core.log" "$tmp" \
         || ! plutil -replace StandardErrorPath -string "${log_dir}/core.log" "$tmp" \
         || ! plutil -replace EnvironmentVariables.ASSISTANT_ENV_FILE -string "$env_file" "$tmp" \
-        || ! plutil -lint "$tmp" >/dev/null; then
+        || ! plutil -lint "$tmp" >/dev/null \
+        || [ "$(plutil -extract ProgramArguments json -o - "$tmp" | python3 -c 'import json,sys; a=json.load(sys.stdin); print(len(a))')" != 1 ]; then
         rm -f "$tmp"
         echo "ERROR: failed to render $out" >&2
         return 1
@@ -86,6 +88,12 @@ render_plist "$BINARY_PATH" "$LOG_DIR" "$ENV_FILE" "$TEMPLATE" "$INSTALLED_PLIST
 # If already loaded, bootout first (idempotent install)
 if launchctl print "gui/$UID/$LABEL" >/dev/null 2>&1; then
     launchctl bootout "gui/$UID/$LABEL" || true
+    # bootout returns before the service is fully removed; bootstrapping too
+    # early fails with "Bootstrap failed: 5: Input/output error".
+    for _ in $(seq 1 50); do
+        launchctl print "gui/$UID/$LABEL" >/dev/null 2>&1 || break
+        sleep 0.2
+    done
 fi
 
 launchctl bootstrap "gui/$UID" "$INSTALLED_PLIST"
