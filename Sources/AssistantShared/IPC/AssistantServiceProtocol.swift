@@ -26,6 +26,11 @@ public protocol AssistantServiceProtocol {
     func clearGoogleRefreshToken(reply: @escaping (Bool) -> Void)
     func setGoogleClientSecret(_ secret: String, reply: @escaping (Bool) -> Void)
     func getGoogleClientSecret(reply: @escaping (String?) -> Void)
+    /// JSON-encoded `GoogleAuthStatus` (non-secret).
+    func getGoogleAuthStatus(reply: @escaping (Data) -> Void)
+    /// The UI relays its Focus reading; the LaunchAgent can't be authorized itself.
+    func setFocusStatus(authorized: Bool, known: Bool, isFocused: Bool,
+                        reply: @escaping (Bool) -> Void)
     func googleAccountTimeZone(reply: @escaping (String?) -> Void)
     func getDashboardSummary(reply: @escaping (Data) -> Void)
     func getWeekEvents(startISO: String, endISO: String, reply: @escaping (Data) -> Void)

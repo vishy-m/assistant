@@ -4,6 +4,7 @@ import AssistantStore
 import AssistantLLM
 import AssistantGCal
 import AssistantGrades
+import AssistantBriefings
 
 final class AssistantService: NSObject, AssistantServiceProtocol {
 
@@ -190,8 +191,11 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func setGoogleRefreshToken(_ token: String, reply: @escaping (Bool) -> Void) {
+        guard !token.isEmpty else { clearGoogleRefreshToken(reply: reply); return }
         do {
             try GCalAuthStore().setRefreshToken(token)
+            // New account: never serve the old bearer or replay old state.
+            try GCalCredentialReset.accountChanged(db: db)
             reply(true)
         } catch {
             NSLog("[AssistantService] setGoogleRefreshToken error: \(error)")
@@ -212,6 +216,29 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         conn.resume()
         eventClient.replace(conn)?.invalidate()
         reply(true)
+        drainBriefings()
+    }
+
+    private var briefingDispatcher: BriefingDispatcher?
+
+    func attachBriefingDispatcher(_ dispatcher: BriefingDispatcher) {
+        self.briefingDispatcher = dispatcher
+    }
+
+    /// Re-sends briefings the UI never acknowledged in the last 24 hours.
+    private func drainBriefings() {
+        guard let dispatcher = briefingDispatcher else { return }
+        _Concurrency.Task.detached {
+            try? await dispatcher.drainQueue(since: Date().addingTimeInterval(-86_400))
+        }
+    }
+
+    func setFocusStatus(authorized: Bool, known: Bool, isFocused: Bool,
+                        reply: @escaping (Bool) -> Void) {
+        let opened = FocusStatusStore.shared.update(authorized: authorized,
+                                                    isFocused: known ? isFocused : nil)
+        reply(true)
+        if opened { drainBriefings() }
     }
 
     func computeGrade(courseId: String, projectionJSON: Data?, reply: @escaping (Data) -> Void) {
@@ -427,8 +454,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     func clearGoogleRefreshToken(reply: @escaping (Bool) -> Void) {
         do {
             try GCalAuthStore().clear()
+            try GCalCredentialReset.accountChanged(db: db)
             reply(true)
         } catch {
+            NSLog("[AssistantService] clearGoogleRefreshToken error: \(error)")
             reply(false)
         }
     }
@@ -440,6 +469,7 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             } else {
                 try SecretStore().set(.googleOAuthClientSecret, value: secret)
             }
+            GCalAccessTokenCache.shared.invalidate()
             reply(true)
         } catch {
             NSLog("[AssistantService] setGoogleClientSecret error: \(error)")
@@ -449,6 +479,14 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
 
     func getGoogleClientSecret(reply: @escaping (String?) -> Void) {
         reply((try? SecretStore().get(.googleOAuthClientSecret)) ?? nil)
+    }
+
+    func getGoogleAuthStatus(reply: @escaping (Data) -> Void) {
+        DispatchQueue.global(qos: .utility).async {
+            // Cheap when a token is cached or the credentials are suspended.
+            _ = GCalAccessTokenCache.shared.current()
+            reply((try? JSONEncoder().encode(GCalAccessTokenCache.shared.authStatus)) ?? Data())
+        }
     }
 
     func googleAccountTimeZone(reply: @escaping (String?) -> Void) {
@@ -544,8 +582,9 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             var day = cal.startOfDay(for: start)
             let repo = GCalRepository(db: db)
             while day < end {
-                for e in try repo.eventsOn(date: day) where !seen.contains(e.gcalEventId) {
-                    seen.insert(e.gcalEventId)
+                // Event ids are unique per calendar, not globally.
+                for e in try repo.eventsOn(date: day)
+                where seen.insert(e.calendarId + "\u{0}" + e.gcalEventId).inserted {
                     events.append(WeekEvent(
                         id: e.gcalEventId, title: e.title,
                         startAt: e.startAt, endAt: e.endAt,
@@ -1086,19 +1125,37 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
         return GradeCalculatorInput(categories: cats, items: items, projection: projection)
     }
 
-    func pushBriefing(_ payload: BriefingPayload) -> Bool {
-        guard let conn = eventClient.current else { return false }
-        guard let proxy = conn.remoteObjectProxyWithErrorHandler({ err in
-            NSLog("[AssistantService] briefing push error: \(err)")
-        }) as? AssistantEventsProtocol else {
-            return false
+    /// Pushes a briefing and waits for the UI's acknowledgement. Returns false
+    /// on no client, an XPC error, or no reply within 10 s, so the dispatcher
+    /// leaves it undelivered and a later drain retries.
+    func pushBriefing(_ payload: BriefingPayload) async -> Bool {
+        guard let conn = eventClient.current,
+              let data = try? JSONEncoder().encode(payload) else { return false }
+        return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            let once = BriefingAckOnce(cont)
+            guard let proxy = conn.remoteObjectProxyWithErrorHandler({ err in
+                NSLog("[AssistantService] briefing push error: \(err)")
+                once.finish(false)
+            }) as? AssistantEventsProtocol else {
+                once.finish(false)
+                return
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 10) { once.finish(false) }
+            proxy.briefingReady(data) { ok in once.finish(ok) }
         }
-        do {
-            let data = try JSONEncoder().encode(payload)
-            proxy.briefingReady(data) { _ in }
-            return true
-        } catch {
-            return false
-        }
+    }
+}
+
+/// Resumes a continuation exactly once (reply, error handler, or timeout).
+private final class BriefingAckOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cont: CheckedContinuation<Bool, Never>?
+    init(_ cont: CheckedContinuation<Bool, Never>) { self.cont = cont }
+    func finish(_ value: Bool) {
+        lock.lock()
+        let c = cont
+        cont = nil
+        lock.unlock()
+        c?.resume(returning: value)
     }
 }

@@ -349,6 +349,32 @@ final class XPCClient {
         }
     }
 
+    /// The daemon's Google authorization state, or nil if it can't be read.
+    func getGoogleAuthStatus(reply: @escaping (GoogleAuthStatus?) -> Void) {
+        do {
+            let (proxy, reply) = try makeProxy(reply, fallback: nil)
+            proxy.getGoogleAuthStatus { data in
+                let status = try? JSONDecoder().decode(GoogleAuthStatus.self, from: data)
+                DispatchQueue.main.async { reply(status) }
+            }
+        } catch {
+            DispatchQueue.main.async { reply(nil) }
+        }
+    }
+
+    /// Relays this app's Focus reading to the daemon. `isFocused` nil = unknown.
+    func setFocusStatus(authorized: Bool, isFocused: Bool?) {
+        do {
+            // Fire-and-forget, but still routed through the call gate so the
+            // pending call is completed if the connection drops.
+            let (proxy, done) = try makeProxy({ (_: Bool) in }, fallback: false)
+            proxy.setFocusStatus(authorized: authorized, known: isFocused != nil,
+                                 isFocused: isFocused ?? false) { ok in done(ok) }
+        } catch {
+            NSLog("[XPCClient] setFocusStatus failed: \(error)")
+        }
+    }
+
     /// The Google account's display time zone (IANA name), or nil if it can't
     /// be fetched (not connected / offline).
     func googleAccountTimeZone(reply: @escaping (String?) -> Void) {

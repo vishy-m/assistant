@@ -62,6 +62,8 @@ final class XPCProtocolRoundTripTests: XCTestCase {
         func clearGoogleRefreshToken(reply: @escaping (Bool) -> Void) { reply(false) }
         func setGoogleClientSecret(_ secret: String, reply: @escaping (Bool) -> Void) { reply(false) }
         func getGoogleClientSecret(reply: @escaping (String?) -> Void) { reply(nil) }
+        func getGoogleAuthStatus(reply: @escaping (Data) -> Void) { reply(Data()) }
+        func setFocusStatus(authorized: Bool, known: Bool, isFocused: Bool, reply: @escaping (Bool) -> Void) { reply(true) }
         func googleAccountTimeZone(reply: @escaping (String?) -> Void) { reply(nil) }
         func getDashboardSummary(reply: @escaping (Data) -> Void) { reply(Data()) }
         func getWeekEvents(startISO: String, endISO: String, reply: @escaping (Data) -> Void) { reply(Data()) }
