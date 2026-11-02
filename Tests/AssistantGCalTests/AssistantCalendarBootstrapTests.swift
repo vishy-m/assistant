@@ -92,4 +92,17 @@ final class AssistantCalendarBootstrapTests: XCTestCase {
         _ = try await boot.ensureAssistantCalendar()
         XCTAssertTrue(http.sentRequests.isEmpty)
     }
+
+    func testReusesAssistantCalendarFoundOnSecondPage() async throws {
+        let http = MockHTTPClient()
+        http.enqueueJSON(#"{"items":[{"id":"primary","summary":"My"}],"nextPageToken":"P2"}"#)
+        http.enqueueJSON(#"{"items":[{"id":"asst_p2","summary":"Assistant"}]}"#)
+        let client = GCalClient(http: http, accessTokenProvider: { "atk" })
+        let db = try InMemoryDB.make()
+        try markTimeZoneAligned(db)
+        let id = try await AssistantCalendarBootstrap(client: client, db: db)
+            .ensureAssistantCalendar()
+        XCTAssertEqual(id, "asst_p2")
+        XCTAssertFalse(http.sentRequests.contains { $0.httpMethod == "POST" })
+    }
 }

@@ -2,6 +2,7 @@ import Foundation
 
 public struct GCalCalendarList: Codable, Equatable {
     public let items: [Item]
+    public let nextPageToken: String?
     public struct Item: Codable, Equatable {
         public let id: String
         public let summary: String
@@ -38,6 +39,8 @@ public struct GCalEventList: Codable, Equatable {
     public let items: [GCalEvent]
     public let nextPageToken: String?
     public let nextSyncToken: String?
+    /// The calendar's default zone; all-day events without their own zone use it.
+    public let timeZone: String?
 }
 
 public struct GCalCalendarCreateBody: Codable {

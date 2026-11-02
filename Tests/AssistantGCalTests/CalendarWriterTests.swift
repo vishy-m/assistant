@@ -173,4 +173,120 @@ final class CalendarWriterTests: XCTestCase {
         XCTAssertNil(try repo.find(id: "master1_a"))
         XCTAssertNil(try repo.find(id: "master1_b"))
     }
+
+    // MARK: - W3: idempotent inserts (A2-03) + category property (A2-09)
+
+    private func prepOnline(_ db: AssistantDB) throws {
+        try SettingRepository(db: db).set(AssistantCalendarBootstrap.settingKey, value: "cal1")
+        try SettingRepository(db: db).set(AssistantCalendarBootstrap.timeZoneKey,
+                                          value: TimeZone.current.identifier)
+    }
+
+    private func body(_ r: URLRequest?) -> [String: Any]? {
+        r?.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    }
+
+    private func dropCache(_ db: AssistantDB) throws {
+        try db.queue.write { try $0.execute(sql: "DROP TABLE gcal_event_cache") }
+    }
+
+    private func queuedInsert(_ db: AssistantDB) throws -> InsertEventPayload? {
+        guard let op = try GCalRepository(db: db).pendingOps().first,
+              let data = op.payloadJson.data(using: .utf8),
+              case .insertEvent(let p) = try JSONDecoder().decode(OutboxPayload.self, from: data)
+        else { return nil }
+        return p
+    }
+
+    func testCreateSendsMintedBase32HexIdAndCategoryProperty() async throws {
+        let http = MockHTTPClient()
+        http.enqueueJSON(GCalFixtures.createdEvent)
+        let db = try InMemoryDB.make()
+        try prepOnline(db)
+        _ = try await makeWriter(http: http, db: db, online: true).create(
+            title: "Final", start: Date(timeIntervalSince1970: 1000),
+            end: Date(timeIntervalSince1970: 4600), location: nil, description: nil,
+            category: "Exam")
+        let b = body(http.sentRequests.last)
+        let id = try XCTUnwrap(b?["id"] as? String)
+        XCTAssertGreaterThanOrEqual(id.count, 5)
+        XCTAssertTrue(id.allSatisfy { "0123456789abcdefghijklmnopqrstuv".contains($0) }, id)
+        let priv = (b?["extendedProperties"] as? [String: Any])?["private"] as? [String: Any]
+        XCTAssertEqual(priv?["assistant_category"] as? String, "Exam")
+    }
+
+    func testCacheFailureAfterAcceptedInsertDoesNotEnqueue() async throws {
+        let http = MockHTTPClient()
+        http.enqueueJSON(GCalFixtures.createdEvent)
+        let db = try InMemoryDB.make()
+        try prepOnline(db)
+        try dropCache(db)
+        let result = try await makeWriter(http: http, db: db, online: true).create(
+            title: "Study", start: Date(timeIntervalSince1970: 1000),
+            end: Date(timeIntervalSince1970: 4600), location: nil, description: nil)
+        XCTAssertEqual(result.id, "ev_created_1")
+        XCTAssertEqual(try GCalRepository(db: db).pendingOps().count, 0)
+        XCTAssertEqual(http.sentRequests.count, 1)
+    }
+
+    func testTransportFailureQueuesTheSameId() async throws {
+        let http = MockHTTPClient()
+        http.enqueue(.failure(URLError(.timedOut)))
+        let db = try InMemoryDB.make()
+        try prepOnline(db)
+        _ = try? await makeWriter(http: http, db: db, online: true).create(
+            title: "Study", start: Date(timeIntervalSince1970: 1000),
+            end: Date(timeIntervalSince1970: 4600), location: nil, description: nil,
+            category: "Exam")
+        let sentId = body(http.sentRequests.first)?["id"] as? String
+        XCTAssertNotNil(sentId)
+        let p = try XCTUnwrap(try queuedInsert(db))
+        XCTAssertEqual(p.eventId, sentId)
+        XCTAssertEqual(p.category, "Exam")
+    }
+
+    func testConflictOnCreateAdoptsExistingEvent() async throws {
+        let http = MockHTTPClient()
+        http.enqueueJSON(#"{"error":{"code":409}}"#, status: 409)
+        http.enqueueJSON(GCalFixtures.createdEvent)
+        let db = try InMemoryDB.make()
+        try prepOnline(db)
+        let result = try await makeWriter(http: http, db: db, online: true).create(
+            title: "Study", start: Date(timeIntervalSince1970: 1000),
+            end: Date(timeIntervalSince1970: 4600), location: nil, description: nil)
+        XCTAssertEqual(result.id, "ev_created_1")
+        XCTAssertEqual(http.sentRequests.last?.httpMethod, "GET")
+        XCTAssertEqual(try GCalRepository(db: db).pendingOps().count, 0)
+        XCTAssertNotNil(try GCalRepository(db: db).find(calendarId: "cal1", eventId: "ev_created_1"))
+    }
+
+    func testOfflineCreateQueuesMintedId() async throws {
+        let http = MockHTTPClient()
+        let db = try InMemoryDB.make()
+        try SettingRepository(db: db).set(AssistantCalendarBootstrap.settingKey, value: "cal1")
+        _ = try? await makeWriter(http: http, db: db, online: false).create(
+            title: "Study", start: Date(timeIntervalSince1970: 1000),
+            end: Date(timeIntervalSince1970: 4600), location: nil, description: nil)
+        XCTAssertNotNil(try queuedInsert(db)?.eventId)
+    }
+
+    func testDeleteIsScopedToCalendar() async throws {
+        let http = MockHTTPClient()
+        http.enqueueJSON("{}")
+        let db = try InMemoryDB.make()
+        let repo = GCalRepository(db: db)
+        for cal in ["cal1", "cal2"] {
+            try repo.upsert(GCalEventCache(
+                gcalEventId: "dup", calendarId: cal, title: cal,
+                startAt: Date(), endAt: Date(), location: nil, category: "Misc",
+                lastSyncedAt: Date(), rawJson: "{}"))
+        }
+        // Ambiguous id → fails closed, touches nothing on Google.
+        do { try await makeWriter(http: http, db: db, online: true).delete(eventId: "dup")
+             XCTFail("expected notFound") } catch CalendarWriter.WriteError.notFound {}
+        XCTAssertEqual(http.sentRequests.count, 0)
+        try repo.deleteCached(calendarId: "cal2", eventId: "dup")
+        try await makeWriter(http: http, db: db, online: true).delete(eventId: "dup")
+        XCTAssertNil(try repo.find(calendarId: "cal1", eventId: "dup"))
+    }
 }

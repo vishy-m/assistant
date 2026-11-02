@@ -213,4 +213,53 @@ private extension Database {
         guard exists else { return nil }
         return try String.fetchOne(self, sql: "SELECT identifier FROM grdb_migrations ORDER BY identifier DESC LIMIT 1")
     }
+
+    // MARK: - W3: Migration016GCalIdentity
+
+    func testGCalCacheHasCompositePrimaryKey() throws {
+        let db = try InMemoryDB.make()
+        let pk = try db.queue.read { db in
+            try db.primaryKey("gcal_event_cache").columns
+        }
+        XCTAssertEqual(pk, ["calendar_id", "gcal_event_id"])
+    }
+
+    func testMigration016KeepsExistingRowsAndIndexes() throws {
+        let queue = try DatabaseQueue()
+        var migrator = DatabaseMigrator()
+        Migrations.register(&migrator)
+        try migrator.migrate(queue, upTo: "013_class_files")
+        try queue.write { db in
+            try db.execute(sql: """
+                INSERT INTO gcal_event_cache
+                  (gcal_event_id, calendar_id, title, start_at, end_at, location, category,
+                   last_synced_at, raw_json, recurring_event_id, course_id, event_type)
+                VALUES ('ev1', 'cal1', 'Lecture', '2026-05-14 14:00:00.000',
+                        '2026-05-14 15:00:00.000', 'Room', 'Exam',
+                        '2026-05-13 00:00:00.000', '{}', 'm1', 'c1', 'class')
+                """)
+        }
+        let db = try AssistantDB(queue: queue, runMigrationsOnInit: true)
+        let row = try GCalRepository(db: db).find(calendarId: "cal1", eventId: "ev1")
+        XCTAssertEqual(row?.title, "Lecture")
+        XCTAssertEqual(row?.category, "Exam")
+        XCTAssertEqual(row?.recurringEventId, "m1")
+        XCTAssertEqual(row?.courseId, "c1")
+        XCTAssertEqual(row?.eventType, "class")
+        let indexes = try queue.read { try $0.indexes(on: "gcal_event_cache").map(\.name) }
+        XCTAssertTrue(indexes.contains("idx_gcal_cache_start"))
+        XCTAssertTrue(indexes.contains("idx_gcal_cache_calendar"))
+    }
+
+    func testMigration016BodyIsIdempotent() throws {
+        let db = try InMemoryDB.make()
+        try GCalRepository(db: db).upsert(GCalEventCache(
+            gcalEventId: "ev1", calendarId: "cal1", title: "X", startAt: Date(),
+            endAt: Date(), location: nil, category: "Misc", lastSyncedAt: Date(), rawJson: "{}"))
+        try db.queue.write { db in
+            try Migration016GCalIdentity.migrate(db)
+            try Migration016GCalIdentity.migrate(db)
+        }
+        XCTAssertNotNil(try GCalRepository(db: db).find(calendarId: "cal1", eventId: "ev1"))
+    }
 }
