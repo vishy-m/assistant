@@ -31,17 +31,14 @@ public struct BriefingRules {
                                                               from: now, to: cutoff)
         guard upcoming.count >= 3 else { return [] }
 
-        // Count "study blocks" in the next 48h
-        let events = try gcalRepo.eventsOn(date: now)
-        let nextDayEvents = try gcalRepo.eventsOn(date: now.addingTimeInterval(86_400))
-        let totalBlocks = (events + nextDayEvents)
-            .filter { $0.category == "study" || $0.title.lowercased().contains("study") }
-            .count
-        guard totalBlocks == 0 else { return [] }
+        // Study blocks that overlap [now, cutoff). A block that already ended does not count.
+        let blocks = try studyBlocks(in: gcalRepo, now: now, cutoff: cutoff)
+        guard blocks.isEmpty else { return [] }
 
         let titles = upcoming.prefix(5).map { $0.title }
         let payload: [String: Any] = [
             "task_count": upcoming.count,
+            "task_ids": upcoming.map(\.id).sorted(),
             "titles": Array(titles)
         ]
         let data = (try? JSONSerialization.data(withJSONObject: payload)) ?? Data()
@@ -87,5 +84,33 @@ public struct BriefingRules {
             ($0.dueAt ?? .distantFuture) >= start &&
             ($0.dueAt ?? .distantPast) <= end
         }
+    }
+
+    /// Events overlapping `[now, cutoff)`, deduped by id, that count as study time.
+    private func studyBlocks(in repo: GCalRepository, now: Date, cutoff: Date) throws -> [GCalEventCache] {
+        let cal = Calendar(identifier: .gregorian)
+        var cursor = cal.startOfDay(for: now)
+        let last = cal.startOfDay(for: cutoff)
+        var byID: [String: GCalEventCache] = [:]
+        while cursor <= last {
+            for event in try repo.eventsOn(date: cursor) {
+                guard event.startAt < cutoff, event.endAt > now else { continue }
+                if byID[event.gcalEventId] == nil {
+                    byID[event.gcalEventId] = event
+                }
+            }
+            guard let next = cal.date(byAdding: .day, value: 1, to: cursor), next > cursor else { break }
+            cursor = next
+        }
+        return byID.values.filter(isStudyBlock)
+    }
+
+    private func isStudyBlock(_ event: GCalEventCache) -> Bool {
+        if event.category.caseInsensitiveCompare("study") == .orderedSame { return true }
+        if let eventType = event.eventType,
+           eventType.caseInsensitiveCompare("study") == .orderedSame {
+            return true
+        }
+        return event.title.lowercased().contains("study")
     }
 }
