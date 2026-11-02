@@ -96,7 +96,6 @@
 		DE50A5C91DBD91A9BEE7C654 /* AssistantGrades in Frameworks */ = {isa = PBXBuildFile; productRef = 2F4CCF2277613D10DD34E41E /* AssistantGrades */; };
 		E057A6966608E7089E9FFA85 /* DashboardWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CFA9A7A3A693BD255F60D5F /* DashboardWindow.swift */; };
 		E61959E5D3FA58BC7DE44415 /* TasksListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200C3125E04D828CCEA3A76B /* TasksListView.swift */; };
-		EFD5AECF9F655C5FD1B7B4D0 /* OAuthSecretMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BEDAFBF45899AC4C0F92AA8 /* OAuthSecretMigration.swift */; };
 		F195B807E39176D508835265 /* SwipeToDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6FF00F981AF329EFABF9426 /* SwipeToDelete.swift */; };
 		F5E126969F13A4DDF2571312 /* BriefingHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAB3427CE2B809707C357991 /* BriefingHandler.swift */; };
 		FAB36582ADC726E44F5B082D /* CropSelectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A099E467B25AEDA53B172D72 /* CropSelectionController.swift */; };
@@ -140,7 +139,6 @@
 		6AD3102EB1B880D1AA8E48CC /* assistant-proj */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "assistant-proj"; path = .; sourceTree = SOURCE_ROOT; };
 		6B8C4CAEB2BF4FEC17055DDF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6B9614A9D0B7F85CEFB64070 /* GradeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradeStore.swift; sourceTree = "<group>"; };
-		6BEDAFBF45899AC4C0F92AA8 /* OAuthSecretMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthSecretMigration.swift; sourceTree = "<group>"; };
 		6E70A6DF9577F3B33F959A92 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		6EE1D40A9B368507CA292076 /* AssistantCoreHelper */ = {isa = PBXFileReference; includeInIndex = 0; path = AssistantCoreHelper; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F5C40546205A89D509CCA7B /* TasksDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksDashboardView.swift; sourceTree = "<group>"; };
@@ -347,7 +345,6 @@
 				84A892CCF3499ED25646D0B2 /* AssistantService.swift */,
 				AADC074656F15440D1CC15AB /* Info.plist */,
 				B4DC2BE2971975CC37760D61 /* main.swift */,
-				6BEDAFBF45899AC4C0F92AA8 /* OAuthSecretMigration.swift */,
 				6A09AD6576917FD9715C4828 /* RateLimiter.swift */,
 			);
 			path = AssistantCoreHelper;
@@ -660,7 +657,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				C39F4B71FEEDDBFBCAEA082F /* AssistantService.swift in Sources */,
-				EFD5AECF9F655C5FD1B7B4D0 /* OAuthSecretMigration.swift in Sources */,
 				58D853A7EA09BFBBF4EE64F2 /* RateLimiter.swift in Sources */,
 				AC49B8586CDDEDE5BE15F1B5 /* main.swift in Sources */,
 			);

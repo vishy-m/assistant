@@ -70,6 +70,10 @@ service.replaceLoop(loopWithGCal)
 let gcalTimer = DispatchSource.makeTimerSource(queue: .global(qos: .background))
 gcalTimer.schedule(deadline: .now() + 10, repeating: .seconds(300))
 gcalTimer.setEventHandler {
+    // No usable token (not connected, rejected credentials, or backing off):
+    // skip quietly. The cache logs each status change once and stops calling
+    // Google until the credentials change.
+    guard GCalAccessTokenCache.shared.current() != nil else { return }
     _Concurrency.Task.detached {
         do { try await syncWorker.runOnce() } catch { NSLog("[Sync] error: \(error)") }
         do { try await outbox.drainOnce() } catch { NSLog("[Outbox] error: \(error)") }
@@ -82,8 +86,9 @@ NSLog("[AssistantCoreHelper] GCal sync timer started")
 
 let dispatcher = BriefingDispatcher(
     db: db,
-    isFocused: { FocusModeMonitor().isFocused },
-    pushToUI: { payload in service.pushBriefing(payload) })
+    isFocused: { FocusStatusStore.shared.state.suppressesDelivery },
+    pushToUI: { payload in await service.pushBriefing(payload) })
+service.attachBriefingDispatcher(dispatcher)
 
 let composer = BriefingComposer(chain: chain)
 let rules = BriefingRules(db: db)
@@ -98,9 +103,10 @@ _Concurrency.Task.detached {
 // On Focus mode end, drain queue. Poll every 60s.
 let focusPollTimer = DispatchSource.makeTimerSource(queue: .global(qos: .background))
 focusPollTimer.schedule(deadline: .now() + 60, repeating: .seconds(60))
-nonisolated(unsafe) var lastFocused = FocusModeMonitor().isFocused
+nonisolated(unsafe) var lastFocused = FocusStatusStore.shared.state.suppressesDelivery
 focusPollTimer.setEventHandler {
-    let nowFocused = FocusModeMonitor().isFocused
+    // Focus state is relayed by the UI app (setFocusStatus).
+    let nowFocused = FocusStatusStore.shared.state.suppressesDelivery
     if lastFocused == true && nowFocused == false {
         _Concurrency.Task.detached {
             try? await dispatcher.drainQueue(since: Date().addingTimeInterval(-86_400))

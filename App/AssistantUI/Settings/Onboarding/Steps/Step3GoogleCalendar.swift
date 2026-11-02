@@ -1,10 +1,13 @@
 import SwiftUI
 import AppKit
+import AssistantShared
 
 struct Step3GoogleCalendar: View {
     @ObservedObject var store: SettingsStore
     @State private var clientID = ""
     @State private var clientSecret = ""
+    @State private var isWorking = false
+    @State private var saveError: String?
 
     var body: some View {
         VStack(spacing: 14) {
@@ -19,22 +22,36 @@ struct Step3GoogleCalendar: View {
                     .font(.caption)
                 Spacer()
                 Button("Save and connect") {
+                    let id = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let secret = clientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
                     var s = store.settings
-                    s.gcalOAuthClientID = clientID
+                    s.gcalOAuthClientID = id
                     store.settings = s
-                    let id = clientID
-                    let secret = clientSecret
-                    _Concurrency.Task {
-                        _ = await store.save()
-                        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-                            XPCClient.shared.setGoogleClientSecret(secret) { _ in cont.resume() }
+                    isWorking = true
+                    _Concurrency.Task { @MainActor in
+                        defer { isWorking = false }
+                        let settingsSaved = await store.save()
+                        let secretSaved = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+                            XPCClient.shared.setGoogleClientSecret(secret) { cont.resume(returning: $0) }
                         }
+                        saveError = GoogleConnectGate.saveFailureMessage(settingsSaved: settingsSaved,
+                                                                         secretSaved: secretSaved)
+                        // OAuth only with credentials the daemon can actually read.
+                        guard GoogleConnectGate.canStart(settingsSaved: settingsSaved,
+                                                         secretSaved: secretSaved,
+                                                         clientID: id, secret: secret) else { return }
                         GCalOAuthConfig.clientID = id
                         GCalOAuthConfig.clientSecret = secret
                         let win = NSApp.keyWindow ?? NSWindow()
                         store.gcalConnected = await GoogleAuthFlow.shared.connect(presentingWindow: win)
                     }
-                }.disabled(clientID.isEmpty)
+                }.disabled(!GoogleConnectGate.canAttempt(clientID: clientID, secret: clientSecret)
+                           || isWorking)
+            }
+            if let saveError {
+                Label(saveError, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption).foregroundStyle(.red)
+                    .frame(maxWidth: 380)
             }
             if store.gcalConnected {
                 Label("Connected", systemImage: "checkmark.seal.fill").foregroundStyle(.green)

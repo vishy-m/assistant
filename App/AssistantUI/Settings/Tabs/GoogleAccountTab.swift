@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import AssistantShared
 
 struct GoogleAccountTab: View {
     @ObservedObject var store: SettingsStore
@@ -7,6 +8,9 @@ struct GoogleAccountTab: View {
     @State private var clientSecret: String = ""
     @State private var isConnecting = false
     @State private var timezoneWarning: String?
+    @State private var isSaving = false
+    @State private var saveError: String?
+    @State private var authStatus: GoogleAuthStatus?
 
     var body: some View {
         Form {
@@ -18,23 +22,23 @@ struct GoogleAccountTab: View {
                 SecureField("Client secret", text: $clientSecret,
                             prompt: Text("GOCSPX-…"))
                 Button("Save") {
-                    var s = store.settings
-                    s.gcalOAuthClientID = clientID
-                    store.settings = s
-                    let secret = clientSecret
-                    _Concurrency.Task {
-                        _ = await store.save()
-                        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-                            XPCClient.shared.setGoogleClientSecret(secret) { _ in cont.resume() }
-                        }
-                    }
+                    _Concurrency.Task { @MainActor in _ = await persistCredentials() }
                 }
-                .disabled(clientID.isEmpty)
+                .disabled(!GoogleConnectGate.canAttempt(clientID: clientID, secret: clientSecret)
+                          || isSaving)
+                if let saveError {
+                    Label(saveError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
                 Link("Open Google Cloud Console →",
                      destination: URL(string: "https://console.cloud.google.com/apis/credentials")!)
                     .font(.caption)
             }
             Section("Connection") {
+                if let authStatus, authStatus.needsReconnect {
+                    reconnectBanner(authStatus)
+                }
                 if store.gcalConnected {
                     Label("Connected", systemImage: "checkmark.seal.fill")
                         .foregroundStyle(.green)
@@ -42,28 +46,25 @@ struct GoogleAccountTab: View {
                         timezoneBanner(warning)
                     }
                     Button("Disconnect", role: .destructive) {
-                        XPCClient.shared.clearGoogleRefreshToken { _ in
+                        XPCClient.shared.clearGoogleRefreshToken { ok in
                             _Concurrency.Task { @MainActor in
-                                store.gcalConnected = false
-                                timezoneWarning = nil
+                                if ok {
+                                    store.gcalConnected = false
+                                    timezoneWarning = nil
+                                }
+                                refreshAuthStatus()
                             }
                         }
                     }
+                    Text("Disconnecting removes this Mac's copy of your Google events and drops calendar changes that haven't synced yet.")
+                        .font(.caption).foregroundStyle(.secondary)
                 } else {
-                    Button("Connect Google Calendar") {
-                        guard let cid = store.settings.gcalOAuthClientID, !cid.isEmpty else { return }
-                        GCalOAuthConfig.clientID = cid
-                        GCalOAuthConfig.clientSecret = clientSecret
-                        isConnecting = true
-                        _Concurrency.Task { @MainActor in
-                            let win = NSApp.keyWindow ?? NSWindow()
-                            let ok = await GoogleAuthFlow.shared.connect(presentingWindow: win)
-                            isConnecting = false
-                            store.gcalConnected = ok
-                            if ok { refreshTimeZoneWarning() }
-                        }
+                    Button(authStatus?.needsReconnect == true
+                           ? "Reconnect Google" : "Connect Google Calendar") {
+                        connect()
                     }
-                    .disabled((store.settings.gcalOAuthClientID?.isEmpty ?? true) || isConnecting)
+                    .disabled(!GoogleConnectGate.canAttempt(clientID: clientID, secret: clientSecret)
+                              || isConnecting || isSaving)
                 }
             }
         }
@@ -75,6 +76,79 @@ struct GoogleAccountTab: View {
                 clientSecret = secret ?? ""
             }
             refreshTimeZoneWarning()
+            refreshAuthStatus()
+        }
+    }
+
+    /// Saves the client id (settings) and secret (.env). Returns true only
+    /// when both writes succeeded; otherwise shows a retryable error and
+    /// leaves the fields as typed.
+    @MainActor
+    private func persistCredentials() async -> Bool {
+        let id = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let secret = clientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
+        isSaving = true
+        defer { isSaving = false }
+        var s = store.settings
+        s.gcalOAuthClientID = id
+        store.settings = s
+        let settingsSaved = await store.save()
+        let secretSaved = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            XPCClient.shared.setGoogleClientSecret(secret) { cont.resume(returning: $0) }
+        }
+        saveError = GoogleConnectGate.saveFailureMessage(settingsSaved: settingsSaved,
+                                                         secretSaved: secretSaved)
+        return GoogleConnectGate.canStart(settingsSaved: settingsSaved, secretSaved: secretSaved,
+                                          clientID: id, secret: secret)
+    }
+
+    /// Persists the credentials the daemon will use, then runs OAuth.
+    private func connect() {
+        isConnecting = true
+        _Concurrency.Task { @MainActor in
+            defer { isConnecting = false }
+            guard await persistCredentials() else { return }
+            GCalOAuthConfig.clientID = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
+            GCalOAuthConfig.clientSecret = clientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
+            let win = NSApp.keyWindow ?? NSWindow()
+            let ok = await GoogleAuthFlow.shared.connect(presentingWindow: win)
+            store.gcalConnected = ok
+            if ok { refreshTimeZoneWarning() }
+            refreshAuthStatus()
+        }
+    }
+
+    /// Asks the daemon whether its stored Google credentials still work.
+    private func refreshAuthStatus() {
+        XPCClient.shared.getGoogleAuthStatus { status in
+            authStatus = status
+            switch status?.state {
+            case .connected?, .temporarilyUnavailable?:
+                store.gcalConnected = true
+                refreshTimeZoneWarning()
+            case .notConnected?, .needsReconnect?:
+                store.gcalConnected = false
+                timezoneWarning = nil
+            case .unknown?, nil:
+                break
+            }
+        }
+    }
+
+    private func reconnectBanner(_ status: GoogleAuthStatus) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Reconnect Google")
+                    .font(.callout).fontWeight(.semibold)
+                Text(status.reason == "missing_client"
+                     ? "The OAuth client ID is missing. Save it above, then reconnect."
+                     : "Google rejected the saved sign-in, so calendar sync is paused. Reconnect to resume.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

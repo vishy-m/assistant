@@ -23,5 +23,7 @@
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
+    <key>NSFocusStatusUsageDescription</key>
+    <string>Assistant holds briefings while a Focus is on and shows them when it ends.</string>
 </dict>
 </plist>

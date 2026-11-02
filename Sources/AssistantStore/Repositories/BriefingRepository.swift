@@ -48,4 +48,50 @@ public struct BriefingRepository {
                 .fetchAll(db)
         }
     }
+
+    // MARK: - Delivery (separate from dismissal)
+
+    /// Side table recording which briefings the UI acknowledged. Created on
+    /// demand so this doesn't need a schema migration.
+    private static let createDeliveryTable = """
+        CREATE TABLE IF NOT EXISTS briefing_delivery (
+            id           TEXT PRIMARY KEY NOT NULL,
+            delivered_at DATETIME NOT NULL
+        )
+        """
+
+    /// Records that the UI acknowledged the briefing.
+    public func markDelivered(id: String, at date: Date = Date()) throws {
+        try db.queue.write { db in
+            try db.execute(sql: Self.createDeliveryTable)
+            try db.execute(sql: """
+                INSERT INTO briefing_delivery (id, delivered_at) VALUES (?, ?)
+                ON CONFLICT(id) DO UPDATE SET delivered_at = excluded.delivered_at
+                """, arguments: [id, date])
+        }
+    }
+
+    public func deliveredAt(id: String) throws -> Date? {
+        try db.queue.write { db in
+            try db.execute(sql: Self.createDeliveryTable)
+            return try Date.fetchOne(
+                db, sql: "SELECT delivered_at FROM briefing_delivery WHERE id = ?",
+                arguments: [id])
+        }
+    }
+
+    /// Briefings fired since `since`, not dismissed, and never acknowledged
+    /// by the UI. Oldest first.
+    public func undelivered(since: Date) throws -> [Briefing] {
+        try db.queue.write { db in
+            try db.execute(sql: Self.createDeliveryTable)
+            return try Briefing.fetchAll(db, sql: """
+                SELECT briefing_log.* FROM briefing_log
+                WHERE fired_at >= ?
+                  AND dismissed_at IS NULL
+                  AND NOT EXISTS (SELECT 1 FROM briefing_delivery d WHERE d.id = briefing_log.id)
+                ORDER BY fired_at
+                """, arguments: [since])
+        }
+    }
 }
