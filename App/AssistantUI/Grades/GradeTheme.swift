@@ -49,10 +49,9 @@ enum GradeTheme {
     }
 
     /// Drops a trailing ".0" so whole numbers read cleanly.
+    /// Non-finite and out-of-range values never go through `Int(Double)`.
     static func num(_ d: Double) -> String {
-        d.truncatingRemainder(dividingBy: 1) == 0
-            ? String(Int(d))
-            : String(format: "%.1f", d)
+        GradeFormat.number(d)
     }
 
     static func color(fromHex hex: String?) -> Color {

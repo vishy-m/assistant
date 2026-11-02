@@ -19,6 +19,7 @@ struct GradeItemEditorSheet: View {
     @State private var isExtraCredit: Bool
     @State private var hasDue: Bool
     @State private var dueAt: Date
+    @State private var saveError: String?
 
     init(courseId: String, categories: [GradeCategory], existing: GradeItem?,
          onSave: @escaping (GradeItem) -> Void) {
@@ -34,6 +35,7 @@ struct GradeItemEditorSheet: View {
         _isExtraCredit = State(initialValue: existing?.isExtraCredit ?? false)
         _hasDue = State(initialValue: existing?.dueAt != nil)
         _dueAt = State(initialValue: existing?.dueAt ?? Date())
+        _saveError = State(initialValue: nil)
     }
 
     var body: some View {
@@ -92,13 +94,21 @@ struct GradeItemEditorSheet: View {
                 }
             }
 
+            if let message = visibleError {
+                Text(message)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.red)
+            }
+
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
                 Button(existing == nil ? "Add" : "Save") {
+                    saveError = nil
+                    guard canSave else { return }
                     let item = GradeItem(
                         id: existing?.id ?? UUID().uuidString,
-                        courseId: courseId,
+                        courseId: existing?.courseId ?? courseId,
                         categoryId: isExtraCredit ? categoryId : categoryId,
                         name: name,
                         maxPoints: maxPoints,
@@ -106,17 +116,55 @@ struct GradeItemEditorSheet: View {
                         dueAt: hasDue ? dueAt : nil,
                         isExtraCredit: isExtraCredit,
                         weightOverridePct: existing?.weightOverridePct)
-                    XPCClient.shared.upsertItem(item) { _ in
+                    XPCClient.shared.upsertItem(item) { ok in
+                        guard ok else {
+                            saveError = "Couldn't save this item."
+                            return
+                        }
                         onSave(item)
                         dismiss()
                     }
                 }
                 .keyboardShortcut(.return)
-                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(!canSave)
             }
         }
         .padding(22)
         .frame(width: 420)
+    }
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespaces)
+    }
+
+    private var earnedValue: Double? {
+        hasEarned ? earnedPoints : nil
+    }
+
+    private var courseMatchesSelection: Bool {
+        guard let existing else { return true }
+        return existing.courseId == courseId
+    }
+
+    private var canSave: Bool {
+        !trimmedName.isEmpty
+            && courseMatchesSelection
+            && GradeWriteRules.isSavableItem(maxPoints: maxPoints, earnedPoints: earnedValue)
+    }
+
+    private var visibleError: String? {
+        if let saveError { return saveError }
+        if !courseMatchesSelection {
+            return "This item belongs to another course."
+        }
+        guard !trimmedName.isEmpty,
+              !GradeWriteRules.isSavableItem(maxPoints: maxPoints, earnedPoints: earnedValue) else {
+            return nil
+        }
+        if !maxPoints.isFinite || maxPoints <= 0 {
+            return "Max points must be greater than 0."
+        }
+        return "Earned points must be a finite number."
     }
 
     @ViewBuilder

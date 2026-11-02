@@ -115,7 +115,7 @@ struct BreakdownPanel: View {
                         Spacer()
                         Text("\(GradeTheme.num(cat.currentPct))")
                             .font(GradeTheme.metric(12, weight: .semibold))
-                        Text("· \(Int(cat.weightPct))%")
+                        Text("· \(GradeFormat.weightPercent(cat.weightPct))")
                             .font(GradeTheme.mono(10))
                             .foregroundStyle(.tertiary)
                     }

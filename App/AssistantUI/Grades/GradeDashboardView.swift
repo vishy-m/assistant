@@ -25,8 +25,13 @@ struct GradeDashboardView: View {
         List(selection: Binding(
             get: { store.selectedCourseId },
             set: { newID in
-                store.selectedCourseId = newID
-                if let id = newID { _Concurrency.Task { await store.selectCourse(id) } }
+                if let id = newID {
+                    guard id != store.selectedCourseId else { return }
+                    let generation = store.prepareCourseLoad(id)
+                    _Concurrency.Task { await store.finishCourseLoad(id, generation: generation) }
+                } else {
+                    store.clearCourseSelection()
+                }
             }
         )) {
             Section {

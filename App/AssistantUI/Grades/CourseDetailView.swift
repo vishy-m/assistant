@@ -1,4 +1,5 @@
 import SwiftUI
+import AssistantGrades
 import AssistantStore
 
 // `.sheet(item:)` needs Identifiable; both records already carry a `String` id.
@@ -17,6 +18,14 @@ struct CourseDetailView: View {
 
     private var course: Course? {
         store.courses.first { $0.id == store.selectedCourseId }
+    }
+
+    private var uncategorizedItems: [GradeItem] {
+        store.items.filter { $0.categoryId == nil && !$0.isExtraCredit }
+    }
+
+    private var looseExtraCredit: [GradeItem] {
+        store.items.filter { $0.categoryId == nil && $0.isExtraCredit }
     }
 
     var body: some View {
@@ -105,13 +114,19 @@ struct CourseDetailView: View {
         VStack(spacing: 0) {
             actionRow
             Divider()
-            if store.categories.isEmpty {
+            if store.categories.isEmpty && uncategorizedItems.isEmpty && looseExtraCredit.isEmpty {
                 emptyMatrix
             } else {
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(store.categories, id: \.id) { cat in
                             categoryBlock(cat)
+                        }
+                        if !uncategorizedItems.isEmpty {
+                            looseBlock(title: "Uncategorized", items: uncategorizedItems)
+                        }
+                        if !looseExtraCredit.isEmpty {
+                            looseBlock(title: "Extra credit", items: looseExtraCredit)
                         }
                     }
                     .padding(.vertical, 4)
@@ -158,7 +173,7 @@ struct CourseDetailView: View {
             HStack(spacing: 8) {
                 Text(cat.name)
                     .font(.system(size: 13, weight: .semibold))
-                Text("\(Int(cat.weightPct))%")
+                Text(GradeFormat.weightPercent(cat.weightPct))
                     .font(GradeTheme.mono(10, weight: .medium))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 5).padding(.vertical, 1)
@@ -197,6 +212,27 @@ struct CourseDetailView: View {
                     }) {
                         itemRow(item, dropped: catBreakdown?.droppedItemIds.contains(item.id) ?? false)
                     }
+                }
+            }
+            Divider().padding(.leading, 22)
+        }
+    }
+
+    private func looseBlock(title: String, items: [GradeItem]) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+            }
+            .padding(.horizontal, 22)
+            .padding(.top, 14)
+            .padding(.bottom, 7)
+            ForEach(items, id: \.id) { item in
+                SwipeToDelete(onDelete: {
+                    _Concurrency.Task { await store.deleteItem(item.id) }
+                }) {
+                    itemRow(item, dropped: false)
                 }
             }
             Divider().padding(.leading, 22)
