@@ -10,6 +10,9 @@ final class OverlayController {
 
     private var panel: OverlayPanel?
     private let state = OverlayState()
+    /// True while the panel is hidden for a crop selection. Resign-key events
+    /// in that window are not dismissals.
+    private var isSuspendingForCrop = false
 
     private init() {}
 
@@ -28,9 +31,19 @@ final class OverlayController {
         }
         NotificationCenter.default.addObserver(forName: .overlayPanelDidResignKey,
                                                object: nil, queue: .main) { [weak self] _ in
-            // Small delay so the click that caused deactivation finishes first
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                Task { @MainActor in self?.dismiss() }
+            MainActor.assumeIsolated {
+                // Hiding the panel for a crop selection is not a dismissal.
+                guard self?.isSuspendingForCrop == false else { return }
+                // Small delay so the click that caused deactivation finishes first
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    Task { @MainActor in
+                        guard let self else { return }
+                        guard CropDismissGate.shouldDismiss(
+                            suspended: self.isSuspendingForCrop,
+                            isKey: self.panel?.isKeyWindow ?? false) else { return }
+                        self.dismiss()
+                    }
+                }
             }
         }
     }
@@ -69,12 +82,15 @@ final class OverlayController {
     }
 
     private func summonAndResume() {
+        let epoch = state.conversationEpoch.current
         XPCClient.shared.getMostRecentSessionId { [weak self] sid in
-            guard let self else { return }
+            guard let self, self.state.conversationEpoch.isCurrent(epoch) else { return }
             if let sid = sid {
                 self.state.sessionId = sid
                 // Load message history into state.messages
                 XPCClient.shared.getMessages(sessionId: sid) { msgs in
+                    // Dropped if the overlay was dismissed or a prompt sent meanwhile.
+                    guard self.state.conversationEpoch.isCurrent(epoch) else { return }
                     self.state.messages = msgs.map { m in
                         OverlayState.OverlayMessage(
                             role: m.role == "assistant" ? .assistant : .user,
@@ -121,6 +137,8 @@ final class OverlayController {
         }
         state.inputText = ""
         state.isSubmitting = true
+        state.conversationEpoch.bump()
+        let epoch = state.conversationEpoch.current
 
         // Grow panel if entering chat mode for the first time.
         if state.mode == .singleShot { promoteToChatMode() }
@@ -131,7 +149,9 @@ final class OverlayController {
             imageMediaType: img?.mediaType,
             sessionId: state.sessionId
         ) { [weak self] result in
-            guard let self else { return }
+            // A reply for a dismissed/replaced conversation must not append,
+            // write sessionId, or touch isSubmitting (reset already cleared it).
+            guard let self, self.state.conversationEpoch.isCurrent(epoch) else { return }
             self.state.isSubmitting = false
             switch result {
             case .success(let resp):
@@ -174,12 +194,15 @@ final class OverlayController {
             return
         }
 
-        // Hide the overlay during selection so it doesn't appear in the screenshot
+        // Hide the overlay during selection so it doesn't appear in the screenshot.
+        // Suspend first: orderOut resigns key, which must not dismiss/reset.
+        isSuspendingForCrop = true
         panel?.orderOut(nil)
         Task { @MainActor in
             let rect = await CropSelectionController.shared.selectRegion()
             panel?.orderFront(nil)
             panel?.makeKey()
+            isSuspendingForCrop = false
             guard let rect = rect,
                   let (img, jpeg) = ScreenshotCapturer.capture(rect: rect) else {
                 return

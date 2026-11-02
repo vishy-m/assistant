@@ -16,6 +16,8 @@ struct ClassEventCreatorSheet: View {
     @State private var repeats = false
     @State private var rule = RecurrenceRule(frequency: .weekly, interval: 1,
                                              byWeekday: [], untilDate: nil, count: nil)
+    @State private var isSaving = false
+    @State private var errorMessage: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -32,12 +34,16 @@ struct ClassEventCreatorSheet: View {
                     in: 15...480, step: 15)
             Toggle("Repeat", isOn: $repeats)
             if repeats { RecurrenceEditor(rule: $rule) }
+            if let errorMessage {
+                Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
                 Button("Create") { create() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
             }
         }
         .padding(16)
@@ -55,7 +61,16 @@ struct ClassEventCreatorSheet: View {
                                      location: nil, category: "Misc",
                                      recurrence: repeats ? rule : nil,
                                      courseId: courseId, eventType: eventType)
-        XPCClient.shared.createCalendarEvent(req) { _ in
+        let isRecurring = repeats
+        isSaving = true
+        errorMessage = nil
+        XPCClient.shared.createCalendarEvent(req) { result in
+            isSaving = false
+            // Keep the sheet (and the user's input) open on failure.
+            guard CalendarWriteGate.shouldClose(result, isRecurring: isRecurring) else {
+                errorMessage = CalendarWriteGate.failureMessage(result)
+                return
+            }
             onCreated()
             dismiss()
         }

@@ -28,6 +28,9 @@ final class ClassStore: ObservableObject {
     @Published var focusedPinId: String?
 
     private var currentCourseId: String?
+    /// Tags each class load so replies for a previously selected class (or an
+    /// older load of this one) are dropped instead of overwriting state.
+    private var loadGate = ClassLoadGate()
     /// Resolves on-disk file URLs for previews. nil only if Application Support is unreachable.
     private let storage: ClassFileStorage? =
         (try? ClassFileStorage.defaultBase()).map { ClassFileStorage(base: $0) }
@@ -78,30 +81,48 @@ final class ClassStore: ObservableObject {
 
     func loadDetail(courseId: String) {
         currentCourseId = courseId
+        let token = loadGate.start(courseId: courseId)
         restoreTabs(courseId: courseId)
         restoreViewport(courseId: courseId)
         focusedPinId = nil
+        // Clear the previous class's state so nothing of it stays actionable
+        // (local only — nothing is deleted on the daemon).
         detail = nil
-        XPCClient.shared.getClassDetail(courseId: courseId) { [weak self] detail in
-            self?.detail = detail
-        }
-        loadClassTasks(courseId: courseId)
-        loadFiles(courseId: courseId)
-        loadPins(courseId: courseId)
+        classTasks = []
+        pins = []
+        filesById = [:]
+        loadClassDetail(token)
+        loadClassTasks(token)
+        loadFiles(token)
+        loadPins(token)
     }
 
-    private func loadClassTasks(courseId: String) {
+    /// True if `token` is still the live load for the viewed class.
+    private func accepts(_ token: ClassLoadGate.Token) -> Bool {
+        loadGate.accepts(token) && currentCourseId == token.courseId
+    }
+
+    private func loadClassDetail(_ token: ClassLoadGate.Token) {
+        XPCClient.shared.getClassDetail(courseId: token.courseId) { [weak self] detail in
+            guard let self, self.accepts(token) else { return }
+            self.detail = detail
+        }
+    }
+
+    private func loadClassTasks(_ token: ClassLoadGate.Token) {
         XPCClient.shared.listTasks { [weak self] all in
-            self?.classTasks = all.filter { $0.courseId == courseId }
+            guard let self, self.accepts(token) else { return }
+            self.classTasks = all.filter { $0.courseId == token.courseId }
         }
     }
 
-    private func loadFiles(courseId: String) {
+    private func loadFiles(_ token: ClassLoadGate.Token) {
+        let courseId = token.courseId
         XPCClient.shared.listClassFolders(courseId: courseId) { [weak self] folders in
             XPCClient.shared.listClassFiles(courseId: courseId) { [weak self] files in
                 // Ignore a stale reply if the user has since switched classes —
                 // otherwise we'd prune/persist this class's tabs under another.
-                guard let self, self.currentCourseId == courseId else { return }
+                guard let self, self.accepts(token) else { return }
                 self.fileTree = FileTreeBuilder.build(folders: folders, files: files)
                 self.filesById = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0) })
                 self.tabs.prune(toExisting: Set(files.map(\.id)))
@@ -110,29 +131,30 @@ final class ClassStore: ObservableObject {
         }
     }
 
-    private func loadPins(courseId: String) {
-        XPCClient.shared.listClassPins(courseId: courseId) { [weak self] pins in
-            self?.pins = pins
+    private func loadPins(_ token: ClassLoadGate.Token) {
+        XPCClient.shared.listClassPins(courseId: token.courseId) { [weak self] pins in
+            guard let self, self.accepts(token) else { return }
+            self.pins = pins
         }
     }
 
     private func reloadFiles() {
-        guard let courseId = currentCourseId else { return }
-        loadFiles(courseId: courseId)
-        loadPins(courseId: courseId)
+        guard let token = loadGate.current, currentCourseId == token.courseId else { return }
+        loadFiles(token)
+        loadPins(token)
     }
 
     /// After a local file/folder write: refresh our own tree (and pins), and on
-    /// success tell other windows viewing this class to do the same.
-    private func reloadAndBroadcastFiles(_ ok: Bool) {
+    /// success tell other windows viewing `courseId` (captured when the write
+    /// started) to do the same.
+    private func reloadAndBroadcastFiles(_ ok: Bool, courseId: String?) {
         reloadFiles()
-        if ok { broadcastFilesChanged() }
+        if ok, let courseId { broadcastFilesChanged(courseId: courseId) }
     }
 
     /// Tell other windows viewing this class to re-pull their file tree. Tagged
     /// with `self` so we skip our own echo (we already reloaded locally).
-    private func broadcastFilesChanged() {
-        guard let courseId = currentCourseId else { return }
+    private func broadcastFilesChanged(courseId: String) {
         NotificationCenter.default.post(name: .assistantFilesDidChange, object: self,
                                         userInfo: ["courseId": courseId])
     }
@@ -168,11 +190,9 @@ final class ClassStore: ObservableObject {
 
     /// Reload the class's tasks plus the detail/summary counts after a mutation.
     private func reloadAfterTaskChange() {
-        guard let courseId = currentCourseId else { return }
-        loadClassTasks(courseId: courseId)
-        XPCClient.shared.getClassDetail(courseId: courseId) { [weak self] detail in
-            self?.detail = detail
-        }
+        guard let token = loadGate.current, currentCourseId == token.courseId else { return }
+        loadClassTasks(token)
+        loadClassDetail(token)
         refresh()  // keep the card grid's task counts current
     }
 
@@ -182,31 +202,37 @@ final class ClassStore: ObservableObject {
         guard let courseId = currentCourseId else { return }
         let dto = ClassFolderDTO(id: UUID().uuidString, courseId: courseId,
                                  parentFolderId: parentId, name: name, sortOrder: 0)
-        XPCClient.shared.createClassFolder(dto) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
+        XPCClient.shared.createClassFolder(dto) { [weak self] ok in self?.reloadAndBroadcastFiles(ok, courseId: courseId) }
     }
 
     func renameFolder(id: String, name: String) {
-        XPCClient.shared.renameClassFolder(id: id, name: name) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
+        let cid = currentCourseId
+        XPCClient.shared.renameClassFolder(id: id, name: name) { [weak self] ok in self?.reloadAndBroadcastFiles(ok, courseId: cid) }
     }
 
     func moveFolder(id: String, toParent parentId: String?) {
-        XPCClient.shared.moveClassFolder(id: id, parentId: parentId) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
+        let cid = currentCourseId
+        XPCClient.shared.moveClassFolder(id: id, parentId: parentId) { [weak self] ok in self?.reloadAndBroadcastFiles(ok, courseId: cid) }
     }
 
     func deleteFolder(id: String) {
-        XPCClient.shared.deleteClassFolder(id: id) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
+        let cid = currentCourseId
+        XPCClient.shared.deleteClassFolder(id: id) { [weak self] ok in self?.reloadAndBroadcastFiles(ok, courseId: cid) }
     }
 
     func renameFile(id: String, name: String) {
-        XPCClient.shared.renameClassFile(id: id, name: name) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
+        let cid = currentCourseId
+        XPCClient.shared.renameClassFile(id: id, name: name) { [weak self] ok in self?.reloadAndBroadcastFiles(ok, courseId: cid) }
     }
 
     func moveFile(id: String, toFolder folderId: String?) {
-        XPCClient.shared.moveClassFile(id: id, folderId: folderId) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
+        let cid = currentCourseId
+        XPCClient.shared.moveClassFile(id: id, folderId: folderId) { [weak self] ok in self?.reloadAndBroadcastFiles(ok, courseId: cid) }
     }
 
     func deleteFile(id: String) {
-        XPCClient.shared.deleteClassFile(id: id) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
+        let cid = currentCourseId
+        XPCClient.shared.deleteClassFile(id: id) { [weak self] ok in self?.reloadAndBroadcastFiles(ok, courseId: cid) }
     }
 
     /// Imports a file at `url` into `folderId` of the viewed class. Reads bytes,
@@ -222,7 +248,7 @@ final class ClassStore: ObservableObject {
         let dto = ClassFileDTO(id: fileId, courseId: courseId, folderId: folderId,
                                name: url.lastPathComponent, storedName: storedName,
                                contentType: uti, byteSize: bytes.count)
-        XPCClient.shared.addClassFile(dto, bytes: bytes) { [weak self] ok in self?.reloadAndBroadcastFiles(ok) }
+        XPCClient.shared.addClassFile(dto, bytes: bytes) { [weak self] ok in self?.reloadAndBroadcastFiles(ok, courseId: courseId) }
     }
 
     // MARK: - Pins (local source of truth; write through to the daemon)
@@ -234,7 +260,7 @@ final class ClassStore: ObservableObject {
                                     zOrder: PinLayout.nextZOrder(pins))
         pins.append(pin)
         XPCClient.shared.upsertClassPin(pin) { [weak self] ok in
-            if ok { self?.broadcastPinsChanged() }
+            if ok { self?.broadcastPinsChanged(courseId: pin.courseId) }
         }
     }
 
@@ -245,7 +271,7 @@ final class ClassStore: ObservableObject {
         guard let i = pins.firstIndex(where: { $0.id == pin.id }) else { return }
         pins[i] = pin
         XPCClient.shared.upsertClassPin(pin) { [weak self] ok in
-            if ok { self?.broadcastPinsChanged() }
+            if ok { self?.broadcastPinsChanged(courseId: pin.courseId) }
         }
     }
 
@@ -254,15 +280,16 @@ final class ClassStore: ObservableObject {
         let raised = pins[i].withZOrder(PinLayout.nextZOrder(pins))
         pins[i] = raised
         XPCClient.shared.upsertClassPin(raised) { [weak self] ok in
-            if ok { self?.broadcastPinsChanged() }
+            if ok { self?.broadcastPinsChanged(courseId: raised.courseId) }
         }
     }
 
     /// Remove the placement only; the underlying file is untouched.
     func deletePin(id: String) {
+        let courseId = currentCourseId
         pins.removeAll { $0.id == id }
         XPCClient.shared.deleteClassPin(id: id) { [weak self] ok in
-            if ok { self?.broadcastPinsChanged() }
+            if ok, let courseId { self?.broadcastPinsChanged(courseId: courseId) }
         }
     }
 
@@ -274,8 +301,7 @@ final class ClassStore: ObservableObject {
 
     /// Tell other windows viewing this class to re-pull pins. Tagged with `self`
     /// so we ignore our own echo (local pins are already updated optimistically).
-    private func broadcastPinsChanged() {
-        guard let courseId = currentCourseId else { return }
+    private func broadcastPinsChanged(courseId: String) {
         NotificationCenter.default.post(name: .assistantPinsDidChange, object: self,
                                         userInfo: ["courseId": courseId])
     }
@@ -284,9 +310,9 @@ final class ClassStore: ObservableObject {
     /// change is for the class we're currently showing.
     private func reloadPinsFromBroadcast(_ note: Notification) {
         guard note.object as AnyObject !== self,
-              let courseId = currentCourseId,
-              note.userInfo?["courseId"] as? String == courseId else { return }
-        loadPins(courseId: courseId)
+              let token = loadGate.current, currentCourseId == token.courseId,
+              note.userInfo?["courseId"] as? String == token.courseId else { return }
+        loadPins(token)
     }
 
     // MARK: - Canvas tabs (per-course, persisted in UserDefaults)

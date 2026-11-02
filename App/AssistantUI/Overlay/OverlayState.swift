@@ -28,6 +28,10 @@ final class OverlayState: ObservableObject {
     /// Server-allocated conversation ID once chat starts.
     var sessionId: String? = nil
 
+    /// Bumped by `reset()` and each submit; async replies captured under an
+    /// older value are dropped so they cannot resurrect a cleared conversation.
+    var conversationEpoch = ConversationEpoch()
+
     struct AttachedImage: Equatable {
         let nsImage: NSImage
         let jpegData: Data
@@ -46,6 +50,7 @@ final class OverlayState: ObservableObject {
 
     /// Reset to single-shot state on dismiss.
     func reset() {
+        conversationEpoch.bump()
         mode = .singleShot
         inputText = ""
         attachedImage = nil

@@ -19,6 +19,8 @@ struct CalendarEventPopover: View {
                                              byWeekday: [], untilDate: nil, count: nil)
     @State private var courseId: String?
     @State private var eventType: String?
+    @State private var isSaving = false
+    @State private var errorMessage: String?
 
     init(mode: Mode, store: DashboardStore) {
         self.mode = mode
@@ -75,6 +77,10 @@ struct CalendarEventPopover: View {
                 if repeats {
                     RecurrenceEditor(rule: $rule)
                 }
+                if let errorMessage {
+                    Text(errorMessage).font(.caption).foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 HStack {
                     Spacer()
                     Button("Cancel") { dismiss() }
@@ -82,13 +88,25 @@ struct CalendarEventPopover: View {
                         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !t.isEmpty else { return }
                         let end = start.addingTimeInterval(Double(durationMinutes) * 60)
+                        let isRecurring = repeats
+                        isSaving = true
+                        errorMessage = nil
+                        // Stay open (keeping the entered fields) until the
+                        // daemon confirms; show its error verbatim otherwise.
                         store.createEvent(title: t, start: start, end: end,
                                           category: category,
                                           recurrence: repeats ? rule : nil,
-                                          courseId: courseId, eventType: eventType)
-                        dismiss()
+                                          courseId: courseId, eventType: eventType) { result in
+                            isSaving = false
+                            if CalendarWriteGate.shouldClose(result, isRecurring: isRecurring) {
+                                dismiss()
+                            } else {
+                                errorMessage = CalendarWriteGate.failureMessage(result)
+                            }
+                        }
                     }
                     .keyboardShortcut(.defaultAction)
+                    .disabled(isSaving)
                 }
             case .detail(let event):
                 Text(event.title).font(.headline)

@@ -108,3 +108,90 @@ final class XPCProtocolRoundTripTests: XCTestCase {
         func setTasksNote(_ note: String, reply: @escaping (Bool) -> Void) { reply(false) }
     }
 }
+
+// MARK: - XPCCallGate (exactly-once completion, connection identity, re-register)
+
+final class XPCCallGateTests: XCTestCase {
+
+    func testSuccessThenFailureCompletesOnce() {
+        let gate = XPCCallGate()
+        let gen = gate.beginConnection()
+        var failures = 0
+        let call = gate.register(generation: gen) { failures += 1 }
+        XCTAssertTrue(gate.complete(call))
+        XCTAssertEqual(gate.failAll(generation: gen), 0)
+        XCTAssertEqual(failures, 0)
+    }
+
+    func testFailureThenLateReplyCompletesOnce() {
+        let gate = XPCCallGate()
+        let gen = gate.beginConnection()
+        var failures = 0
+        let a = gate.register(generation: gen) { failures += 1 }
+        let b = gate.register(generation: gen) { failures += 1 }
+        XCTAssertEqual(gate.failAll(generation: gen), 2)
+        XCTAssertEqual(failures, 2)
+        XCTAssertFalse(gate.complete(a))
+        XCTAssertFalse(gate.complete(b))
+        XCTAssertEqual(gate.failAll(generation: gen), 0)
+        XCTAssertEqual(failures, 2)
+    }
+
+    func testDoubleCompleteIsNoOp() {
+        let gate = XPCCallGate()
+        let gen = gate.beginConnection()
+        let call = gate.register(generation: gen) {}
+        XCTAssertTrue(gate.complete(call))
+        XCTAssertFalse(gate.complete(call))
+    }
+
+    func testFailureOfGenerationNDoesNotFinishGenerationNPlus1() {
+        let gate = XPCCallGate()
+        let g1 = gate.beginConnection()
+        var failed1 = 0, failed2 = 0
+        _ = gate.register(generation: g1) { failed1 += 1 }
+        XCTAssertTrue(gate.endConnection(generation: g1))
+        let g2 = gate.beginConnection()
+        let c2 = gate.register(generation: g2) { failed2 += 1 }
+        XCTAssertEqual(gate.failAll(generation: g1), 1)
+        XCTAssertEqual(failed1, 1)
+        XCTAssertEqual(failed2, 0)
+        XCTAssertTrue(gate.complete(c2))
+    }
+
+    func testEndingOldGenerationDoesNotClearCurrentConnection() {
+        let gate = XPCCallGate()
+        let g1 = gate.beginConnection()
+        XCTAssertTrue(gate.endConnection(generation: g1))
+        let g2 = gate.beginConnection()
+        // A's late invalidation handler must not tear down B.
+        XCTAssertFalse(gate.endConnection(generation: g1))
+        XCTAssertEqual(gate.currentGeneration, g2)
+        XCTAssertTrue(gate.endConnection(generation: g2))
+        XCTAssertNil(gate.currentGeneration)
+    }
+
+    func testReregisterFlagClearsOnlyOnSuccess() {
+        let gate = XPCCallGate()
+        XCTAssertFalse(gate.needsReregister)
+        gate.markNeedsReregister()
+        XCTAssertTrue(gate.needsReregister)
+        XCTAssertTrue(gate.beginReregister())
+        XCTAssertFalse(gate.beginReregister(), "only one registration in flight")
+        gate.recordReregister(success: false)
+        XCTAssertTrue(gate.needsReregister)
+        XCTAssertTrue(gate.beginReregister())
+        gate.recordReregister(success: true)
+        XCTAssertFalse(gate.needsReregister)
+        XCTAssertFalse(gate.beginReregister())
+    }
+
+    func testConnectionLossDuringRegistrationStaysDirty() {
+        let gate = XPCCallGate()
+        gate.markNeedsReregister()
+        XCTAssertTrue(gate.beginReregister())
+        gate.markNeedsReregister()            // connection died mid-flight
+        gate.recordReregister(success: true)  // stale ack from the dead connection
+        XCTAssertTrue(gate.needsReregister)
+    }
+}
