@@ -164,7 +164,8 @@ struct WeekCalendarView: View {
                     }
                 }
                 // Tap or drag an empty span to create an event.
-                DayCreateSurface(dayStart: dayStart, layout: layout, store: store)
+                DayCreateSurface(dayStart: dayStart, layout: layout, store: store,
+                                 calendar: cal)
                     .frame(height: CGFloat(24) * layout.hourHeight)
                 ForEach(dayEvents) { event in
                     eventBlock(event, dayStart: dayStart, dayEnd: dayEnd,
@@ -185,7 +186,7 @@ struct WeekCalendarView: View {
 
     private func taskLine(_ task: WeekTask, dayStart: Date,
                           layout: WeekGridLayout) -> some View {
-        let top = layout.yOffset(for: task.dueAt, dayStart: dayStart)
+        let top = layout.yOffset(for: task.dueAt, dayStart: dayStart, calendar: cal)
         return TaskDeadlineLine(task: task, store: store, layout: layout)
             .offset(y: top - 7)
     }
@@ -195,7 +196,7 @@ struct WeekCalendarView: View {
                             layout: WeekGridLayout) -> some View {
         let clampedStart = max(event.startAt, dayStart)
         let clampedEnd = min(event.endAt, dayEnd)
-        let top = layout.yOffset(for: clampedStart, dayStart: dayStart)
+        let top = layout.yOffset(for: clampedStart, dayStart: dayStart, calendar: cal)
         let height = layout.height(
             forDurationSeconds: clampedEnd.timeIntervalSince(clampedStart))
         let count = placement?.columnCount ?? 1
@@ -217,6 +218,7 @@ private struct DayCreateSurface: View {
     let dayStart: Date
     let layout: WeekGridLayout
     let store: DashboardStore
+    let calendar: Calendar
 
     @State private var band: (lo: CGFloat, hi: CGFloat)?
     @State private var showCreate = false
@@ -240,8 +242,10 @@ private struct DayCreateSurface: View {
                         band = nil
                         let lo = min(value.startLocation.y, value.location.y)
                         let hi = max(value.startLocation.y, value.location.y)
-                        let start = layout.time(forYOffset: lo, dayStart: dayStart)
-                        var end = layout.time(forYOffset: hi, dayStart: dayStart)
+                        let start = layout.time(forYOffset: lo, dayStart: dayStart,
+                                                 calendar: calendar)
+                        var end = layout.time(forYOffset: hi, dayStart: dayStart,
+                                              calendar: calendar)
                         if end <= start { end = start.addingTimeInterval(3600) }
                         createStart = start
                         createEnd = end

@@ -30,11 +30,11 @@ struct ClassWeekCalendar: View {
         let weekEvents = events.filter { $0.startAt >= weekStart && $0.startAt < weekEnd }
         guard !weekEvents.isEmpty else { return (8, 20) }
         let startHour = weekEvents.map { ev in
-            Int(floor(ev.startAt.timeIntervalSince(cal.startOfDay(for: ev.startAt)) / 3600))
+            WeekGridLayout.wallHour(of: ev.startAt, calendar: cal)
         }.min() ?? 8
         let endHour = weekEvents.map { ev -> Int in
-            let secs = min(ev.endAt.timeIntervalSince(cal.startOfDay(for: ev.startAt)), 24 * 3600)
-            return Int(ceil(secs / 3600))
+            WeekGridLayout.exclusiveEndHour(
+                of: ev.endAt, dayStart: cal.startOfDay(for: ev.startAt), calendar: cal)
         }.max() ?? 20
         let start = max(0, startHour - 1)
         let end = min(24, max(endHour + 1, start + 4))
@@ -167,7 +167,8 @@ struct ClassWeekCalendar: View {
                 let x = gutter + colW * CGFloat(i) + slot * CGFloat(p.columnIndex)
                 // layout's dayStartHour is the display window's start, so this is
                 // already relative to the top of the rendered grid.
-                let y = max(0, CGFloat(layout.yOffset(for: ev.startAt, dayStart: dayStart)))
+                let y = max(0, CGFloat(layout.yOffset(for: ev.startAt, dayStart: dayStart,
+                                                      calendar: cal)))
                 // Clamp the block to the day boundary so late-night or multi-day
                 // events don't draw past the bottom of the grid.
                 let visibleEnd = min(ev.endAt, dayEnd)

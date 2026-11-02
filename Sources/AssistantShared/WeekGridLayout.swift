@@ -14,19 +14,62 @@ public struct WeekGridLayout {
         self.snapMinutes = snapMinutes
     }
 
-    /// Vertical offset, in points, of `date` measured from the top of its day.
-    public func yOffset(for date: Date, dayStart: Date) -> Double {
-        let secondsFromDayStart = date.timeIntervalSince(dayStart)
-            - Double(dayStartHour) * 3600
-        return secondsFromDayStart / 3600 * hourHeight
+    /// Wall-clock offset of `date` below `dayStartHour`, in points. One row per
+    /// local hour, so a DST shift does not move 09:00 onto another row.
+    public func yOffset(for date: Date, dayStart: Date, calendar: Calendar = .current) -> Double {
+        let hours = Self.wallHours(of: date, calendar: calendar) - Double(dayStartHour)
+        return hours * hourHeight
     }
 
-    /// Time corresponding to a vertical offset, snapped to `snapMinutes`.
-    public func time(forYOffset y: Double, dayStart: Date) -> Date {
+    /// Wall time on `dayStart`'s civil day for a vertical offset, snapped to
+    /// `snapMinutes`. A missing spring-forward hour resolves to the next valid
+    /// instant (02:00 → 03:00). A repeated fall-back hour uses Calendar's
+    /// first occurrence.
+    public func time(forYOffset y: Double, dayStart: Date, calendar: Calendar = .current) -> Date {
         let rawSeconds = y / hourHeight * 3600 + Double(dayStartHour) * 3600
         let snap = Double(snapMinutes) * 60
         let snapped = (rawSeconds / snap).rounded() * snap
-        return dayStart.addingTimeInterval(snapped)
+        let whole = max(0, Int(snapped.rounded()))
+        let ymd = calendar.dateComponents([.year, .month, .day], from: dayStart)
+        var comps = DateComponents()
+        comps.calendar = calendar
+        comps.timeZone = calendar.timeZone
+        comps.year = ymd.year
+        comps.month = ymd.month
+        comps.day = ymd.day
+        comps.hour = whole / 3600
+        comps.minute = (whole % 3600) / 60
+        comps.second = whole % 60
+        return calendar.date(from: comps) ?? dayStart
+    }
+
+    /// Wall-clock hour (0...23) of `date` in `calendar`.
+    public static func wallHour(of date: Date, calendar: Calendar) -> Int {
+        calendar.component(.hour, from: date)
+    }
+
+    /// Exclusive end row for an event that began on `dayStart`'s civil day.
+    /// 10:00 → 10, 10:30 → 11. An end on a later civil day → 24.
+    public static func exclusiveEndHour(of end: Date, dayStart: Date, calendar: Calendar) -> Int {
+        let startDay = calendar.startOfDay(for: dayStart)
+        let endDay = calendar.startOfDay(for: end)
+        if endDay > startDay { return 24 }
+        if endDay < startDay { return 0 }
+        let comps = calendar.dateComponents([.hour, .minute, .second, .nanosecond], from: end)
+        let hour = comps.hour ?? 0
+        if (comps.minute ?? 0) > 0 || (comps.second ?? 0) > 0 || (comps.nanosecond ?? 0) > 0 {
+            return min(24, hour + 1)
+        }
+        return hour
+    }
+
+    private static func wallHours(of date: Date, calendar: Calendar) -> Double {
+        let comps = calendar.dateComponents([.hour, .minute, .second, .nanosecond], from: date)
+        let hour = Double(comps.hour ?? 0)
+        let minute = Double(comps.minute ?? 0)
+        let second = Double(comps.second ?? 0)
+        let fraction = Double(comps.nanosecond ?? 0) / 1_000_000_000
+        return hour + minute / 60 + (second + fraction) / 3600
     }
 
     public func height(forDurationSeconds seconds: Double) -> Double {
