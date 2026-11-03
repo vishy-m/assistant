@@ -289,4 +289,77 @@ final class CalendarWriterTests: XCTestCase {
         try await makeWriter(http: http, db: db, online: true).delete(eventId: "dup")
         XCTAssertNil(try repo.find(calendarId: "cal1", eventId: "dup"))
     }
+
+    // MARK: - W9: category patch reaches Google (A2-09 follow-up)
+
+    private func cacheEvent(_ db: AssistantDB, id: String, calendarId: String,
+                            category: String = "Misc") throws {
+        try GCalRepository(db: db).upsert(GCalEventCache(
+            gcalEventId: id, calendarId: calendarId, title: "Quiz",
+            startAt: Date(), endAt: Date(), location: nil, category: category,
+            lastSyncedAt: Date(), rawJson: "{}"))
+    }
+
+    private func privateProps(_ r: URLRequest?) -> [String: Any]? {
+        let b = body(r)
+        return (b?["extendedProperties"] as? [String: Any])?["private"] as? [String: Any]
+    }
+
+    func testUpdateCategoryOnOwnedEventPatchesAssistantCategory() async throws {
+        let http = MockHTTPClient()
+        http.enqueueJSON(GCalFixtures.createdEvent)
+        let db = try InMemoryDB.make()
+        try SettingRepository(db: db).set(AssistantCalendarBootstrap.settingKey, value: "cal1")
+        try cacheEvent(db, id: "e1", calendarId: "cal1")
+        let owned = try await makeWriter(http: http, db: db, online: true)
+            .updateCategory(eventId: "e1", category: "Exam")
+        XCTAssertTrue(owned)
+        XCTAssertEqual(http.sentRequests.first?.httpMethod, "PATCH")
+        XCTAssertTrue(http.sentRequests.first?.url?.path.hasSuffix("/calendars/cal1/events/e1") ?? false)
+        XCTAssertEqual(privateProps(http.sentRequests.first)?["assistant_category"] as? String, "Exam")
+        XCTAssertEqual(try GCalRepository(db: db).pendingOps().count, 0)
+    }
+
+    func testUpdateCategoryFailureIsQueuedNotDropped() async throws {
+        let http = MockHTTPClient()
+        http.enqueueJSON(#"{"error":{"code":500}}"#, status: 500)
+        let db = try InMemoryDB.make()
+        try SettingRepository(db: db).set(AssistantCalendarBootstrap.settingKey, value: "cal1")
+        try cacheEvent(db, id: "e1", calendarId: "cal1")
+        let owned = try await makeWriter(http: http, db: db, online: true)
+            .updateCategory(eventId: "e1", category: "Exam")
+        XCTAssertTrue(owned)
+        let ops = try GCalRepository(db: db).pendingOps()
+        XCTAssertEqual(ops.count, 1)
+        let data = try XCTUnwrap(ops.first?.payloadJson.data(using: .utf8))
+        guard case .patchEventCategory(let p) = try JSONDecoder().decode(OutboxPayload.self, from: data)
+        else { return XCTFail("expected a patch op") }
+        XCTAssertEqual(p.category, "Exam")
+        XCTAssertEqual(p.eventId, "e1")
+        XCTAssertEqual(p.calendarId, "cal1")
+    }
+
+    func testUpdateCategoryOfflineQueuesPatch() async throws {
+        let http = MockHTTPClient()
+        let db = try InMemoryDB.make()
+        try SettingRepository(db: db).set(AssistantCalendarBootstrap.settingKey, value: "cal1")
+        try cacheEvent(db, id: "e1", calendarId: "cal1")
+        let owned = try await makeWriter(http: http, db: db, online: false)
+            .updateCategory(eventId: "e1", category: "Exam")
+        XCTAssertTrue(owned)
+        XCTAssertEqual(http.sentRequests.count, 0)
+        XCTAssertEqual(try GCalRepository(db: db).pendingOps().count, 1)
+    }
+
+    func testUpdateCategoryOnForeignCalendarDoesNotWriteGoogle() async throws {
+        let http = MockHTTPClient()
+        let db = try InMemoryDB.make()
+        try SettingRepository(db: db).set(AssistantCalendarBootstrap.settingKey, value: "cal1")
+        try cacheEvent(db, id: "e1", calendarId: "primary")
+        let owned = try await makeWriter(http: http, db: db, online: true)
+            .updateCategory(eventId: "e1", category: "Exam")
+        XCTAssertFalse(owned)
+        XCTAssertEqual(http.sentRequests.count, 0)
+        XCTAssertEqual(try GCalRepository(db: db).pendingOps().count, 0)
+    }
 }

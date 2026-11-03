@@ -57,9 +57,26 @@ public struct InsertEventPayload: Codable, Equatable {
     }
 }
 
+/// Category change for an event the Assistant owns. Replaying the PATCH is
+/// idempotent: it sets the same private property and color again.
+public struct PatchEventCategoryPayload: Codable, Equatable {
+    public let calendarId: String
+    public let eventId: String
+    public let category: String
+    /// Google color id for the category. Nil on a row queued before color was stored.
+    public let colorId: String?
+
+    public init(calendarId: String, eventId: String, category: String, colorId: String? = nil) {
+        self.calendarId = calendarId
+        self.eventId = eventId
+        self.category = category
+        self.colorId = colorId
+    }
+}
+
 public enum OutboxPayload: Codable, Equatable {
     case insertEvent(InsertEventPayload)
-    // Future: updateEvent, deleteEvent
+    case patchEventCategory(PatchEventCategoryPayload)
 }
 
 public final actor OutboxProcessor {
@@ -172,6 +189,13 @@ public final actor OutboxProcessor {
                 guard let id = p.eventId else { throw GCalError.conflict }
                 _ = try await client.getEvent(calendarId: cal, eventId: id)
             }
+        case .patchEventCategory(let p):
+            _ = try await client.updateEvent(
+                calendarId: p.calendarId, eventId: p.eventId,
+                summary: nil, start: nil, end: nil,
+                location: nil, description: nil,
+                colorId: p.colorId,
+                extendedProperties: ["assistant_category": p.category])
         }
     }
 }

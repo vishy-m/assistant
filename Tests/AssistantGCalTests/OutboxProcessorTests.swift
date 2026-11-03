@@ -155,4 +155,43 @@ final class OutboxProcessorTests: XCTestCase {
         XCTAssertNil(ins.eventId)
         XCTAssertNil(ins.category)
     }
+
+    // MARK: - W9: category patch (A2-09 follow-up)
+
+    private func stagePatch(_ db: AssistantDB) throws {
+        let payload = OutboxPayload.patchEventCategory(PatchEventCategoryPayload(
+            calendarId: "asst_cal", eventId: "e1", category: "Exam", colorId: "4"))
+        let json = String(data: try JSONEncoder().encode(payload), encoding: .utf8)!
+        try GCalRepository(db: db).enqueue(PendingGCalOp(
+            id: "op-patch", opType: "patch_event_category", payloadJson: json,
+            attempts: 0, lastAttemptAt: nil, createdAt: Date()))
+    }
+
+    func testPatchCategorySendsAssistantCategory() async throws {
+        let http = MockHTTPClient()
+        http.enqueueJSON(GCalFixtures.createdEvent)
+        let db = try InMemoryDB.make()
+        try stagePatch(db)
+        try await processor(http, db).drainOnce()
+        XCTAssertEqual(http.sentRequests.first?.httpMethod, "PATCH")
+        XCTAssertEqual(http.sentRequests.first?.url?.path,
+                       "/calendar/v3/calendars/asst_cal/events/e1")
+        let body = http.sentRequests.first?.httpBody
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let priv = (body?["extendedProperties"] as? [String: Any])?["private"] as? [String: Any]
+        XCTAssertEqual(priv?["assistant_category"] as? String, "Exam")
+        XCTAssertEqual(try GCalRepository(db: db).pendingOps().count, 0)
+    }
+
+    func testPatchCategoryFailureIsRetriedNotDropped() async throws {
+        let http = MockHTTPClient()
+        http.enqueueJSON(#"{"error":{"code":500}}"#, status: 500)
+        let db = try InMemoryDB.make()
+        try stagePatch(db)
+        try await processor(http, db).drainOnce()
+        let remaining = try GCalRepository(db: db).pendingOps()
+        XCTAssertEqual(remaining.count, 1)
+        XCTAssertEqual(remaining.first?.attempts, 1)
+        XCTAssertEqual(remaining.first?.id, "op-patch")
+    }
 }

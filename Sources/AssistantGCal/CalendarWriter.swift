@@ -168,6 +168,43 @@ public final class CalendarWriter: Sendable {
         try repo.upsert(updated)
     }
 
+    /// Pushes a category onto an event the Assistant owns: PATCH
+    /// `extendedProperties.private.assistant_category` and the category color.
+    /// Returns false when the event is not on the Assistant calendar (the
+    /// caller keeps its local cache update and best-effort color patch).
+    /// Offline, or a failed PATCH, enqueues a patch op. Replaying that PATCH
+    /// is idempotent, and a transient failure stays queued for retry.
+    @discardableResult
+    public func updateCategory(eventId: String, category: String) async throws -> Bool {
+        let repo = GCalRepository(db: db)
+        guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
+        guard let assistantCal = try SettingRepository(db: db)
+            .get(AssistantCalendarBootstrap.settingKey),
+              cached.calendarId == assistantCal else {
+            return false
+        }
+        let resolved = try CategoryRepository(db: db).resolve(category)
+        let colorId = GoogleEventColor.nearestColorId(toHex: resolved.colorHex)
+        if isOnline() {
+            do {
+                _ = try await client.updateEvent(
+                    calendarId: cached.calendarId, eventId: eventId,
+                    summary: nil, start: nil, end: nil,
+                    location: nil, description: nil,
+                    colorId: colorId,
+                    extendedProperties: ["assistant_category": resolved.name])
+                return true
+            } catch {
+                try enqueueCategoryPatch(calendarId: cached.calendarId, eventId: eventId,
+                                         category: resolved.name, colorId: colorId, repo: repo)
+                return true
+            }
+        }
+        try enqueueCategoryPatch(calendarId: cached.calendarId, eventId: eventId,
+                                 category: resolved.name, colorId: colorId, repo: repo)
+        return true
+    }
+
     public func delete(eventId: String) async throws {
         let repo = GCalRepository(db: db)
         guard let cached = try repo.find(id: eventId) else { throw WriteError.notFound }
@@ -212,6 +249,18 @@ public final class CalendarWriter: Sendable {
         let json = String(data: try JSONEncoder().encode(payload), encoding: .utf8) ?? "{}"
         try repo.enqueue(PendingGCalOp(
             id: UUID().uuidString, opType: "insert_event",
+            payloadJson: json, attempts: 0, lastAttemptAt: nil, createdAt: Date()))
+    }
+
+    private func enqueueCategoryPatch(calendarId: String, eventId: String,
+                                      category: String, colorId: String,
+                                      repo: GCalRepository) throws {
+        let payload = OutboxPayload.patchEventCategory(PatchEventCategoryPayload(
+            calendarId: calendarId, eventId: eventId,
+            category: category, colorId: colorId))
+        let json = String(data: try JSONEncoder().encode(payload), encoding: .utf8) ?? "{}"
+        try repo.enqueue(PendingGCalOp(
+            id: UUID().uuidString, opType: "patch_event_category",
             payloadJson: json, attempts: 0, lastAttemptAt: nil, createdAt: Date()))
     }
 }

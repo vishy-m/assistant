@@ -191,6 +191,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func setGoogleRefreshToken(_ token: String, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsShortString(token) else {
+            NSLog("[AssistantService] setGoogleRefreshToken rejected payload bytes=\(token.utf8.count)")
+            reply(false); return
+        }
         guard !token.isEmpty else { clearGoogleRefreshToken(reply: reply); return }
         do {
             try GCalAuthStore().setRefreshToken(token)
@@ -242,6 +246,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func computeGrade(courseId: String, projectionJSON: Data?, reply: @escaping (Data) -> Void) {
+        if let pjData = projectionJSON, !XPCPayloadLimit.allowsJSON(pjData) {
+            NSLog("[AssistantService] computeGrade rejected payload bytes=\(pjData.count)")
+            reply(Data()); return
+        }
         do {
             let projection: [String: Double]
             if let pjData = projectionJSON,
@@ -315,6 +323,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func upsertCategory(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsJSON(data) else {
+            NSLog("[AssistantService] upsertCategory rejected payload bytes=\(data.count)")
+            reply(false); return
+        }
         do {
             let cat = try JSONDecoder().decode(GradeCategory.self, from: data)
             let repo = GradeRepository(db: db)
@@ -332,6 +344,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func upsertItem(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsJSON(data) else {
+            NSLog("[AssistantService] upsertItem rejected payload bytes=\(data.count)")
+            reply(false); return
+        }
         do {
             let item = try JSONDecoder().decode(GradeItem.self, from: data)
             let repo = GradeRepository(db: db)
@@ -397,6 +413,12 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func setProviderAPIKey(provider: String, key: String, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsShortString(provider),
+              XPCPayloadLimit.allowsShortString(key) else {
+            let bytes = max(provider.utf8.count, key.utf8.count)
+            NSLog("[AssistantService] setProviderAPIKey rejected payload bytes=\(bytes)")
+            reply(false); return
+        }
         do {
             guard let secret = Self.secretKey(forProvider: provider) else { reply(false); return }
             if key.isEmpty {
@@ -435,6 +457,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func setSettings(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsJSON(data) else {
+            NSLog("[AssistantService] setSettings rejected payload bytes=\(data.count)")
+            reply(false); return
+        }
         do {
             let s = try JSONDecoder().decode(AppSettings.self, from: data)
             try SettingRepository(db: db).setCodable("app_settings", value: s)
@@ -463,6 +489,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func setGoogleClientSecret(_ secret: String, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsShortString(secret) else {
+            NSLog("[AssistantService] setGoogleClientSecret rejected payload bytes=\(secret.utf8.count)")
+            reply(false); return
+        }
         do {
             if secret.isEmpty {
                 try SecretStore().delete(.googleOAuthClientSecret)
@@ -602,6 +632,12 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func createCalendarEvent(_ data: Data, reply: @escaping (Data) -> Void) {
+        guard XPCPayloadLimit.allowsJSON(data) else {
+            NSLog("[AssistantService] createCalendarEvent rejected payload bytes=\(data.count)")
+            reply((try? JSONEncoder().encode(CalendarWriteResult(
+                event: nil, errorMessage: "bad request"))) ?? Data())
+            return
+        }
         guard let writer = calendarWriter,
               let req = try? JSONDecoder().decode(CreateEventRequest.self, from: data) else {
             reply((try? JSONEncoder().encode(CalendarWriteResult(
@@ -634,6 +670,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func updateCalendarEvent(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsJSON(data) else {
+            NSLog("[AssistantService] updateCalendarEvent rejected payload bytes=\(data.count)")
+            reply(false); return
+        }
         guard let writer = calendarWriter,
               let req = try? JSONDecoder().decode(UpdateEventRequest.self, from: data) else {
             reply(false); return
@@ -689,6 +729,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func upsertEventType(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsJSON(data) else {
+            NSLog("[AssistantService] upsertEventType rejected payload bytes=\(data.count)")
+            reply(false); return
+        }
         guard let dto = try? JSONDecoder().decode(EventTypeDTO.self, from: data) else {
             reply(false); return
         }
@@ -904,6 +948,18 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
 
     func saveCategory(originalName: String?, name: String, colorHex: String,
                       reply: @escaping (Bool) -> Void) {
+        if let originalName, !XPCPayloadLimit.allowsShortString(originalName) {
+            NSLog("[AssistantService] saveCategory rejected payload bytes=\(originalName.utf8.count)")
+            reply(false); return
+        }
+        guard XPCPayloadLimit.allowsShortString(name) else {
+            NSLog("[AssistantService] saveCategory rejected payload bytes=\(name.utf8.count)")
+            reply(false); return
+        }
+        guard XPCPayloadLimit.allowsShortString(colorHex) else {
+            NSLog("[AssistantService] saveCategory rejected payload bytes=\(colorHex.utf8.count)")
+            reply(false); return
+        }
         let repo = CategoryRepository(db: db)
         do {
             if let originalName {
@@ -926,6 +982,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func removeCategory(name: String, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsShortString(name) else {
+            NSLog("[AssistantService] removeCategory rejected payload bytes=\(name.utf8.count)")
+            reply(false); return
+        }
         do {
             try CategoryRepository(db: db).delete(name: name)
             reply(true)
@@ -937,6 +997,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
 
     func setEventCategory(eventId: String, category: String,
                           reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsShortString(category) else {
+            NSLog("[AssistantService] setEventCategory rejected payload bytes=\(category.utf8.count)")
+            reply(false); return
+        }
         let gcalRepo = GCalRepository(db: db)
         let catRepo = CategoryRepository(db: db)
         do {
@@ -945,11 +1009,31 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
             cached.category = resolved.name
             try gcalRepo.upsert(cached)
             reply(true)
-            if let client = gcalClient {
-                let colorId = GoogleEventColor.nearestColorId(toHex: resolved.colorHex)
+            let colorId = GoogleEventColor.nearestColorId(toHex: resolved.colorHex)
+            let calendarId = cached.calendarId
+            if let writer = calendarWriter {
+                _Concurrency.Task {
+                    do {
+                        // Owned events go through the outbox so a failed or
+                        // offline PATCH is retried. Other calendars keep the
+                        // best-effort color patch and are not written to Google
+                        // as assistant_category.
+                        let pushed = try await writer.updateCategory(
+                            eventId: eventId, category: resolved.name)
+                        if !pushed, let client = self.gcalClient {
+                            _ = try? await client.updateEvent(
+                                calendarId: calendarId, eventId: eventId,
+                                summary: nil, start: nil, end: nil,
+                                location: nil, description: nil, colorId: colorId)
+                        }
+                    } catch {
+                        NSLog("[AssistantService] setEventCategory push error: \(error)")
+                    }
+                }
+            } else if let client = gcalClient {
                 _Concurrency.Task {
                     _ = try? await client.updateEvent(
-                        calendarId: cached.calendarId, eventId: eventId,
+                        calendarId: calendarId, eventId: eventId,
                         summary: nil, start: nil, end: nil,
                         location: nil, description: nil, colorId: colorId)
                 }
@@ -1025,6 +1109,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func createTask(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsJSON(data) else {
+            NSLog("[AssistantService] createTask rejected payload bytes=\(data.count)")
+            reply(false); return
+        }
         do {
             let task = try JSONDecoder().decode(AssistantStore.Task.self, from: data)
             try taskRepo.insert(task)
@@ -1036,6 +1124,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func updateTask(_ data: Data, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsJSON(data) else {
+            NSLog("[AssistantService] updateTask rejected payload bytes=\(data.count)")
+            reply(false); return
+        }
         do {
             let task = try JSONDecoder().decode(AssistantStore.Task.self, from: data)
             try taskRepo.update(task)
@@ -1081,6 +1173,10 @@ final class AssistantService: NSObject, AssistantServiceProtocol {
     }
 
     func setTasksNote(_ note: String, reply: @escaping (Bool) -> Void) {
+        guard XPCPayloadLimit.allowsTasksNote(note) else {
+            NSLog("[AssistantService] setTasksNote rejected payload bytes=\(note.utf8.count)")
+            reply(false); return
+        }
         do {
             try SettingRepository(db: db).set("tasks_scratchpad", value: note)
             reply(true)
