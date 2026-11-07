@@ -62,4 +62,20 @@ final class PromptAdmissionTests: XCTestCase {
         // Counted in UTF-8 bytes, not characters.
         XCTAssertFalse(XPCPayloadLimit.allowsShortString(String(repeating: "é", count: 4 * 1024 + 1)))
     }
+
+    func testTasksNoteCapCountsUTF8Bytes() {
+        let limit = XPCPayloadLimit.maxTasksNoteBytes
+        XCTAssertEqual(limit, 64 * 1024)
+        XCTAssertTrue(XPCPayloadLimit.allowsTasksNote(String(repeating: "a", count: limit)))
+        XCTAssertFalse(XPCPayloadLimit.allowsTasksNote(String(repeating: "a", count: limit + 1)))
+        // "é" is 2 UTF-8 bytes. Exactly at the limit is allowed.
+        let exact = String(repeating: "é", count: limit / 2)
+        XCTAssertEqual(exact.utf8.count, limit)
+        XCTAssertTrue(XPCPayloadLimit.allowsTasksNote(exact))
+        // Character count is under the cap; byte count is two over.
+        let over = String(repeating: "é", count: limit / 2 + 1)
+        XCTAssertLessThan(over.count, limit)
+        XCTAssertEqual(over.utf8.count, limit + 2)
+        XCTAssertFalse(XPCPayloadLimit.allowsTasksNote(over))
+    }
 }
