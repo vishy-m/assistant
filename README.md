@@ -166,10 +166,7 @@ A focused to-do window with a **done-of-total ring**, priority dots, due dates, 
 
 ### 8. Dark mode
 
-Every window follows the system appearance.
-
-<img src="assets/screenshots/dashboard-dark.png" alt="Dashboard in dark mode" width="100%"/>
-<img src="assets/screenshots/class-board-dark.png" alt="Class board in dark mode" width="100%"/>
+Every window follows the system appearance, light or dark. All screenshots in this README are in dark mode.
 
 ---
 
@@ -432,4 +429,4 @@ These branches are pushed to GitHub and not yet merged into `main`:
 
 ## About the screenshots
 
-The screenshots above are of the **real app views**, rendered from a throwaway build: the actual `AssistantService` runs in-process against a seeded **demo database**, so the courses, grades, events, and people are all made up. Two parts are stand-ins. Live PDF/QuickLook pin previews and the overlay's vibrancy material can't be captured offscreen, so the renders show a static image of the same file and a solid background in their place.
+The screenshots above are of the **real app views**, rendered from a throwaway build: the actual `AssistantService` runs in-process against a seeded **demo database**, so the courses, grades, events, and people are all made up. They are rendered in dark mode. Two parts are stand-ins. Live PDF/QuickLook pin previews and the overlay's vibrancy material can't be captured offscreen, so the renders show a static image of the same file and a solid background in their place.
